@@ -1,27 +1,47 @@
-from numpy import take
+import numpy as np
 import rospy
-import geometry_msgs.msg
 import mav_msgs.msg
+import geometry_msgs.msg 
+from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Transform
+import std_msgs
+import time
+import nav_msgs.msg
+from geometry_msgs.msg import Vector3
+from trajectory_msgs.msg import MultiDOFJointTrajectory
+from trajectory_msgs.msg import MultiDOFJointTrajectoryPoint
+class TBController:
+    def __init__(self):
+        rospy.init_node('ASRO', anonymous=True)
+        self.trajectory_pub= rospy.Publisher('/crazyflie2/command/trajectory', MultiDOFJointTrajectory, queue_size=10)
+        self.traj = MultiDOFJointTrajectory()
+        self.traj.header.frame_id =''
+        self.traj.header.stamp = rospy.Time.now()
+        self.traj.joint_names = ["base_link"]
+        transforms = Transform()
+        print(transforms)
+        velocities =Twist()
+        print(velocities)
+        accelerations=Twist()
+        print(accelerations)
+        point = MultiDOFJointTrajectoryPoint([transforms],[velocities],[accelerations],rospy.Duration(0.1))
+        self.traj.points.append(point)
+        self.trajectory_pub.publish(self.traj)
+        self.r = rospy.Rate(100)
+    def callback(self,data):    
+        print(data)
+    def start(self):
+        while not rospy.is_shutdown():
+            # Controller code goes between these comments
+            # Differential drive robot with forward speed and angular rate
+            # END Controller code
+            self.trajectory_pub.publish(self.traj)
+            self.r.sleep()
 
-lastPose = geometry_msgs.msg.Pose()
 
-def takeoff():
-    print("Taking off...")
-    pub = rospy.Publisher('chatter', mav_msgs.msg, 10)   
 
-def callback(data):
-    global lastPose
-    lastPose = data
-    
-def listener():
-    rospy.init_node('ASRO_Source', anonymous=True)
-    rospy.Subscriber("/crazyflie2_1/pose", geometry_msgs.msg.Pose, callback)
 
 if __name__ == '__main__':
-    listener()
-
-    while not rospy.is_shutdown():
-        temp = input()
+    vel=TBController()
+    vel.start()
         
-        if temp == "takeoff":
-            takeoff()
