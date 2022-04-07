@@ -39,9 +39,17 @@ class MissionInfo:
         otherAgents: list,
         formationShape: FormationShape,
         minimumSafeDistance: float,
-        targetPoint: numpy.ndarray,
+        targetPoint: numpy.array,
         rotateAngle: float,
         angularVelocity: float,
         maxVelocity: float) -> None:
+        pass
+
 
 MODE = Mode.PLOTTING
+
+ALPHA = 16.0
+BETA = 0.000001
+
+FORMATION_CONTROL_CONSTANT = 1.0
+TRAJECTORY_CONTROL_CONSTANT = 1.0

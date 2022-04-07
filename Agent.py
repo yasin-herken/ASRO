@@ -4,13 +4,17 @@ import datetime
 from Constants import State
 from Constants import Mission
 from Constants import MissionInfo
+from AgentController import AgentController
 
 class Agent:
     __id: int
     __name: str
+    __controller: AgentController
     __position: numpy.ndarray
     __velocity: numpy.ndarray
     __acceleration: numpy.ndarray
+    __heading: numpy.ndarray
+    __rotation: numpy.ndarray
     __state: State
     __mission: Mission
     __missionInfo: MissionInfo
@@ -18,12 +22,15 @@ class Agent:
     def __init__(self, id) -> None:
         self.__id = id
         self.__name = f"Agent_{id}"
+        self.__controller = AgentController(id)
         self.__position = numpy.array([0.0, 0.0, 0.0])
-        self.__velocity = numpy.array([0.0, 0.0, 0.1])
+        self.__velocity = numpy.array([0.0, 0.0, 0.0])
         self.__acceleration = numpy.array([0.0, 0.0, 0.0])
+        self.__heading = numpy.array([0.0, 1.0, 0.0])
+        self.__rotation = numpy.array([0.0, 0.0, 0.0])
         self.__state = State.STATIONARY
         self.__mission = Mission.NONE
-        self.__missionInfo = MissionInfo()
+        self.__missionInfo = None
 
     def __str__(self) -> str:
         agentStr = f"[{datetime.datetime.now()}] Name: {self.__name}, Pos: {self.__position}, Vel: {self.__velocity}, Acc: {self.__acceleration}, {self.__state}"
@@ -35,29 +42,32 @@ class Agent:
         self.__missionInfo = missionInfo
 
     def tick(self, deltaTime):
-        # previous and current velocity
-        deltaV = self.__acceleration * deltaTime
-        v1 = self.__velocity
-        v2 = v1 + deltaV
-
-        self.__velocity = v2
-
-        # previous and current position
-        deltaX = (deltaTime / 2) * (v1 + v2)
-        x1 = self.__position
-        x2 = x1 + deltaX
-
-        self.__position = x2
+        # update agent properties
+        self.__position = self.__controller.getPosition()
+        self.__velocity = self.__controller.getVelocity()
+        self.__acceleration = self.__controller.getAcceleration()
+        self.__heading = self.__controller.getHeading()
+        self.__rotation = self.__controller.getRotation()
 
         # check mission
-        if self.__mission == Mission.
+        if self.__mission == Mission.NONE:
+            pass
+        elif self.__mission == Mission.FORMING:
+            pass
+        elif self.__mission == Mission.ROTATING:
+            pass
+        elif self.__mission == Mission.MOVING:
+            pass
 
-    def calculateFormation(self):
+        # request desired values
+        self.__controller.reqVelocity(numpy.array([0.0, 0.0, 0.1]))
+
+    def __calculateFormation(self):
         pass
 
-    def calculateAvoidance(self):
+    def __calculateAvoidance(self):
         pass
 
-    def calculateTarget(self):
+    def __calculateTarget(self):
         pass
     

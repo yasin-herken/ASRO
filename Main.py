@@ -25,6 +25,6 @@ if __name__ == "__main__":
         for agent in agents:
             agent.tick(deltaTime)
 
-        print(agents[i])
+        print(agents[0])
 
         lastTime = time.perf_counter()
