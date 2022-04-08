@@ -9,6 +9,7 @@ from datetime import datetime
 
 from Constants import MODE
 from Constants import Mode
+
 class AgentController:
     __id: int
     __name: str
