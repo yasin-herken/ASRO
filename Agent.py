@@ -22,7 +22,7 @@ class Agent:
     def __init__(self, id) -> None:
         self.__id = id
         self.__name = f"Agent_{id}"
-        self.__controller = AgentController(id)
+        self.__controller = AgentController( self.__id, self.__name)
         self.__position = numpy.array([0.0, 0.0, 0.0])
         self.__velocity = numpy.array([0.0, 0.0, 0.0])
         self.__acceleration = numpy.array([0.0, 0.0, 0.0])

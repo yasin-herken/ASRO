@@ -16,15 +16,19 @@ if __name__ == "__main__":
     for i in range(AGENT_COUNT):
         agents.append(Agent(i))
 
-    while RUNNING:
-        currTime = time.perf_counter()
-        deltaTime = currTime - lastTime
-        if deltaTime < 1.0 / TICK_RATE:
-            continue
+    try:
+        while RUNNING:
+            currTime = time.perf_counter()
+            deltaTime = currTime - lastTime
+            if deltaTime < 1.0 / TICK_RATE:
+                continue
 
-        for agent in agents:
-            agent.tick(deltaTime)
+            for agent in agents:
+                agent.tick(deltaTime)
 
-        print(agents[0])
-
-        lastTime = time.perf_counter()
+            lastTime = time.perf_counter()
+    except KeyboardInterrupt:
+        print("Good bye!")
+    except Exception as e:
+        print(e)
+        exit(-1)

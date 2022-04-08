@@ -46,7 +46,7 @@ class MissionInfo:
         pass
 
 
-MODE = Mode.PLOTTING
+MODE = Mode.SIMULATION
 
 ALPHA = 16.0
 BETA = 0.000001

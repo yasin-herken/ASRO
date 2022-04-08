@@ -1,0 +1,13 @@
+{
+  "SeeDocsAt": "https://github.com/Microsoft/AirSim/blob/master/docs/settings.md",
+  "SettingsVersion": 1.2,
+
+  "SimMode": "Multirotor",
+
+  "Vehicles": {
+      "Agent_0": {
+        "VehicleType": "SimpleFlight",
+        "X": 0.0, "Y": 0.0, "Z": 1.5, "Yaw": 0.0
+      }
+  }
+}
