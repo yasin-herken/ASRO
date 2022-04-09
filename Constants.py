@@ -12,14 +12,16 @@ class State(enum.Enum):
     TAKING_OFF = 2
     HOVERING = 3
     FORMING = 4
-    LANDING = 5
-    ON_MISSION = 6
+    ROTATING = 5
+    LANDING = 6
+    ON_MOVE = 7
 
 class Mission(enum.Enum):
     NONE = 0
-    FORMING = 1
-    MOVING = 2
-    ROTATING = 3
+    TAKE_OFF = 1
+    TAKE_FORMATION = 2
+    ROTATE = 3
+    MOVE = 4
 
 class FormationShape(enum.Enum):
     POINT = 0
@@ -35,6 +37,9 @@ class MissionInfo:
     targetPoint: numpy.ndarray
     rotateAngle: float
     angularVelocity: float
+    oneRotateStepAngle: float
+    currentRotateStep: int
+    targetRotateStep: int
     maxVelocity: float
 
     def __init__(self,
@@ -45,6 +50,9 @@ class MissionInfo:
         targetPoint: numpy.ndarray,
         rotateAngle: float,
         angularVelocity: float,
+        oneRotateStepAngle: float,
+        currentRotateStep: int,
+        targetRotateStep: int,
         maxVelocity: float) -> None:
 
         self.otherAgents = otherAgents
@@ -54,6 +62,9 @@ class MissionInfo:
         self.targetPoint = targetPoint
         self.rotateAngle = rotateAngle
         self.angularVelocity = angularVelocity
+        self.oneRotateStepAngle = oneRotateStepAngle
+        self.currentRotateStep = currentRotateStep
+        self.targetRotateStep = targetRotateStep
         self.maxVelocity = maxVelocity
 
 MODE = Mode.SIMULATION

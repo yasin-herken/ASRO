@@ -75,7 +75,7 @@ class Agent:
         # check mission
         if self.__mission == Mission.NONE:
             pass
-        elif self.__mission == Mission.FORMING:
+        elif self.__mission == Mission.TAKE_OFF:
             # Turn on the engine
             if self.__state == State.STATIONARY:
                 self.__state = State.IDLING
@@ -86,14 +86,18 @@ class Agent:
                     self.__state = State.TAKING_OFF
             # Make sure take off is completed
             elif self.__state == State.TAKING_OFF:
-                if getMagnitude(self.__velocity) <= 0.05:
+                # print(f"{self.__name} {getMagnitude(self.__velocity)}")
+                if getMagnitude(self.__velocity) <= 0.025:
                     self.__validityCount += 1
                     if 60 <= self.__validityCount:
                         self.__state = State.HOVERING
                         self.__validityCount = 0
+
+        elif self.__mission == Mission.TAKE_FORMATION:
             # Start forming
-            elif self.__state == State.HOVERING:
+            if self.__state == State.HOVERING:
                 self.__state = State.FORMING
+
             # Apply forming algorithms and make sure forming is done
             elif self.__state == State.FORMING:
                 finalControl = numpy.array([0.0, 0.0, 0.0])
@@ -108,32 +112,15 @@ class Agent:
                 if getMagnitude(self.__velocity) <= 0.20:
                     self.__validityCount += 1
                     if 60 <= self.__validityCount:
-                        self.__state = State.ON_MISSION
-                        self.__validityCount = 0
-
-        elif self.__mission == Mission.MOVING:
-            if self.__state == State.ON_MISSION:
-                finalControl = numpy.array([0.0, 0.0, 0.0])
-
-                formationControl = FORMATION_CONTROL_CONSTANT * self.__calculateFormation()
-                avoidanceControl = self.__calculateAvoidance()
-                trajectoryControl = TRAJECTORY_CONTROL_CONSTANT * self.__calculateTrajectory()
-                
-                finalControl = formationControl + avoidanceControl + trajectoryControl
-
-                self.__controller.reqVelocity(finalControl)
-
-                if getMagnitude(self.__velocity) <= 0.20:
-                    self.__validityCount += 1
-                    if 60 <= self.__validityCount:
                         self.__state = State.HOVERING
                         self.__validityCount = 0
-                        self.__state = Mission.NONE
 
-        elif self.__mission == Mission.ROTATING:
+        elif self.__mission == Mission.ROTATE:
+            pass
+
+        elif self.__mission == Mission.MOVE:
             pass
         
- 
     def __calculateFormation(self):
         retValue = numpy.array([0.0, 0.0, 0.0])
 
