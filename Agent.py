@@ -169,7 +169,7 @@ class Agent:
                 if getMagnitude(self.__velocity) <= 0.25:
                     self.__validityCount += 1
                     if 60 <= self.__validityCount:
-                        self.__state = State.HOVERING
+                        self.__state = State.DONE_LANDING
                         self.__validityCount = 0
                         print(f"[{datetime.now()}] [{self.__name}] Done landing off")
         
