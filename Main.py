@@ -72,6 +72,7 @@ if __name__ == "__main__":
                     break
 
             # Calculate swarm position (mid point)
+            SWARM_POSITION = numpy.array([0.0, 0.0, 0.0])
             for agent in agents:
                 SWARM_POSITION += agent.getPosition()
             SWARM_POSITION /= len(agents)
@@ -80,6 +81,10 @@ if __name__ == "__main__":
             frontAgent = agents[0]
             distanceToFrontAgentFromSwarmPos = frontAgent.getPosition() - SWARM_POSITION
             SWARM_HEADING = distanceToFrontAgentFromSwarmPos / numpy.linalg.norm(distanceToFrontAgentFromSwarmPos)
+
+            x = round(SWARM_POSITION[0], 2)
+            y = round(SWARM_POSITION[1], 2)
+            z = round(SWARM_POSITION[2], 2)
 
             # print(f"Swarm Position: {SWARM_POSITION}, Swarm Heading: {SWARM_HEADING}")
 
@@ -139,7 +144,7 @@ if __name__ == "__main__":
                         minimumSafeDistance = 2.5,
                         otherAgents = agents,
                         rotateAngle = rotateAngle,
-                        angularVelocity = 25.0,
+                        angularVelocity = 45.0,
                         targetPoint = numpy.array([0.0, 0.0, 0.0])
                     )
                     for agent in agents:
@@ -157,7 +162,7 @@ if __name__ == "__main__":
                         rotateAngle = 0.0,
                         angularVelocity = 0.0,
                         targetPoint = numpy.array(
-                            [SWARM_POSITION[0] + 10.0, SWARM_POSITION[1], -3.0]
+                            [SWARM_POSITION[0] + 10.0, SWARM_POSITION[1], -2.5]
                         )
                     )
                     for agent in agents:
@@ -169,7 +174,7 @@ if __name__ == "__main__":
                 # If they are hovering and ready to rotate then start rotating_1
                 elif swarmMission == Mission.MOVE and swarmState == State.DONE_MOVING and TARGET_POS_COUNT == 1:
                     # Head south
-                    targetHeading = numpy.array([0.0, -1.0, 0.0])
+                    targetHeading = numpy.array([1.0, 0.0, 0.0])
 
                     oneWay = angleBetween(targetHeading, SWARM_HEADING)
                     otherWay = angleBetween(SWARM_HEADING, targetHeading)
@@ -201,7 +206,7 @@ if __name__ == "__main__":
                         rotateAngle = 0.0,
                         angularVelocity = 0.0,
                         targetPoint = numpy.array(
-                            [SWARM_POSITION[0], SWARM_POSITION[1] + 10.0, -3.0]
+                            [SWARM_POSITION[0], SWARM_POSITION[1] + 10.0, -2.5]
                         )
                     )
                     for agent in agents:
@@ -213,7 +218,7 @@ if __name__ == "__main__":
                 # If they are hovering and ready to rotate then start rotating_2
                 elif swarmMission == Mission.MOVE and swarmState == State.DONE_MOVING and TARGET_POS_COUNT == 2:
                     # Head south
-                    targetHeading = numpy.array([0.0, 1.0, 0.0])
+                    targetHeading = numpy.array([0.0, -1.0, 0.0])
 
                     oneWay = angleBetween(targetHeading, SWARM_HEADING)
                     otherWay = angleBetween(SWARM_HEADING, targetHeading)
@@ -227,7 +232,7 @@ if __name__ == "__main__":
                         minimumSafeDistance = 2.5,
                         otherAgents = agents,
                         rotateAngle = rotateAngle,
-                        angularVelocity = 25.0,
+                        angularVelocity = 45.0,
                         targetPoint = numpy.array([0.0, 0.0, 0.0])
                     )
                     for agent in agents:
@@ -245,7 +250,7 @@ if __name__ == "__main__":
                         rotateAngle = 0.0,
                         angularVelocity = 0.0,
                         targetPoint = numpy.array(
-                            [SWARM_POSITION[0] - 30.0, SWARM_POSITION[1], -3.0]
+                            [SWARM_POSITION[0] - 30.0, SWARM_POSITION[1], -2.5]
                         )
                     )
                     for agent in agents:

@@ -113,7 +113,7 @@ class Agent:
 
             self.__controller.reqVelocity(finalControl)
 
-            if getMagnitude(self.__velocity) <= 0.2:
+            if getMagnitude(self.__velocity) <= 0.15:
                 self.__validityCount += 1
                 if 60 <= self.__validityCount:
                     self.__state = State.DONE_FORMING
@@ -166,7 +166,7 @@ class Agent:
                 retValue = self.__controller.reqLand()
                 self.__state = State.LANDING
             else:
-                if getMagnitude(self.__velocity) <= 0.25:
+                if getMagnitude(self.__velocity) <= 0.01:
                     self.__validityCount += 1
                     if 60 <= self.__validityCount:
                         self.__state = State.DONE_LANDING
