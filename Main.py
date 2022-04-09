@@ -1,5 +1,4 @@
 import time
-from cv2 import rotate
 import numpy
 
 from datetime import datetime
@@ -10,7 +9,7 @@ from Constants import State
 from Constants import Mission
 from Constants import MissionInfo
 from Constants import FormationShape
-
+from Constants import angleBetween
 from Constants import FORMATION_TRIANGLE
 
 AGENT_COUNT = 3
@@ -18,8 +17,10 @@ AGENT_COUNT = 3
 SWARM_POSITION = numpy.array([0.0, 0.0, 0.0])
 SWARM_HEADING = numpy.array([0.0, 0.0, 0.0])
 
+TARGET_POS_COUNT = 0
+
 RUNNING = True
-TICK_RATE = 60 # Hz
+TICK_RATE = 100 # Hz
 
 if __name__ == "__main__":
     agents = []
@@ -80,9 +81,14 @@ if __name__ == "__main__":
             distanceToFrontAgentFromSwarmPos = frontAgent.getPosition() - SWARM_POSITION
             SWARM_HEADING = distanceToFrontAgentFromSwarmPos / numpy.linalg.norm(distanceToFrontAgentFromSwarmPos)
 
+            # print(f"Swarm Position: {SWARM_POSITION}, Swarm Heading: {SWARM_HEADING}")
+
+            # print(SWARM_HEADING)
+
             # TODO: This is not a good method. Please create a better swarming and mission control!!!
             # Mission Control
             # print(f"swarmMission: {swarmMission}, swarmState: {swarmState}")
+            
             if isSwarmStateValid and isSwarmMissionValid:
                 # If they are just started then start taking them off the ground
                 if swarmMission == Mission.NONE and swarmState == State.STATIONARY:
@@ -94,10 +100,7 @@ if __name__ == "__main__":
                         otherAgents = None,
                         rotateAngle = 0.0,
                         angularVelocity = 0.0,
-                        oneRotateStepAngle = 0.0,
-                        currentRotateStep = 0,
-                        targetRotateStep = 0,
-                        targetPoint = numpy.array([0.0, 0.0, 0.0]),
+                        targetPoint = numpy.array([0.0, 0.0, 0.0])
                     )
                     for agent in agents:
                         agent.updateMission(Mission.TAKE_OFF, missionInfo)
@@ -113,23 +116,21 @@ if __name__ == "__main__":
                         otherAgents = agents,
                         rotateAngle = 0.0,
                         angularVelocity = 0.0,
-                        oneRotateStepAngle = 0.0,
-                        currentRotateStep = 0,
-                        targetRotateStep = 0,
-                        targetPoint = numpy.array([0.0, 0.0, 0.0]),
+                        targetPoint = numpy.array([0.0, 0.0, 0.0])
                     )
                     for agent in agents:
                         agent.updateMission(Mission.TAKE_FORMATION, missionInfo)
                     print(f"[{datetime.now()}] [Main] Mission TAKE_FORMATION started")
 
-                # If they are hovering and ready to rotate then start rotating 
-                elif swarmMission == Mission.TAKE_FORMATION and swarmState == State.HOVERING:
-                    # Calculate smooth rotation parameters
-                    rotateAngle = 90.0 # degrees
-                    angularVelocity = 15.0 # degrees per second
-                    targetRotateStep = (rotateAngle / angularVelocity) * TICK_RATE
-                    oneRotateStep = rotateAngle / targetRotateStep
-                    currentRotateStep = 0
+                # If they are hovering and ready to rotate then start rotating_0
+                elif swarmMission == Mission.TAKE_FORMATION and swarmState == State.DONE_FORMING:
+                    # Head north
+                    targetHeading = numpy.array([0.0, 1.0, 0.0])
+
+                    oneWay = angleBetween(targetHeading, SWARM_HEADING)
+                    otherWay = angleBetween(SWARM_HEADING, targetHeading)
+
+                    rotateAngle = min(oneWay, otherWay)
 
                     missionInfo = MissionInfo(
                         formationShape = FormationShape.TRIANGLE,
@@ -138,18 +139,15 @@ if __name__ == "__main__":
                         minimumSafeDistance = 2.5,
                         otherAgents = agents,
                         rotateAngle = rotateAngle,
-                        angularVelocity = angularVelocity,
-                        oneRotateStepAngle = oneRotateStep,
-                        currentRotateStep = currentRotateStep,
-                        targetRotateStep = targetRotateStep,
-                        targetPoint = 0.0,
+                        angularVelocity = 25.0,
+                        targetPoint = numpy.array([0.0, 0.0, 0.0])
                     )
                     for agent in agents:
                         agent.updateMission(Mission.ROTATE, missionInfo)
-                    print(f"[{datetime.now()}] [Main] Mission ROTATE started")
+                    print(f"[{datetime.now()}] [Main] Mission ROTATE started 0")
 
-                # If they are hovering and ready to move then start moving to target(s)
-                elif swarmMission == Mission.ROTATE and swarmState == State.HOVERING:
+                # If they are hovering and ready to move then start moving to target_0
+                elif swarmMission == Mission.ROTATE and swarmState == State.DONE_ROTATING and TARGET_POS_COUNT == 0:
                     missionInfo = MissionInfo(
                         formationShape = FormationShape.TRIANGLE,
                         formationMatrix = FORMATION_TRIANGLE,
@@ -158,17 +156,124 @@ if __name__ == "__main__":
                         otherAgents = agents,
                         rotateAngle = 0.0,
                         angularVelocity = 0.0,
-                        oneRotateStepAngle = 0.0,
-                        currentRotateStep = 0,
-                        targetRotateStep = 0,
-                        targetPoint = numpy.array([30.0, 30.0, -3.0]),
+                        targetPoint = numpy.array(
+                            [SWARM_POSITION[0] + 10.0, SWARM_POSITION[1], -3.0]
+                        )
                     )
                     for agent in agents:
                         agent.updateMission(Mission.MOVE, missionInfo)
-                    print(f"[{datetime.now()}] [Main] Mission MOVE started")
+                    print(f"[{datetime.now()}] [Main] Mission MOVE started 0")
+
+                    TARGET_POS_COUNT += 1
+
+                # If they are hovering and ready to rotate then start rotating_1
+                elif swarmMission == Mission.MOVE and swarmState == State.DONE_MOVING and TARGET_POS_COUNT == 1:
+                    # Head south
+                    targetHeading = numpy.array([0.0, -1.0, 0.0])
+
+                    oneWay = angleBetween(targetHeading, SWARM_HEADING)
+                    otherWay = angleBetween(SWARM_HEADING, targetHeading)
+
+                    rotateAngle = min(oneWay, otherWay)
+
+                    missionInfo = MissionInfo(
+                        formationShape = FormationShape.TRIANGLE,
+                        formationMatrix = FORMATION_TRIANGLE,
+                        maxVelocity = 0.0,
+                        minimumSafeDistance = 2.5,
+                        otherAgents = agents,
+                        rotateAngle = rotateAngle,
+                        angularVelocity = 25.0,
+                        targetPoint = numpy.array([0.0, 0.0, 0.0])
+                    )
+                    for agent in agents:
+                        agent.updateMission(Mission.ROTATE, missionInfo)
+                    print(f"[{datetime.now()}] [Main] Mission ROTATE started 1")
+                
+                # If they are hovering and ready to move then start moving to target_1
+                elif swarmMission == Mission.ROTATE and swarmState == State.DONE_ROTATING and TARGET_POS_COUNT == 1:
+                    missionInfo = MissionInfo(
+                        formationShape = FormationShape.TRIANGLE,
+                        formationMatrix = FORMATION_TRIANGLE,
+                        maxVelocity = 3.0,
+                        minimumSafeDistance = 2.5,
+                        otherAgents = agents,
+                        rotateAngle = 0.0,
+                        angularVelocity = 0.0,
+                        targetPoint = numpy.array(
+                            [SWARM_POSITION[0], SWARM_POSITION[1] + 10.0, -3.0]
+                        )
+                    )
+                    for agent in agents:
+                        agent.updateMission(Mission.MOVE, missionInfo)
+                    print(f"[{datetime.now()}] [Main] Mission MOVE started 1")
+
+                    TARGET_POS_COUNT += 1
+                
+                # If they are hovering and ready to rotate then start rotating_2
+                elif swarmMission == Mission.MOVE and swarmState == State.DONE_MOVING and TARGET_POS_COUNT == 2:
+                    # Head south
+                    targetHeading = numpy.array([0.0, 1.0, 0.0])
+
+                    oneWay = angleBetween(targetHeading, SWARM_HEADING)
+                    otherWay = angleBetween(SWARM_HEADING, targetHeading)
+
+                    rotateAngle = min(oneWay, otherWay)
+
+                    missionInfo = MissionInfo(
+                        formationShape = FormationShape.TRIANGLE,
+                        formationMatrix = FORMATION_TRIANGLE,
+                        maxVelocity = 0.0,
+                        minimumSafeDistance = 2.5,
+                        otherAgents = agents,
+                        rotateAngle = rotateAngle,
+                        angularVelocity = 25.0,
+                        targetPoint = numpy.array([0.0, 0.0, 0.0])
+                    )
+                    for agent in agents:
+                        agent.updateMission(Mission.ROTATE, missionInfo)
+                    print(f"[{datetime.now()}] [Main] Mission ROTATE started 2")
+                
+                # If they are hovering and ready to move then start moving to target_2
+                elif swarmMission == Mission.ROTATE and swarmState == State.DONE_ROTATING and TARGET_POS_COUNT == 2:
+                    missionInfo = MissionInfo(
+                        formationShape = FormationShape.TRIANGLE,
+                        formationMatrix = FORMATION_TRIANGLE,
+                        maxVelocity = 3.0,
+                        minimumSafeDistance = 2.5,
+                        otherAgents = agents,
+                        rotateAngle = 0.0,
+                        angularVelocity = 0.0,
+                        targetPoint = numpy.array(
+                            [SWARM_POSITION[0] - 30.0, SWARM_POSITION[1], -3.0]
+                        )
+                    )
+                    for agent in agents:
+                        agent.updateMission(Mission.MOVE, missionInfo)
+                    print(f"[{datetime.now()}] [Main] Mission MOVE started 2")
+
+                    TARGET_POS_COUNT += 1
+                
+                # If they are hovering and ready to rotate then land
+                elif swarmMission == Mission.MOVE and swarmState == State.DONE_MOVING and TARGET_POS_COUNT == 3:
+                    missionInfo = MissionInfo(
+                        formationShape = None,
+                        formationMatrix = None,
+                        maxVelocity = 0.0,
+                        minimumSafeDistance = 0.0,
+                        otherAgents = MissionInfo,
+                        rotateAngle = 0.0,
+                        angularVelocity = 0.0,
+                        targetPoint = numpy.array([0.0, 0.0, 0.0])
+                    )
+                    for agent in agents:
+                        agent.updateMission(Mission.LAND, missionInfo)
+                    print(f"[{datetime.now()}] [Main] Mission ended. Now landing")
+                elif swarmMission == Mission.LAND and swarmState == State.DONE_LANDING:
+                    print("Simulation complete!")
+                    exit(0)
             else:
                 pass
-                # print("Not all agents are in the same state!")
 
             lastTime = time.perf_counter()
             
@@ -178,5 +283,5 @@ if __name__ == "__main__":
             agent.kill()
 
     except Exception as e:
-        print(e)
+        print(e.format_exc())
         exit(-1)

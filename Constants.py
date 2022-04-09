@@ -12,9 +12,14 @@ class State(enum.Enum):
     TAKING_OFF = 2
     HOVERING = 3
     FORMING = 4
-    ROTATING = 5
-    LANDING = 6
-    ON_MOVE = 7
+    DONE_FORMING = 5
+    ROTATING = 6
+    DONE_ROTATING = 7
+    LANDING = 8
+    DONE_LANDING = 9
+    MOVING = 10
+    DONE_MOVING = 11
+
 
 class Mission(enum.Enum):
     NONE = 0
@@ -22,6 +27,7 @@ class Mission(enum.Enum):
     TAKE_FORMATION = 2
     ROTATE = 3
     MOVE = 4
+    LAND = 5
 
 class FormationShape(enum.Enum):
     POINT = 0
@@ -37,9 +43,7 @@ class MissionInfo:
     targetPoint: numpy.ndarray
     rotateAngle: float
     angularVelocity: float
-    oneRotateStepAngle: float
-    currentRotateStep: int
-    targetRotateStep: int
+    targetHeading: numpy.ndarray
     maxVelocity: float
 
     def __init__(self,
@@ -50,10 +54,8 @@ class MissionInfo:
         targetPoint: numpy.ndarray,
         rotateAngle: float,
         angularVelocity: float,
-        oneRotateStepAngle: float,
-        currentRotateStep: int,
-        targetRotateStep: int,
-        maxVelocity: float) -> None:
+        maxVelocity: float,
+        targetHeading = None) -> None:
 
         self.otherAgents = otherAgents
         self.formationShape = formationShape
@@ -62,14 +64,12 @@ class MissionInfo:
         self.targetPoint = targetPoint
         self.rotateAngle = rotateAngle
         self.angularVelocity = angularVelocity
-        self.oneRotateStepAngle = oneRotateStepAngle
-        self.currentRotateStep = currentRotateStep
-        self.targetRotateStep = targetRotateStep
         self.maxVelocity = maxVelocity
+        self.targetHeading = targetHeading
 
 MODE = Mode.SIMULATION
 
-ALPHA = 4.0
+ALPHA = 2.0
 BETA = 0.0001
 
 FORMATION_CONTROL_CONSTANT = 0.5
@@ -111,3 +111,7 @@ def getRotationMatrix(degree) -> numpy.ndarray:
             [0.0, 0.0, 1.0]
         ]
     )
+
+def angleBetween(vec1, vec2) -> float:
+    inRadian = numpy.arccos(numpy.clip(numpy.dot(vec1, vec2), -1.0, 1.0))
+    return numpy.degrees(inRadian)

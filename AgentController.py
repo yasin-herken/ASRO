@@ -33,7 +33,7 @@ class AgentController:
             print(f"[{datetime.now()}] [AgentController] Connecting to AirSim")
             self.__clientSim = airsim.MultirotorClient()
             self.__clientSim.confirmConnection()
-            
+
             vehicleList = self.__clientSim.listVehicles()
             print(vehicleList)
             # Add new agent in the Airsim if not already exists

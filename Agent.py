@@ -1,6 +1,6 @@
-from re import T
 import numpy
-import datetime
+
+from datetime import datetime
 
 from Constants import State
 from Constants import Mission
@@ -9,6 +9,7 @@ from Constants import getMagnitude
 from Constants import setMagnitude
 from Constants import getDistance
 from Constants import getRotationMatrix
+from Constants import angleBetween
 from Constants import ALPHA, BETA
 from Constants import FORMATION_CONTROL_CONSTANT
 from Constants import TRAJECTORY_CONTROL_CONSTANT
@@ -72,9 +73,12 @@ class Agent:
         self.__heading = self.__controller.getHeading()
         self.__rotation = self.__controller.getRotation()
 
+        # print(f"{self.__name}, {self.__state}")
+
         # check mission
         if self.__mission == Mission.NONE:
             pass
+
         elif self.__mission == Mission.TAKE_OFF:
             # Turn on the engine
             if self.__state == State.STATIONARY:
@@ -87,41 +91,90 @@ class Agent:
             # Make sure take off is completed
             elif self.__state == State.TAKING_OFF:
                 # print(f"{self.__name} {getMagnitude(self.__velocity)}")
-                if getMagnitude(self.__velocity) <= 0.025:
+                if getMagnitude(self.__velocity) <= 0.05:
                     self.__validityCount += 1
                     if 60 <= self.__validityCount:
                         self.__state = State.HOVERING
                         self.__validityCount = 0
+                        print(f"[{datetime.now()}] [{self.__name}] Done taking off")
 
         elif self.__mission == Mission.TAKE_FORMATION:
             # Start forming
-            if self.__state == State.HOVERING:
+            if self.__state != State.DONE_FORMING:
                 self.__state = State.FORMING
 
             # Apply forming algorithms and make sure forming is done
-            elif self.__state == State.FORMING:
-                finalControl = numpy.array([0.0, 0.0, 0.0])
+            finalControl = numpy.array([0.0, 0.0, 0.0])
 
-                formationControl = FORMATION_CONTROL_CONSTANT * self.__calculateFormation()
-                avoidanceControl = self.__calculateAvoidance()
+            formationControl = FORMATION_CONTROL_CONSTANT * self.__calculateFormation()
+            avoidanceControl = self.__calculateAvoidance()
 
-                finalControl = formationControl + avoidanceControl
+            finalControl = formationControl + avoidanceControl
 
-                self.__controller.reqVelocity(finalControl)
+            self.__controller.reqVelocity(finalControl)
 
-                if getMagnitude(self.__velocity) <= 0.20:
+            if getMagnitude(self.__velocity) <= 0.2:
+                self.__validityCount += 1
+                if 60 <= self.__validityCount:
+                    self.__state = State.DONE_FORMING
+                    self.__validityCount = 0
+                    print(f"[{datetime.now()}] [{self.__name}] Done forming")
+
+        elif self.__mission == Mission.ROTATE:
+            if self.__state != State.DONE_ROTATING:
+                self.__state = State.ROTATING
+
+            finalControl = numpy.array([0.0, 0.0, 0.0])
+
+            formationControl = FORMATION_CONTROL_CONSTANT * self.__calculateFormation(deltaTime)
+            avoidanceControl = self.__calculateAvoidance()
+
+            finalControl = formationControl + avoidanceControl
+
+            self.__controller.reqVelocity(finalControl)
+
+            if self.__missionInfo.rotateAngle <= 0.0:
+                self.__validityCount += 1
+                if 60 <= self.__validityCount:
+                    self.__state = State.DONE_ROTATING
+                    self.__validityCount = 0
+                    print(f"[{datetime.now()}] [{self.__name}] Done rotating")
+
+        elif self.__mission == Mission.MOVE:
+            if self.__state != State.DONE_MOVING:
+                self.__state = State.MOVING
+
+            finalControl = numpy.array([0.0, 0.0, 0.0])
+
+            formationControl = FORMATION_CONTROL_CONSTANT * self.__calculateFormation(deltaTime)
+            avoidanceControl = self.__calculateAvoidance()
+            trajectoryControl = TRAJECTORY_CONTROL_CONSTANT * self.__calculateTrajectory()
+
+            finalControl = formationControl + avoidanceControl + trajectoryControl
+
+            self.__controller.reqVelocity(finalControl)
+
+            if getMagnitude(self.__velocity) <= 0.25:
+                self.__validityCount += 1
+                if 60 <= self.__validityCount:
+                    self.__state = State.DONE_MOVING
+                    self.__validityCount = 0
+                    print(f"[{datetime.now()}] [{self.__name}] Done moving")
+        
+        elif self.__mission == Mission.LAND:
+            if self.__state != State.DONE_LANDING and self.__state != State.LANDING:
+                retValue = self.__controller.reqLand()
+                self.__state = State.LANDING
+            else:
+                if getMagnitude(self.__velocity) <= 0.25:
                     self.__validityCount += 1
                     if 60 <= self.__validityCount:
                         self.__state = State.HOVERING
                         self.__validityCount = 0
-
-        elif self.__mission == Mission.ROTATE:
-            pass
-
-        elif self.__mission == Mission.MOVE:
-            pass
+                        print(f"[{datetime.now()}] [{self.__name}] Done landing off")
         
-    def __calculateFormation(self):
+
+    def __calculateFormation(self, deltaTime = None):
         retValue = numpy.array([0.0, 0.0, 0.0])
 
         for otherAgent in self.__missionInfo.otherAgents:
@@ -132,9 +185,47 @@ class Agent:
                     distanceToOtherAgent,
                     self.__missionInfo.formationMatrix[self.__id][otherAgent.getId()]
                 )
-                retValue += distanceToOtherAgent - distanceToDesiredPoint
-        return retValue
 
+                rotationMatrix = getRotationMatrix(0.0)
+                if self.__missionInfo.rotateAngle != 0.0:
+                    # Calculate swarm position (mid point)
+                    swarmPosition = numpy.array([0.0, 0.0, 0.0])
+                    for agent in self.__missionInfo.otherAgents:
+                        swarmPosition += agent.getPosition()
+                    swarmPosition /= len(self.__missionInfo.otherAgents)
+
+                    # Calculate swarm heading
+                    frontAgent = self.__missionInfo.otherAgents[0]
+                    distanceToFrontAgentFromSwarmPos = frontAgent.getPosition() - swarmPosition
+                    swarmHeading = distanceToFrontAgentFromSwarmPos / numpy.linalg.norm(distanceToFrontAgentFromSwarmPos)
+
+                    # Calculate target heading
+                    if self.__missionInfo.targetHeading is None:
+                        self.__missionInfo.targetHeading = numpy.dot(
+                            getRotationMatrix(self.__missionInfo.rotateAngle),
+                            swarmHeading
+                        )
+
+                    oneWay = angleBetween(self.__missionInfo.targetHeading, swarmHeading)
+                    otherWay = angleBetween(swarmHeading, self.__missionInfo.targetHeading)
+
+                    deltaAngle = min(oneWay, otherWay)
+
+                    # print(deltaAngle)
+
+                    if deltaAngle < 2.5:
+                        self.__missionInfo.rotateAngle = 0.0
+                    elif 2.0 < deltaAngle and deltaAngle <= 15.0:
+                        rotationMatrix = getRotationMatrix(self.__missionInfo.angularVelocity / 8.0)
+                    elif (15.0 <= deltaAngle and deltaAngle <= 30.0):
+                        rotationMatrix = getRotationMatrix(self.__missionInfo.angularVelocity / 4.0)
+                    else:
+                        rotationMatrix = getRotationMatrix(self.__missionInfo.angularVelocity)
+                    
+                retValue += distanceToOtherAgent - numpy.dot(rotationMatrix, distanceToDesiredPoint)
+
+        return retValue
+            
     def __calculateAvoidance(self):
         retValue = numpy.array([0.0, 0.0, 0.0])
         
@@ -168,7 +259,6 @@ class Agent:
 
         if self.__missionInfo.maxVelocity <= getMagnitude(retValue):
             retValue = setMagnitude(retValue, self.__missionInfo.maxVelocity)
-            
 
         return retValue
     
