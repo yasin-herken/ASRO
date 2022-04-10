@@ -1,5 +1,6 @@
 import time
 import numpy
+import csv
 
 from datetime import datetime
 
@@ -10,6 +11,7 @@ from Constants import Mission
 from Constants import MissionInfo
 from Constants import FormationShape
 from Constants import angleBetween
+from Constants import getMagnitude
 from Constants import FORMATION_TRIANGLE
 
 AGENT_COUNT = 3
@@ -28,11 +30,51 @@ if __name__ == "__main__":
     lastTime = time.perf_counter()
     deltaTime = 0.0
 
+    # Record agent info
+    csvFile = open("data.csv", "w", newline='', encoding='utf-8')
+    csvWriter = csv.writer(csvFile)
+
+    csvHeader = [
+        "Time",
+
+        "agent_0_pos_x", "agent_0_pos_y", "agent_0_pos_z",
+        "agent_0_vel_x", "agent_0_vel_y", "agent_0_vel_z",
+        "agent_0_formation_control_x", "agent_0_formation_control_y", "agent_0_formation_control_z",
+        "agent_0_avoidance_control_x", "agent_0_avoidance_control_y", "agent_0_avoidance_control_z",
+        "agent_0_trajectory_control_x", "agent_0_trajectory_control_y", "agent_0_trajectory_control_z",
+        "agent_0_formation_control_force",
+        "agent_0_avoidance_control_force", 
+        "agent_0_trajectory_control_force",
+
+        "agent_1_pos_x", "agent_1_pos_y", "agent_1_pos_z",
+        "agent_1_vel_x", "agent_1_vel_y", "agent_1_vel_z",
+        "agent_1_formation_control_x", "agent_1_formation_control_y", "agent_1_formation_control_z",
+        "agent_1_avoidance_control_x", "agent_1_avoidance_control_y", "agent_1_avoidance_control_z",
+        "agent_1_trajectory_control_x", "agent_1_trajectory_control_y", "agent_1_trajectory_control_z",
+        "agent_1_formation_control_force",
+        "agent_1_avoidance_control_force", 
+        "agent_1_trajectory_control_force",
+
+        "agent_2_pos_x", "agent_2_pos_y", "agent_2_pos_z",
+        "agent_2_vel_x", "agent_2_vel_y", "agent_2_vel_z",
+        "agent_2_formation_control_x", "agent_2_formation_control_y", "agent_2_formation_control_z",
+        "agent_2_avoidance_control_x", "agent_2_avoidance_control_y", "agent_2_avoidance_control_z",
+        "agent_2_trajectory_control_x", "agent_2_trajectory_control_y", "agent_2_trajectory_control_z",
+        "agent_2_formation_control_force",
+        "agent_2_avoidance_control_force", 
+        "agent_2_trajectory_control_force",
+    ]
+
+    csvWriter.writerow(csvHeader)
+
     # Create new agents
     for i in range(AGENT_COUNT):
         agents.append(Agent(i))
 
     time.sleep(1)
+
+    startTime = time.perf_counter()
+    endTime = time.perf_counter()
 
     try:
         while RUNNING:
@@ -109,7 +151,9 @@ if __name__ == "__main__":
                     )
                     for agent in agents:
                         agent.updateMission(Mission.TAKE_OFF, missionInfo)
-                    print(f"[{datetime.now()}] [Main] Mission TAKE_OFF started")
+                    msg = f"[{datetime.now()}] [Main] Mission TAKE_OFF started"
+                    print(msg)
+                    agents[0].logInfo(msg)
                 
                 # If they are done taking off and ready to take formation then start taking formation
                 elif swarmMission == Mission.TAKE_OFF and swarmState == State.HOVERING:
@@ -125,7 +169,9 @@ if __name__ == "__main__":
                     )
                     for agent in agents:
                         agent.updateMission(Mission.TAKE_FORMATION, missionInfo)
-                    print(f"[{datetime.now()}] [Main] Mission TAKE_FORMATION started")
+                    msg = f"[{datetime.now()}] [Main] Mission TAKE_FORMATION started"
+                    print(msg)
+                    agents[0].logInfo(msg)
 
                 # If they are hovering and ready to rotate then start rotating_0
                 elif swarmMission == Mission.TAKE_FORMATION and swarmState == State.DONE_FORMING:
@@ -144,12 +190,14 @@ if __name__ == "__main__":
                         minimumSafeDistance = 2.5,
                         otherAgents = agents,
                         rotateAngle = rotateAngle,
-                        angularVelocity = 45.0,
+                        angularVelocity = 30.0,
                         targetPoint = numpy.array([0.0, 0.0, 0.0])
                     )
                     for agent in agents:
                         agent.updateMission(Mission.ROTATE, missionInfo)
-                    print(f"[{datetime.now()}] [Main] Mission ROTATE started 0")
+                    msg = f"[{datetime.now()}] [Main] Mission ROTATE started 0"
+                    print(msg)
+                    agents[0].logInfo(msg)
 
                 # If they are hovering and ready to move then start moving to target_0
                 elif swarmMission == Mission.ROTATE and swarmState == State.DONE_ROTATING and TARGET_POS_COUNT == 0:
@@ -167,7 +215,9 @@ if __name__ == "__main__":
                     )
                     for agent in agents:
                         agent.updateMission(Mission.MOVE, missionInfo)
-                    print(f"[{datetime.now()}] [Main] Mission MOVE started 0")
+                    msg = f"[{datetime.now()}] [Main] Mission MOVE started 0"
+                    print(msg)
+                    agents[0].logInfo(msg)
 
                     TARGET_POS_COUNT += 1
 
@@ -188,12 +238,14 @@ if __name__ == "__main__":
                         minimumSafeDistance = 2.5,
                         otherAgents = agents,
                         rotateAngle = rotateAngle,
-                        angularVelocity = 25.0,
+                        angularVelocity = 15.0,
                         targetPoint = numpy.array([0.0, 0.0, 0.0])
                     )
                     for agent in agents:
                         agent.updateMission(Mission.ROTATE, missionInfo)
-                    print(f"[{datetime.now()}] [Main] Mission ROTATE started 1")
+                    msg = f"[{datetime.now()}] [Main] Mission ROTATE started 1"
+                    print(msg)
+                    agents[0].logInfo(msg)
                 
                 # If they are hovering and ready to move then start moving to target_1
                 elif swarmMission == Mission.ROTATE and swarmState == State.DONE_ROTATING and TARGET_POS_COUNT == 1:
@@ -211,7 +263,9 @@ if __name__ == "__main__":
                     )
                     for agent in agents:
                         agent.updateMission(Mission.MOVE, missionInfo)
-                    print(f"[{datetime.now()}] [Main] Mission MOVE started 1")
+                    msg = f"[{datetime.now()}] [Main] Mission MOVE started 1"
+                    print(msg)
+                    agents[0].logInfo(msg)
 
                     TARGET_POS_COUNT += 1
                 
@@ -232,12 +286,14 @@ if __name__ == "__main__":
                         minimumSafeDistance = 2.5,
                         otherAgents = agents,
                         rotateAngle = rotateAngle,
-                        angularVelocity = 45.0,
+                        angularVelocity = 30.0,
                         targetPoint = numpy.array([0.0, 0.0, 0.0])
                     )
                     for agent in agents:
                         agent.updateMission(Mission.ROTATE, missionInfo)
-                    print(f"[{datetime.now()}] [Main] Mission ROTATE started 2")
+                    msg = f"[{datetime.now()}] [Main] Mission ROTATE started 2"
+                    print(msg)
+                    agents[0].logInfo(msg)
                 
                 # If they are hovering and ready to move then start moving to target_2
                 elif swarmMission == Mission.ROTATE and swarmState == State.DONE_ROTATING and TARGET_POS_COUNT == 2:
@@ -250,12 +306,14 @@ if __name__ == "__main__":
                         rotateAngle = 0.0,
                         angularVelocity = 0.0,
                         targetPoint = numpy.array(
-                            [SWARM_POSITION[0] - 30.0, SWARM_POSITION[1], -2.5]
+                            [SWARM_POSITION[0] - 10.0, SWARM_POSITION[1], -2.5]
                         )
                     )
                     for agent in agents:
                         agent.updateMission(Mission.MOVE, missionInfo)
-                    print(f"[{datetime.now()}] [Main] Mission MOVE started 2")
+                    msg = f"[{datetime.now()}] [Main] Mission MOVE started 2"
+                    print(msg)
+                    agents[0].logInfo(msg)
 
                     TARGET_POS_COUNT += 1
                 
@@ -273,15 +331,65 @@ if __name__ == "__main__":
                     )
                     for agent in agents:
                         agent.updateMission(Mission.LAND, missionInfo)
-                    print(f"[{datetime.now()}] [Main] Mission ended. Now landing")
+                    msg = f"[{datetime.now()}] [Main] Mission ended. Now landing"
+                    print(msg)
+                    agents[0].logInfo(msg)
                 elif swarmMission == Mission.LAND and swarmState == State.DONE_LANDING:
-                    print("Simulation complete!")
-                    exit(0)
+                    msg = f"[{datetime.now()}] [Main] Simulation complete!"
+                    print(msg)
+                    agents[0].logInfo(msg)
+                    break
             else:
                 pass
+            
+            # update endTime
+            endTime = time.perf_counter()
+
+            # write to csv file
+            row = []
+            row.append(round((endTime - startTime), 4))
+
+            for agent in agents:
+                pos = agent.getPosition()
+                vel = agent.getVelocity()
+
+                formationControl = agent.getFormationControl()
+                avoidanceControl = agent.getAvoidanceControl()
+                trajectoryControl = agent.getTrajectoryControl()
+
+                row.append(pos[0])
+                row.append(pos[1])
+                row.append(pos[2])
+
+                row.append(vel[0])
+                row.append(vel[1])
+                row.append(vel[2])
+
+                row.append(formationControl[0])
+                row.append(formationControl[1])
+                row.append(formationControl[2])
+
+                row.append(avoidanceControl[0])
+                row.append(avoidanceControl[1])
+                row.append(avoidanceControl[2])
+
+                row.append(trajectoryControl[0])
+                row.append(trajectoryControl[1])
+                row.append(trajectoryControl[2])
+
+                row.append(round(getMagnitude(formationControl), 4))
+                row.append(round(getMagnitude(avoidanceControl), 4))
+                row.append(round(getMagnitude(trajectoryControl), 4))
+            
+            csvWriter.writerow(row)
 
             lastTime = time.perf_counter()
-            
+
+        print(f"Simulation took: {round((endTime - startTime), 4)} seconds")
+
+        csvFile.close()
+
+
     except KeyboardInterrupt:
         print("Good bye!")
         for agent in agents:

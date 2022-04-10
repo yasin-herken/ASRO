@@ -20,7 +20,6 @@ class State(enum.Enum):
     MOVING = 10
     DONE_MOVING = 11
 
-
 class Mission(enum.Enum):
     NONE = 0
     TAKE_OFF = 1
@@ -69,8 +68,8 @@ class MissionInfo:
 
 MODE = Mode.SIMULATION
 
-ALPHA = 2.0
-BETA = 0.0001
+ALPHA = 3.14
+BETA = 0.78
 
 FORMATION_CONTROL_CONSTANT = 0.5
 TRAJECTORY_CONTROL_CONSTANT = 1.0

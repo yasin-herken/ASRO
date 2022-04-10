@@ -30,6 +30,10 @@ class Agent:
 
     __validityCount: int
 
+    __formationControl: numpy.ndarray
+    __avoidanceControl: numpy.ndarray
+    __trajectoryControl: numpy.ndarray
+
     def __init__(self, id) -> None:
         self.__id = id
         self.__name = f"Agent_{id}"
@@ -42,12 +46,20 @@ class Agent:
         self.__state = State.STATIONARY
         self.__mission = Mission.NONE
         self.__missionInfo = None
+        
         self.__validityCount = 0
+
+        self.__formationControl = numpy.array([0.0, 0.0, 0.0])
+        self.__avoidanceControl = numpy.array([0.0, 0.0, 0.0])
+        self.__trajectoryControl = numpy.array([0.0, 0.0, 0.0])
 
     def __str__(self) -> str:
         agentStr = f"[{datetime.datetime.now()}] Name: {self.__name}, Pos: {self.__position}, Vel: {self.__velocity}, Acc: {self.__acceleration}, {self.__state}"
 
         return agentStr
+
+    def getId(self) -> int:
+        return self.__id
 
     def updateMission(self, mission: Mission, missionInfo: MissionInfo):
         self.__mission = mission
@@ -62,8 +74,17 @@ class Agent:
     def getPosition(self) -> numpy.ndarray:
         return self.__position
 
-    def getId(self) -> int:
-        return self.__id
+    def getVelocity(self) -> numpy.ndarray:
+        return self.__velocity
+
+    def getFormationControl(self) -> numpy.ndarray:
+        return self.__formationControl
+
+    def getAvoidanceControl(self) -> numpy.ndarray:
+        return self.__avoidanceControl
+    
+    def getTrajectoryControl(self) -> numpy.ndarray:
+        return self.__trajectoryControl
 
     def tick(self, deltaTime):
         # update agent properties
@@ -106,10 +127,10 @@ class Agent:
             # Apply forming algorithms and make sure forming is done
             finalControl = numpy.array([0.0, 0.0, 0.0])
 
-            formationControl = FORMATION_CONTROL_CONSTANT * self.__calculateFormation()
-            avoidanceControl = self.__calculateAvoidance()
+            self.__formationControl = FORMATION_CONTROL_CONSTANT * self.__calculateFormation()
+            self.__avoidanceControl = self.__calculateAvoidance()
 
-            finalControl = formationControl + avoidanceControl
+            finalControl = self.__formationControl + self.__avoidanceControl
 
             self.__controller.reqVelocity(finalControl)
 
@@ -126,10 +147,10 @@ class Agent:
 
             finalControl = numpy.array([0.0, 0.0, 0.0])
 
-            formationControl = FORMATION_CONTROL_CONSTANT * self.__calculateFormation(deltaTime)
-            avoidanceControl = self.__calculateAvoidance()
+            self.__formationControl = FORMATION_CONTROL_CONSTANT * self.__calculateFormation(deltaTime)
+            self.__avoidanceControl = self.__calculateAvoidance()
 
-            finalControl = formationControl + avoidanceControl
+            finalControl = self.__formationControl + self.__avoidanceControl
 
             self.__controller.reqVelocity(finalControl)
 
@@ -146,11 +167,11 @@ class Agent:
 
             finalControl = numpy.array([0.0, 0.0, 0.0])
 
-            formationControl = FORMATION_CONTROL_CONSTANT * self.__calculateFormation(deltaTime)
-            avoidanceControl = self.__calculateAvoidance()
-            trajectoryControl = TRAJECTORY_CONTROL_CONSTANT * self.__calculateTrajectory()
+            self.__formationControl = FORMATION_CONTROL_CONSTANT * self.__calculateFormation(deltaTime)
+            self.__avoidanceControl = self.__calculateAvoidance()
+            self.__trajectoryControl = TRAJECTORY_CONTROL_CONSTANT * self.__calculateTrajectory()
 
-            finalControl = formationControl + avoidanceControl + trajectoryControl
+            finalControl = self.__formationControl + self.__avoidanceControl + self.__trajectoryControl
 
             self.__controller.reqVelocity(finalControl)
 
@@ -166,9 +187,9 @@ class Agent:
                 retValue = self.__controller.reqLand()
                 self.__state = State.LANDING
             else:
-                if getMagnitude(self.__velocity) <= 0.01:
+                if getMagnitude(self.__velocity) == 0.0:
                     self.__validityCount += 1
-                    if 60 <= self.__validityCount:
+                    if 120 <= self.__validityCount:
                         self.__state = State.DONE_LANDING
                         self.__validityCount = 0
                         print(f"[{datetime.now()}] [{self.__name}] Done landing off")
@@ -213,11 +234,11 @@ class Agent:
 
                     # print(deltaAngle)
 
-                    if deltaAngle < 2.5:
+                    if deltaAngle < 0.5:
                         self.__missionInfo.rotateAngle = 0.0
-                    elif 2.0 < deltaAngle and deltaAngle <= 15.0:
-                        rotationMatrix = getRotationMatrix(self.__missionInfo.angularVelocity / 8.0)
-                    elif (15.0 <= deltaAngle and deltaAngle <= 30.0):
+                    elif 0.5 <= deltaAngle and deltaAngle <= 8.0:
+                        rotationMatrix = getRotationMatrix(self.__missionInfo.angularVelocity / 6.0)
+                    elif (8.0 <= deltaAngle and deltaAngle <= 16.0):
                         rotationMatrix = getRotationMatrix(self.__missionInfo.angularVelocity / 4.0)
                     else:
                         rotationMatrix = getRotationMatrix(self.__missionInfo.angularVelocity)
@@ -262,5 +283,8 @@ class Agent:
 
         return retValue
     
+    def logInfo(self, msg) -> None:
+        self.__controller.log(msg)
+
     def kill(self):
         self.__controller.kill()

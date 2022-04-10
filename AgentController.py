@@ -202,7 +202,15 @@ class AgentController:
 
         return retValue
 
-    def kill(self):
+    def log(self, msg) -> None:
+        if MODE == Mode.PLOTTING:
+            pass
+        elif MODE == Mode.SIMULATION:
+            self.__clientSim.simPrintLogMessage(msg)
+        elif MODE == Mode.INTEGRATION:
+            pass
+
+    def kill(self) -> None:
         if MODE == Mode.PLOTTING:
             pass
         elif MODE == Mode.SIMULATION:
