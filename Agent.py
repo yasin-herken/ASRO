@@ -234,7 +234,7 @@ class Agent:
 
                     # print(deltaAngle)
 
-                    if deltaAngle < 0.5:
+                    if deltaAngle < 0.71:
                         self.__missionInfo.rotateAngle = 0.0
                     elif 0.5 <= deltaAngle and deltaAngle <= 8.0:
                         rotationMatrix = getRotationMatrix(self.__missionInfo.angularVelocity / 6.0)
