@@ -1,2 +1,7 @@
 # log file
 data.csv
+
+# python cache
+__pycache__/
+*.py[cod]
+*$py.class
