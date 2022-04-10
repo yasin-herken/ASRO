@@ -39,6 +39,7 @@ if __name__ == "__main__":
 
         "agent_0_pos_x", "agent_0_pos_y", "agent_0_pos_z",
         "agent_0_vel_x", "agent_0_vel_y", "agent_0_vel_z",
+        "agent_0_vel_force",
         "agent_0_formation_control_x", "agent_0_formation_control_y", "agent_0_formation_control_z",
         "agent_0_avoidance_control_x", "agent_0_avoidance_control_y", "agent_0_avoidance_control_z",
         "agent_0_trajectory_control_x", "agent_0_trajectory_control_y", "agent_0_trajectory_control_z",
@@ -48,6 +49,7 @@ if __name__ == "__main__":
 
         "agent_1_pos_x", "agent_1_pos_y", "agent_1_pos_z",
         "agent_1_vel_x", "agent_1_vel_y", "agent_1_vel_z",
+        "agent_1_vel_force",
         "agent_1_formation_control_x", "agent_1_formation_control_y", "agent_1_formation_control_z",
         "agent_1_avoidance_control_x", "agent_1_avoidance_control_y", "agent_1_avoidance_control_z",
         "agent_1_trajectory_control_x", "agent_1_trajectory_control_y", "agent_1_trajectory_control_z",
@@ -57,6 +59,7 @@ if __name__ == "__main__":
 
         "agent_2_pos_x", "agent_2_pos_y", "agent_2_pos_z",
         "agent_2_vel_x", "agent_2_vel_y", "agent_2_vel_z",
+        "agent_2_vel_force",
         "agent_2_formation_control_x", "agent_2_formation_control_y", "agent_2_formation_control_z",
         "agent_2_avoidance_control_x", "agent_2_avoidance_control_y", "agent_2_avoidance_control_z",
         "agent_2_trajectory_control_x", "agent_2_trajectory_control_y", "agent_2_trajectory_control_z",
@@ -364,6 +367,8 @@ if __name__ == "__main__":
                 row.append(vel[0])
                 row.append(vel[1])
                 row.append(vel[2])
+
+                row.append(getMagnitude(vel))
 
                 row.append(formationControl[0])
                 row.append(formationControl[1])
