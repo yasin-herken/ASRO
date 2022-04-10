@@ -112,7 +112,7 @@ class Agent:
             # Make sure take off is completed
             elif self.__state == State.TAKING_OFF:
                 # print(f"{self.__name} {getMagnitude(self.__velocity)}")
-                if getMagnitude(self.__velocity) <= 0.05:
+                if getMagnitude(self.__velocity) <= 0.025:
                     self.__validityCount += 1
                     if 60 <= self.__validityCount:
                         self.__state = State.HOVERING
@@ -134,7 +134,7 @@ class Agent:
 
             self.__controller.reqVelocity(finalControl)
 
-            if getMagnitude(self.__velocity) <= 0.15:
+            if getMagnitude(self.__velocity) <= 0.075:
                 self.__validityCount += 1
                 if 60 <= self.__validityCount:
                     self.__state = State.DONE_FORMING
@@ -175,7 +175,7 @@ class Agent:
 
             self.__controller.reqVelocity(finalControl)
 
-            if getMagnitude(self.__velocity) <= 0.25:
+            if getMagnitude(self.__velocity) <= 0.1:
                 self.__validityCount += 1
                 if 60 <= self.__validityCount:
                     self.__state = State.DONE_MOVING
@@ -237,7 +237,7 @@ class Agent:
                     if deltaAngle < 1.00:
                         self.__missionInfo.rotateAngle = 0.0
                     elif 0.5 <= deltaAngle and deltaAngle <= 8.0:
-                        rotationMatrix = getRotationMatrix(self.__missionInfo.angularVelocity / 6.0)
+                        rotationMatrix = getRotationMatrix(self.__missionInfo.angularVelocity / 8.0)
                     elif (8.0 <= deltaAngle and deltaAngle <= 16.0):
                         rotationMatrix = getRotationMatrix(self.__missionInfo.angularVelocity / 4.0)
                     else:
