@@ -213,7 +213,7 @@ if __name__ == "__main__":
                         rotateAngle = 0.0,
                         angularVelocity = 0.0,
                         targetPoint = numpy.array(
-                            [SWARM_POSITION[0] + 20.0, SWARM_POSITION[1], 0.25]
+                            [SWARM_POSITION[0] + 10.0, SWARM_POSITION[1], 0.25]
                         )
                     )
                     for agent in agents:
@@ -261,7 +261,7 @@ if __name__ == "__main__":
                         rotateAngle = 0.0,
                         angularVelocity = 0.0,
                         targetPoint = numpy.array(
-                            [SWARM_POSITION[0], SWARM_POSITION[1] + 20.0, 0.25]
+                            [SWARM_POSITION[0], SWARM_POSITION[1] + 10.0, 0.25]
                         )
                     )
                     for agent in agents:
@@ -309,7 +309,7 @@ if __name__ == "__main__":
                         rotateAngle = 0.0,
                         angularVelocity = 0.0,
                         targetPoint = numpy.array(
-                            [SWARM_POSITION[0] - 20.0, SWARM_POSITION[1], 0.25]
+                            [SWARM_POSITION[0] - 10.0, SWARM_POSITION[1], 0.25]
                         )
                     )
                     for agent in agents:
