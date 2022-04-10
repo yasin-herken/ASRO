@@ -12,7 +12,7 @@ def smooth(y, box_pts):
 
 if __name__ == "__main__":
    # open data.csv
-   csvFile = open("data_last.csv", "r", newline='', encoding='utf-8')
+   csvFile = open("data.csv", "r", newline='', encoding='utf-8')
    csvData = pd.read_csv(csvFile)
 
    # time data
