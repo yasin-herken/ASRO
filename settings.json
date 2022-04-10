@@ -7,15 +7,15 @@
   "Vehicles": {
       "Agent_0": {
         "VehicleType": "SimpleFlight",
-        "X": 0.0, "Y": 0.0, "Z": 1.5, "Yaw": 0.0
+        "X": 2.0, "Y": 0.0, "Z": 1.7, "Yaw": 0.0
       },
       "Agent_1": {
         "VehicleType": "SimpleFlight",
-        "X": 2.0, "Y": 0.0, "Z": 1.5, "Yaw": 0.0
+        "X": 0.0, "Y": 0.0, "Z": 1.7, "Yaw": 0.0
       },
       "Agent_2": {
         "VehicleType": "SimpleFlight",
-        "X": 0.0, "Y": 2.0, "Z": 1.5, "Yaw": 0.0
+        "X": 0.0, "Y": 2.0, "Z": 1.7, "Yaw": 0.0
       }
   }
 }
