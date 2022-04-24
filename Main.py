@@ -7,6 +7,7 @@ import Settings
 import numpy as np
 
 from Agent import Agent
+from MissionControl import MissionControl
 from pycrazyswarm import Crazyswarm
 
 def _watchDog(server: Crazyswarm) -> None:
@@ -33,8 +34,22 @@ def main() -> None:
     Checks the Redis 'control' channel for any new mission requests.
     If a new request exists, hands over the control to MissionControl.
     """
-    swarm = Crazyswarm(crazyflies_yaml="./crazyflies.yaml")
-    timeHelper = swarm.timeHelper
+
+    crazySwarm = Crazyswarm(crazyflies_yaml="./crazyflies.yaml")
+    
+    agents = []
+    agents.append(
+        Agent(
+            cf=crazySwarm.allcfs.crazyflies[0],
+            name="cf1",
+            address="random_ass_string"
+        )
+    )
+    
+    missionControl = MissionControl(
+        crazySwarm=crazySwarm,
+        agents=agents
+    )
 
     while True:
         # Read incoming messages from redis
@@ -44,7 +59,7 @@ def main() -> None:
         pass
     
         # Launch a mission if a message exists
-        pass
+        missionControl.missionZero()
     
         # Update 'pyrazyswarm'
         pass

@@ -32,7 +32,11 @@ class Agent:
             name (str): Name of the agent.
             address (str): Address of the agent.
         """
-        pass
+        self.__crazyflie = cf
+        self.__name = name
+        self.__address = address
+        
+        return
     
     def __formationControl(self, agents: list) -> np.ndarray:
         """Calculates the formation 'force' to be applied to the agent.
@@ -165,6 +169,12 @@ class Agent:
         """
         retValue = False
         
+        try:
+            self.__crazyflie.takeoff(targetHeight=height, duration=5.0)
+            retValue = True
+        except Exception as e:
+            print(e.with_traceback())
+    
         return retValue
 
     def takeOffSync(self, height: float) -> bool:
