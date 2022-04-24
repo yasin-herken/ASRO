@@ -1,5 +1,5 @@
 import redis
-
+import numpy as np
 from Agent import Agent
 from pycrazyswarm import Crazyswarm
 
@@ -18,33 +18,116 @@ class MissionControl:
         """
         pass
     
-    def __syncRedis(self):
-        pass
+    def __syncRedis(self) -> bool:
+        """Sends to agents' info to the Redis server as 'cf{no}_{param}'.
 
-    def missionOne(self):
-        pass
+        Returns:
+            bool: Specifies whether the operation was successfull or not.
+        """
+        retValue = False
+        
+        return retValue
 
-    def missionTwo(self):
-        pass
+    def missionOne(self) -> bool:
+        """_summary_
 
-    def missionThree(self):
-        pass
+        Returns:
+            bool: Specifies whether the mission was successfull or not.
+        """
+        retValue = False
+        
+        return retValue
 
-    def missionFour(self):
-        pass
+    def missionTwo(self) -> bool:
+        """_summary_
 
-    def missionFive(self):
-        pass
+        Returns:
+            bool: Specifies whether the mission was successfull or not.
+        """
+        retValue = False
+        
+        return retValue
 
-    def takeOffAgent(self, target: Agent):
-        pass
+    def missionThree(self) -> bool:
+        """_summary_
 
-    def landAgent(self, target: Agent):
-        pass
+        Returns:
+            bool: Specifies whether the mission was successfull or not.
+        """
+        retValue = False
+        
+        return retValue
 
-    def goToAgent(self, target: Agent):
-        pass
+    def missionFour(self) -> bool:
+        """_summary_
+
+        Returns:
+            bool: Specifies whether the mission was successfull or not.
+        """
+        retValue = False
+        
+        return retValue
+
+    def missionFive(self) -> bool:
+        """_summary_
+
+        Returns:
+            bool: Specifies whether the mission was successfull or not.
+        """
+        retValue = False
+        
+        return retValue
+
+    def takeOffAgent(self, target: str) -> bool:
+        """Takes off the target agent.
+
+        Args:
+            target (str): Agent to be taken off.
+
+        Returns:
+            bool: Specifies whether the mission was successfull or not.
+        """
+        retValue = False
+        
+        return retValue
+
+    def landAgent(self, target: str) -> bool:
+        """Lands the target agent.
+
+        Args:
+            target (str): Agent to be taken off.
+
+        Returns:
+            bool: Specifies whether the mission was successfull or not.
+        """
+        retValue = False
+        
+        return retValue
+
+    def goToAgent(self, point: np.ndarray, target: str) -> bool:
+        """Moves the target agent to the specified point.
+
+        Args:
+            point (np.ndarray): Point to be moved to.
+            target (str): Agent to be moved.
+
+        Returns:
+            bool: Specifies whether the mission was successfull or not.
+        """
+        retValue = False
+        
+        return retValue
     
-    def killSwitch(self, isOn: bool):
-        pass
+    def killSwitch(self, isOn: bool) -> bool:
+        """Kills the agents in case of an emergency.
+
+        Args:
+            isOn (bool): Safety value. The function only activates if this value is true.
+
+        Returns:
+            bool: Specifies whether the operation was successfull or not.
+        """
+        retValue = False
+        
+        return retValue
     
