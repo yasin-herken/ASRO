@@ -1,0 +1,10 @@
+crazyflies:
+- channel: 100
+  id: 1
+  initialPosition: [0.0, 0.0, 0.0]
+  type: medium
+
+- channel: 110
+  id: 2
+  initialPosition: [1.0, 0.0, 0.0]
+  type: medium
