@@ -57,7 +57,7 @@ class MissionControl:
                 '__speed':agent.getSpeed(),
                 '__pitch':agent.getPitch(),
                 '__yaw':agent.getYaw(),
-                '__row':agent.getRow()
+                '__row':agent.getRoll()
             }
             self.data=json.dumps(self.sndMessage, cls=NumpyEncoder)
             self.__redisClient.set("channel",self.data)
@@ -80,11 +80,12 @@ class MissionControl:
         self.__agents[0].takeOffAsync(1.5)
         
         while True:
-            self.__crazySwarm.timeHelper.sleep(0.1)
+            self.__crazySwarm.timeHelper.sleep(5.0)
+            # set redis
             self._syncRedis()
+            # get redis
             rcv_data=self.__redisClient.get("channel")
             message=json.loads(rcv_data)
-            print(type(message))
             print(message)
         
         return retValue

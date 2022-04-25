@@ -19,7 +19,7 @@ class Agent:
     
     __pitch: float
     __yaw: float
-    __row: float
+    __roll: float
     
     __crazyflie: Crazyflie
     
@@ -73,7 +73,9 @@ class Agent:
             np.ndarray: Calculated force. (Vector3)
         """
         pass
-
+    def getRpy(self):
+        (self.__roll,self.__pitch,self.__yaw)=self.__crazyflie.rpy()
+        pass
     def getName(self) -> str:
         """Returns the name of the agent.
 
@@ -96,7 +98,7 @@ class Agent:
         Returns:
             bool: Status of the agent.
         """
-        
+
         return "online"
     
     def getPos(self) -> np.ndarray:
@@ -106,7 +108,7 @@ class Agent:
             np.ndarray: Position of the agent.
         """
         self.__pos=self.__crazyflie.position()
-        return self.__pos
+        return np.array(self.__pos)
     
     def getVel(self) -> np.ndarray:
         """Returns the velocity of the agent. (Vector3)
@@ -114,7 +116,8 @@ class Agent:
         Returns:
             np.ndarray: Velocity of the agent.
         """
-        pass
+        self.__vel=self.__crazyflie.velocity()
+        return np.array(self.__vel)
     
     def getSpeed(self) -> float:
         """Returns the speed of the agent. (Scaler)
@@ -122,7 +125,8 @@ class Agent:
         Returns:
             float: Speed of the agent.
         """
-        pass
+        self.__speed=self.__crazyflie.acceleration()
+        return np.array(self.__speed)
     
     def getPitch(self) -> float:
         """Returns the pitch of the agent.
@@ -130,7 +134,8 @@ class Agent:
         Returns:
             float: Pitch of the agent.
         """
-        pass
+        self.getRpy()
+        return self.__pitch
     
     def getYaw(self) -> float:
         """Returns the yaw of the agent.
@@ -138,15 +143,17 @@ class Agent:
         Returns:
             float: Yaw of the agent.
         """
-        pass
+        self.getRpy()
+        return self.__yaw
     
-    def getRow(self) -> float:
+    def getRoll(self) -> float:
         """Returns the row of the agent.
 
         Returns:
             float: Row of the agent.
         """
-        pass
+        self.getRpy()
+        return self.__roll
     
     def update(self) -> bool:
         """Retrieves the agent information and updates the member veriables.
