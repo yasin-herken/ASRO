@@ -3,7 +3,6 @@ from pycrazyswarm import crazyflie
 
 # Remove the word 'Sim' in order to run IRL !!!
 from pycrazyswarm.crazyflieSim import Crazyflie
-
 class Agent:
     """This class represents the real-world agent.
     It does swarming and other operations to control the agent.
@@ -97,7 +96,8 @@ class Agent:
         Returns:
             bool: Status of the agent.
         """
-        return self.__address
+        
+        return "online"
     
     def getPos(self) -> np.ndarray:
         """Returns the position of the agent. (Vector3)
@@ -105,7 +105,8 @@ class Agent:
         Returns:
             np.ndarray: Position of the agent.
         """
-        pass
+        self.__pos=self.__crazyflie.position()
+        return self.__pos
     
     def getVel(self) -> np.ndarray:
         """Returns the velocity of the agent. (Vector3)

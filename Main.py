@@ -45,11 +45,10 @@ def main() -> None:
             address="random_ass_string"
         )
     )
-    
     missionControl = MissionControl(
         crazySwarm=crazySwarm,
         agents=agents,
-        redisClient=redis.Redis(host='localhost', port=6379)
+        redisClient=redis.Redis
     )
     missionControl._syncRedis()
     while True:
