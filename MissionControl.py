@@ -1,6 +1,7 @@
 import redis
 import numpy as np
-
+import marshal
+import json
 from typing import List
 from Agent import Agent
 from pycrazyswarm import Crazyswarm
@@ -13,7 +14,7 @@ class MissionControl:
     __agents: List[Agent]
     __redisClient: redis.Redis
     
-    def __init__(self, crazySwarm: Crazyswarm, agents: List[Agent]):
+    def __init__(self, crazySwarm: Crazyswarm, agents: List[Agent],redisClient:redis.Redis):
         """Initialize the MissionControl.
 
         Args:
@@ -22,17 +23,30 @@ class MissionControl:
         """
         self.__crazySwarm = crazySwarm
         self.__agents = agents
-        
+        self.__redisClient=redisClient
         return
-    
-    def __syncRedis(self) -> bool:
+    def _syncRedis(self) -> bool:
         """Sends to agents' info to the Redis server as 'cf{no}_{param}'.
 
         Returns:
             bool: Specifies whether the operation was successfull or not.
         """
-        retValue = False
-        
+        retValue = True
+        for agent in self.__agents:
+            self.sndMessage={
+                '__name':agent.getName(),
+                '__adress':agent.getAddress(),
+                '__status':'online',
+                '__state':agent.getStatus(),
+                '__pos':agent.getPos(),
+                '__vel':agent.getVel(),
+                '__speed':agent.getSpeed(),
+                '__pitch':agent.getPitch(),
+                '__yaw':agent.getYaw(),
+                '__row':agent.getRow()
+            }
+            self.data=json.dumps(self.sndMessage)
+            self.__redisClient.set("channel",self.data)
         return retValue
 
     def missionZero(self) -> bool:

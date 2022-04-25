@@ -3,7 +3,7 @@ import sys
 import redis
 import time
 import Settings
-
+import json
 import numpy as np
 
 from Agent import Agent
@@ -48,12 +48,18 @@ def main() -> None:
     
     missionControl = MissionControl(
         crazySwarm=crazySwarm,
-        agents=agents
+        agents=agents,
+        redisClient=redis.Redis(host='localhost', port=6379)
     )
-
+    missionControl._syncRedis()
     while True:
         # Read incoming messages from redis
-        pass
+        redisCli=redis.Redis(host='localhost',port=6379)
+        rcv_data=redisCli.get("channel")
+        message=json.loads(rcv_data)
+        print(type(message))
+        print(message)
+        
     
         # Parse the message
         pass

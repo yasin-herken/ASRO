@@ -81,7 +81,7 @@ class Agent:
         Returns:
             str: Name of the agent.
         """
-        pass
+        return self.__name
     
     def getAddress(self) -> str:
         """Returns the address of the agent.
@@ -89,7 +89,7 @@ class Agent:
         Returns:
             str: Address of the agent.
         """
-        pass
+        return self.__address
     
     def getStatus(self) -> bool:
         """Returns status name of the agent.
@@ -97,7 +97,7 @@ class Agent:
         Returns:
             bool: Status of the agent.
         """
-        pass
+        return self.__address
     
     def getPos(self) -> np.ndarray:
         """Returns the position of the agent. (Vector3)
