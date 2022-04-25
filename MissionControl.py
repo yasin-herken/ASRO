@@ -47,6 +47,7 @@ class MissionControl:
         
         retValue = True
         for agent in self.__agents:
+            agent.update()
             self.sndMessage={
                 '__name':agent.getName(),
                 '__adress':agent.getAddress(),
@@ -77,17 +78,26 @@ class MissionControl:
         # Simdilik takeOffAsync() yapiyor bu fonksiyon sadece.
         # timeHelper.sleep(0.01) olmazsa simulasyon nedense calismiyor ben de bilmiyorum.
         
-        self.__agents[0].takeOffAsync(1.5)
         
         while True:
-            self.__crazySwarm.timeHelper.sleep(5.0)
+            self.__agents[0].takeOffAsync(1.5)
+            self.__crazySwarm.timeHelper.sleep(10.0)
             # set redis
             self._syncRedis()
             # get redis
             rcv_data=self.__redisClient.get("channel")
             message=json.loads(rcv_data)
             print(message)
+            self.__agents[0].landAsync()
+            self._syncRedis()
+            self.__crazySwarm.timeHelper.sleep(5.0)
+            rcv_data=self.__redisClient.get("channel")
+            message=json.loads(rcv_data)
+            print(message)
+            
         
+        print(message)
+        self.__redisClient.delete("channel")
         return retValue
 
     def missionOne(self) -> bool:

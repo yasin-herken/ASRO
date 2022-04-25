@@ -38,13 +38,16 @@ def main() -> None:
     crazySwarm = Crazyswarm(crazyflies_yaml="./crazyflies.yaml")
     
     agents = []
-    agents.append(
-        Agent(
-            cf=crazySwarm.allcfs.crazyflies[0],
-            name="cf1",
-            address="random_ass_string"
+    i = 1
+    for agent in crazySwarm.allcfs.crazyflies:
+        agents.append(
+            Agent(
+                cf=agent,
+                name="cf"+str(i),
+                address="random_ass_string"
+            )
         )
-    )
+        i+=1
     missionControl = MissionControl(
         crazySwarm=crazySwarm,
         agents=agents,
@@ -53,21 +56,15 @@ def main() -> None:
     missionControl._syncRedis()
     while True:
         # Read incoming messages from redis
-        redisCli=redis.Redis(host='localhost',port=6379)
-        rcv_data=redisCli.get("channel")
-        message=json.loads(rcv_data)
-        print(type(message))
-        print(message)
         
-    
         # Parse the message
-        pass
+    #pass
     
         # Launch a mission if a message exists
         missionControl.missionZero()
-    
-        # Update 'pyrazyswarm'
         pass
+        # Update 'pyrazyswarm'
+    #pass
 
 if __name__ == "__main__":
     main()

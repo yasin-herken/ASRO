@@ -1,15 +1,8 @@
 import redis
 import time
-
-redis_cli = redis.Redis(host="localhost", port=16379)
-
-p = redis_cli.pubsub()
-
-p.subscribe("my-channel-1", "my-channel-2")
-
-while True:
-    message = p.get_message()
-    if message:
-        print("here")
-        print(message)
-    time.sleep(0.01)
+if __name__=="__main__":
+    redis_cli = redis.Redis(host="localhost", port=6379)
+    data="here1"
+    data2="here2"
+    redis_cli.set("channel",data)
+    redis_cli.set("channel",data2)

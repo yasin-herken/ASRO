@@ -73,9 +73,7 @@ class Agent:
             np.ndarray: Calculated force. (Vector3)
         """
         pass
-    def getRpy(self):
-        (self.__roll,self.__pitch,self.__yaw)=self.__crazyflie.rpy()
-        pass
+        
     def getName(self) -> str:
         """Returns the name of the agent.
 
@@ -107,8 +105,8 @@ class Agent:
         Returns:
             np.ndarray: Position of the agent.
         """
-        self.__pos=self.__crazyflie.position()
-        return np.array(self.__pos)
+        
+        return self.__pos
     
     def getVel(self) -> np.ndarray:
         """Returns the velocity of the agent. (Vector3)
@@ -116,7 +114,7 @@ class Agent:
         Returns:
             np.ndarray: Velocity of the agent.
         """
-        self.__vel=self.__crazyflie.velocity()
+        
         return np.array(self.__vel)
     
     def getSpeed(self) -> float:
@@ -125,7 +123,7 @@ class Agent:
         Returns:
             float: Speed of the agent.
         """
-        self.__speed=self.__crazyflie.acceleration()
+        
         return np.array(self.__speed)
     
     def getPitch(self) -> float:
@@ -134,7 +132,7 @@ class Agent:
         Returns:
             float: Pitch of the agent.
         """
-        self.getRpy()
+        self.update()
         return self.__pitch
     
     def getYaw(self) -> float:
@@ -143,7 +141,7 @@ class Agent:
         Returns:
             float: Yaw of the agent.
         """
-        self.getRpy()
+        self.update()
         return self.__yaw
     
     def getRoll(self) -> float:
@@ -152,7 +150,7 @@ class Agent:
         Returns:
             float: Row of the agent.
         """
-        self.getRpy()
+        self.update()
         return self.__roll
     
     def update(self) -> bool:
@@ -163,7 +161,10 @@ class Agent:
             bool: Whether the update was succesfull or not.
 		"""
         retValue = False
-        
+        (self.__roll,self.__pitch,self.__yaw)=self.__crazyflie.rpy()
+        self.__speed=self.__crazyflie.acceleration()
+        self.__vel=self.__crazyflie.velocity()
+        self.__pos=self.__crazyflie.position()
         return retValue
 
     def takeOffAsync(self, height: float) -> bool:
@@ -195,6 +196,11 @@ class Agent:
             bool: Whether the operation was succesfull or not.
         """
         retValue = False
+        try:
+            self.__crazyflie.takeoff(targetHeight=height, duration=5.0)
+            retValue = True
+        except Exception as e:
+            print(e.with_traceback())
         
         return retValue
     
@@ -205,7 +211,11 @@ class Agent:
             bool: Whether the operation was succesfull or not.
         """
         retValue = False
-        
+        try:
+            self.__crazyflie.land(targetHeight=0.0,duration=5.0)
+            retValue = True
+        except Exception as e:
+            print(e.with_traceback())
         return retValue
     
     def landSync(self) -> bool:
