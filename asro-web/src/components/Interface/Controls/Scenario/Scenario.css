@@ -1,0 +1,33 @@
+.Scenario {
+    width: 100%;
+
+    box-sizing: border-box;
+
+    padding: 8px;
+    padding-left: 24px;
+    padding-right: 24px;
+
+    display: inline-flex;
+    flex-direction: row;
+
+    background-color: #404040;
+    border-radius: 128px;
+
+    align-items: center;
+    justify-content: space-between;
+}
+
+.Scenario-Name {
+    margin: 0px;
+
+    font-weight: 600;
+}
+
+.Scenario-Button {
+    background-color: transparent;
+    border-style: none;
+}
+
+.SCenario-Img {
+
+}

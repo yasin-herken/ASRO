@@ -1,0 +1,22 @@
+.NavigationBar {
+    width: 100%;
+    height: 4rem;
+
+    display: inline-flex;
+    flex-direction: column;
+
+    align-items: center;
+    justify-content: center;
+}
+
+.Title {
+    width: 32rem;
+}
+
+@media only screen and (max-width : 640px) {
+    /* Styles */
+    .Title {
+        width: 90%;
+    }
+
+}

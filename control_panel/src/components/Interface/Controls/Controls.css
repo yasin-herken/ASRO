@@ -18,8 +18,6 @@
     display: inline-flex;
     flex-direction: column;
     border-radius: 48px;
-    border-style: solid;
-    border-color: red;
 }
 
 @media only screen and (max-width: 1348px) { 
