@@ -161,13 +161,16 @@ class Agent:
             bool: Whether the update was succesfull or not.
 		"""
         retValue = False
-        (self.__roll,self.__pitch,self.__yaw)=self.__crazyflie.rpy()
+
+        (self.__roll, self.__pitch, self.__yaw)=self.__crazyflie.rpy()
         self.__speed=self.__crazyflie.acceleration()
         self.__vel=self.__crazyflie.velocity()
         self.__pos=self.__crazyflie.position()
+        
+
         return retValue
 
-    def takeOffAsync(self, height: float) -> bool:
+    def takeOffAsync(self, Z: float) -> bool:
         """Takes off the agent from the ground. Does not block the flow of the program.
 
         Args:
@@ -179,7 +182,7 @@ class Agent:
         retValue = False
         
         try:
-            self.__crazyflie.takeoff(targetHeight=height, duration=5.0)
+            self.__crazyflie.takeoff(targetHeight=Z, duration=5.0)
             retValue = True
         except Exception as e:
             print(e.with_traceback())
@@ -256,6 +259,8 @@ class Agent:
         """
         retValue = False
         
+
+
         return retValue
     
     
