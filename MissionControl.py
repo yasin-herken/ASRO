@@ -47,7 +47,6 @@ class MissionControl:
         
         retValue = True
         for agent in self.__agents:
-            agent.update()
             self.sndMessage={
                 'name':agent.getName(),
                 'adress':agent.getAddress(),
@@ -80,26 +79,36 @@ class MissionControl:
         # timeHelper.sleep(0.01) olmazsa simulasyon nedense calismiyor ben de bilmiyorum.
         
         
+        '''for agent in self.__agents:
+            agent.takeOffSync(1.5)
+            
+            # set redis
+            self._syncRedis()
+            # get redis
+        self.__crazySwarm.timeHelper.sleep(2.5)'''
         while True:
             for agent in self.__agents:
-                print(agent.getName())
-                agent.takeOffSync(1.5)
-                
-                # set redis
-                self._syncRedis()
-                # get redis
-    
-            self.__crazySwarm.timeHelper.sleep(5.0)
-            for agent in self.__agents:
-                    print(agent.getName())
-                    agent.landSync()
-                    
-                    # set redis
-                    self._syncRedis()
-                    # get redis
-            self.__crazySwarm.timeHelper.sleep(5.0)
+                agent.update(self.__agents)
+
+            
+        #agent.update(self.__agents)
+        self.__crazySwarm.timeHelper.sleep(5.0)
+        for agent in self.__agents:
+            #print(agent.getPos())
+            pass
+        '''self.__crazySwarm.timeHelper.sleep(2.5)
+        for agent in self.__agents:
+            agent.landSync()
+            
+            # set redis
+            self._syncRedis()
+            # get redis'''
+            
+
+        self.__crazySwarm.timeHelper.sleep(10)
 
         self.__redisClient.delete("channel")
+        print("here")
         return retValue
 
     def missionOne(self) -> bool:
