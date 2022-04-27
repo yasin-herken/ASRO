@@ -49,19 +49,20 @@ class MissionControl:
         for agent in self.__agents:
             agent.update()
             self.sndMessage={
-                '__name':agent.getName(),
-                '__adress':agent.getAddress(),
-                '__status':'online',
-                '__state':agent.getStatus(),
-                '__pos': agent.getPos(),
-                '__vel':agent.getVel(),
-                '__speed':agent.getSpeed(),
-                '__pitch':agent.getPitch(),
-                '__yaw':agent.getYaw(),
-                '__row':agent.getRoll()
+                'name':agent.getName(),
+                'adress':agent.getAddress(),
+                'status':agent.getStatus(),
+                'state':"HOVERING",
+                'pos': agent.getPos(),
+                'vel':agent.getVel(),
+                'speed':agent.getSpeed(),
+                'pitch':agent.getPitch(),
+                'yaw':agent.getYaw(),
+                'row':agent.getRoll()
             }
             self.data=json.dumps(self.sndMessage, cls=NumpyEncoder)
             self.__redisClient.set("channel",self.data)
+            #print(self.sndMessage)
         return retValue
 
     def missionZero(self) -> bool:
@@ -80,23 +81,24 @@ class MissionControl:
         
         
         while True:
-            self.__agents[0].takeOffAsync(1.5)
-            self.__crazySwarm.timeHelper.sleep(10.0)
-            # set redis
-            self._syncRedis()
-            # get redis
-            rcv_data=self.__redisClient.get("channel")
-            message=json.loads(rcv_data)
-            print(message)
-            self.__agents[0].landAsync()
-            self._syncRedis()
+            for agent in self.__agents:
+                print(agent.getName())
+                agent.takeOffSync(1.5)
+                
+                # set redis
+                self._syncRedis()
+                # get redis
+    
+            self.__crazySwarm.timeHelper.sleep(3.0)
+            for agent in self.__agents:
+                    print(agent.getName())
+                    agent.landSync()
+                    
+                    # set redis
+                    self._syncRedis()
+                    # get redis
             self.__crazySwarm.timeHelper.sleep(5.0)
-            rcv_data=self.__redisClient.get("channel")
-            message=json.loads(rcv_data)
-            print(message)
-            
-        
-        print(message)
+
         self.__redisClient.delete("channel")
         return retValue
 

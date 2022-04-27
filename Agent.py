@@ -115,7 +115,7 @@ class Agent:
             np.ndarray: Velocity of the agent.
         """
         
-        return np.array(self.__vel)
+        return self.__vel
     
     def getSpeed(self) -> float:
         """Returns the speed of the agent. (Scaler)
@@ -196,11 +196,10 @@ class Agent:
             bool: Whether the operation was succesfull or not.
         """
         retValue = False
-        try:
-            self.__crazyflie.takeoff(targetHeight=height, duration=5.0)
-            retValue = True
-        except Exception as e:
-            print(e.with_traceback())
+
+        self.__crazyflie.takeoff(targetHeight=height, duration=5.0)
+        retValue = True
+
         
         return retValue
     
@@ -212,7 +211,7 @@ class Agent:
         """
         retValue = False
         try:
-            self.__crazyflie.land(targetHeight=0.0,duration=5.0)
+            self.__crazyflie.land(targetHeight=self.__crazyflie.initialPosition[2],duration=5.0)
             retValue = True
         except Exception as e:
             print(e.with_traceback())
@@ -225,7 +224,8 @@ class Agent:
             bool: Whether the operation was succesfull or not.
         """
         retValue = False
-        
+        self.__crazyflie.land(targetHeight=self.__crazyflie.initialPosition[2],duration=5.0)
+        retValue = True
         return retValue
     
     def goToAsync(self, x: float, y: float, z: float) -> bool:
