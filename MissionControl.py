@@ -62,6 +62,7 @@ class MissionControl:
             }
             self.data=json.dumps(self.sndMessage, cls=NumpyEncoder)
             self.__redisClient.set("channel",self.data)
+            #print(self.sndMessage)
         return retValue
 
     def missionZero(self) -> bool:
@@ -80,22 +81,24 @@ class MissionControl:
         
         
         while True:
-            self.__agents[0].takeOffAsync(1.5)
-            self.__crazySwarm.timeHelper.sleep(5.0)
-            # set redis
-            self._syncRedis()
-            # get redis
-            rcv_data=self.__redisClient.get("channel")
-            message=json.loads(rcv_data)
-            print(message)
-            self.__agents[0].landAsync()
-            self._syncRedis()
-            self.__crazySwarm.timeHelper.sleep(5.0)
-            rcv_data=self.__redisClient.get("channel")
-            message=json.loads(rcv_data)
-            print(message)
+            for agent in self.__agents:
+                print(agent.getName())
+                agent.takeOffSync(1.5)
+                
+                # set redis
+                self._syncRedis()
+                # get redis
     
-        print(message)
+            self.__crazySwarm.timeHelper.sleep(3.0)
+            for agent in self.__agents:
+                    print(agent.getName())
+                    agent.landSync()
+                    
+                    # set redis
+                    self._syncRedis()
+                    # get redis
+            self.__crazySwarm.timeHelper.sleep(5.0)
+
         self.__redisClient.delete("channel")
         return retValue
 

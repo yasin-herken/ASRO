@@ -34,16 +34,17 @@ def main() -> None:
     Checks the Redis 'control' channel for any new mission requests.
     If a new request exists, hands over the control to MissionControl.
     """
-
+    cfIds = []
     crazySwarm = Crazyswarm(crazyflies_yaml="./crazyflies.yaml")
-    
+    for id in crazySwarm.allcfs.crazyfliesById:
+        cfIds.append(id)
     agents = []
-    i = 1
+    i = 0
     for agent in crazySwarm.allcfs.crazyflies:
         agents.append(
             Agent(
                 cf=agent,
-                name="cf"+str(i),
+                name="cf"+str(cfIds[i]),
                 address="random_ass_string"
             )
         )
