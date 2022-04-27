@@ -1,21 +1,23 @@
 import numpy as np
 from pycrazyswarm import crazyflie
-
+import Settings
+import time
 # Remove the word 'Sim' in order to run IRL !!!
 from pycrazyswarm.crazyflieSim import Crazyflie
+from pycrazyswarm.crazyswarm_py import Crazyswarm
 class Agent:
     """This class represents the real-world agent.
     It does swarming and other operations to control the agent.
     """
     __name: str
     __address: str
-    __status:  bool
-    __state: str
+    _status:  bool
+    _state: str
     
     __pos: np.ndarray
     __vel: np.ndarray
     
-    __speed: float
+    _speed: float
     
     __pitch: float
     __yaw: float
@@ -25,7 +27,7 @@ class Agent:
     __isAvoidanceActive: bool
     __isTrajectoryActive: bool
 
-    __targetPoint: np.ndarray
+    _targetPoint: np.ndarray
 
     __crazyflie: Crazyflie
     
@@ -43,12 +45,28 @@ class Agent:
 
         self.__isFormationActive = False
         self.__isAvoidanceActive = False
-        self.__isTrajectoryActive = False
+        self.__isTrajectoryActive = True
 
-        self.__targetPoint = None
+        self._targetPoint = np.array([0.8,0.5,0.2])
         
+        self._status = False
+
+        self._state = ""
+        
+        self.__pos = np.array([0.0,0.0,0.0])
+        self.__vel= np.array([0.0,0.0,0.0])
+        
+        self._speed = 0.0
+        
+        self.__pitch= 0.0
+        self.__yaw= 0.0
+        self.__roll = 0.0
+
         return
     
+    def __str__(self):
+        return f"{self.__name},{self.__address},{self.__pos}"
+
     def __formationControl(self, agents: list) -> np.ndarray:
         """Calculates the formation 'force' to be applied to the agent.
         This calculation moves the agent into formation.
@@ -73,7 +91,7 @@ class Agent:
         """
         pass
     
-    def __trajectoryControl(self, agents: list, target: np.ndarray) -> np.ndarray:
+    def __trajectoryControl(self, agents: list,targetPoint:np.ndarray) -> np.ndarray:
         """Calculates the trajectory 'force' to be applied to the agent.
         This calculation moves the agent towards the target point.
 
@@ -87,9 +105,19 @@ class Agent:
         retValue=np.array([0.0,0.0,0.0])
 
         swarmCenter=np.array([0.0,0.0,0.0])
+        i =0
+        for otherAgent in agents:
+            swarmCenter += otherAgent.getPos()
+            print("f{swarmCenter}")
+            i+=1
+        swarmCenter /= i
 
-        
-        pass
+        retValue = targetPoint - swarmCenter
+        # max velocity 10
+        if 3.0<=Settings.getMagnitude(retValue):
+            retValue = Settings.setMagnitude(retValue,1.0)
+        print(retValue)
+        return retValue
         
     def getName(self) -> str:
         """Returns the name of the agent.
@@ -123,7 +151,7 @@ class Agent:
             np.ndarray: Position of the agent.
         """
         
-        return self.__pos
+        return np.array(self.__pos)
     
     def getVel(self) -> np.ndarray:
         """Returns the velocity of the agent. (Vector3)
@@ -141,7 +169,7 @@ class Agent:
             float: Speed of the agent.
         """
         
-        return np.array(self.__speed)
+        return 0.0
     
     def getPitch(self) -> float:
         """Returns the pitch of the agent.
@@ -149,7 +177,7 @@ class Agent:
         Returns:
             float: Pitch of the agent.
         """
-        self.update()
+        (self.__roll, self.__pitch, self.__yaw) = self.__crazyflie.rpy()
         return self.__pitch
     
     def getYaw(self) -> float:
@@ -158,7 +186,7 @@ class Agent:
         Returns:
             float: Yaw of the agent.
         """
-        self.update()
+        (self.__roll, self.__pitch, self.__yaw) = self.__crazyflie.rpy()
         return self.__yaw
     
     def getRoll(self) -> float:
@@ -167,12 +195,15 @@ class Agent:
         Returns:
             float: Row of the agent.
         """
-        self.update()
+        (self.__roll, self.__pitch, self.__yaw) = self.__crazyflie.rpy()
         return self.__roll
     
-    def update(self) -> bool:
+    def update(self, agents: list) -> bool:
         """Retrieves the agent information and updates the member veriables.
         Depending on the settings, calculates the formation control values and applies them. 
+
+        Args:
+            agents (list): List of all agents in the system.
 
         Returns:
             bool: Whether the update was succesfull or not.
@@ -183,19 +214,26 @@ class Agent:
         (self.__roll, self.__pitch, self.__yaw) = self.__crazyflie.rpy()
 
         self.__pos=self.__crazyflie.position()
+        (x,y,z)=self.__pos
+        
+        print(f"{self.getName()} : {[round(x,2),round(y,2),round(z,2)]}")
         self.__vel=self.__crazyflie.velocity()
         
         # Calculate control values
         controlVel = np.array([0.0, 0.0, 0.0])
 
         if self.__isFormationActive:
-            controlVel += self.__formationControl
+            controlVel += self.__formationControl()
 
         if self.__isAvoidanceActive:
             controlVel += self.__avoidanceControl()
 
         if self.__isTrajectoryActive:
-            controlVel += self.__trajectoryControl()
+            controlVel += self.__trajectoryControl(agents,self._targetPoint)
+            print(f"{self.getName()} = {controlVel}")
+        self.__crazyflie.cmdVelocityWorld(controlVel,0.0)
+        print(controlVel)
+        #self.__crazyflie.goTo(controlVel,0,2.5)
 
         return retValue
 
@@ -211,7 +249,7 @@ class Agent:
         retValue = False
         
         try:
-            self.__crazyflie.takeoff(targetHeight=Z, duration=5.0)
+            self.__crazyflie.takeoff(targetHeight=Z, duration=1.0)
             retValue = True
         except Exception as e:
             print(e.with_traceback())
@@ -243,7 +281,7 @@ class Agent:
         """
         retValue = False
         try:
-            self.__crazyflie.land(targetHeight=self.__crazyflie.initialPosition[2],duration=5.0)
+            self.__crazyflie.land(targetHeight=self.__crazyflie.initialPosition[2],duration=5)
             retValue = True
         except Exception as e:
             print(e.with_traceback())
@@ -256,7 +294,7 @@ class Agent:
             bool: Whether the operation was succesfull or not.
         """
         retValue = False
-        self.__crazyflie.land(targetHeight=self.__crazyflie.initialPosition[2],duration=5.0)
+        self.__crazyflie.land(targetHeight=0.0,duration=2.5)
         retValue = True
         return retValue
     

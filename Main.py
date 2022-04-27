@@ -55,15 +55,13 @@ def main() -> None:
         redisClient=redis.Redis
     )
     missionControl._syncRedis()
-    while True:
         # Read incoming messages from redis
         
         # Parse the message
-    #pass
     
         # Launch a mission if a message exists
-        missionControl.missionZero()
-        pass
+    missionControl.missionZero()
+
         # Update 'pyrazyswarm'
     #pass
 
