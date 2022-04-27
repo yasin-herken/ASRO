@@ -72,6 +72,11 @@ class Agent:
         Returns:
             np.ndarray: Calculated force. (Vector3)
         """
+        retValue=np.array([0.0,0.0,0.0])
+
+        swarmCenter=np.array([0.0,0.0,0.0])
+
+        
         pass
         
     def getName(self) -> str:
