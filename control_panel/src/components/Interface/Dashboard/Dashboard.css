@@ -1,0 +1,31 @@
+.Dashboard {
+    width: 50%;
+    height: 100%;
+
+    display: inline-flex;
+    flex-direction: column;
+
+    align-items: center;
+}
+
+.Dashboard-Title {
+
+}
+
+.Dashboard-Container {
+    width: 100%;
+    height: 100%;
+    background-color: #2a2a2a;
+    display: inline-flex;
+    flex-direction: column;
+    border-radius: 48px;
+    border-style: solid;
+    border-color: red;
+}
+
+@media only screen and (max-width: 1348px) { 
+    .Dashboard {
+        width: 100%;
+        flex-direction: column;
+    }
+}
