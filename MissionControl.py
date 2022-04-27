@@ -89,7 +89,7 @@ class MissionControl:
                 self._syncRedis()
                 # get redis
     
-            self.__crazySwarm.timeHelper.sleep(3.0)
+            self.__crazySwarm.timeHelper.sleep(5.0)
             for agent in self.__agents:
                     print(agent.getName())
                     agent.landSync()

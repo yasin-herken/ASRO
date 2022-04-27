@@ -194,7 +194,7 @@ class Agent:
 
         return retValue
 
-    def takeOffAsync(self, height: float) -> bool:
+    def takeOffAsync(self, Z: float) -> bool:
         """Takes off the agent from the ground. Does not block the flow of the program.
 
         Args:
@@ -206,7 +206,7 @@ class Agent:
         retValue = False
         
         try:
-            self.__crazyflie.takeoff(targetHeight=height, duration=5.0)
+            self.__crazyflie.takeoff(targetHeight=Z, duration=5.0)
             retValue = True
         except Exception as e:
             print(e.with_traceback())
@@ -283,6 +283,8 @@ class Agent:
         """
         retValue = False
         
+
+
         return retValue
     
     
