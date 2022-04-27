@@ -13,9 +13,9 @@ function Dashboard() {
                 <div className='Dashboard-Map'>
 
                 </div>
-                <div className='Dashboard-'>
-
-                </dv>
+                <div className='Dashboard-Indicators'>
+                    <Plot />
+                </div>
             </div>
         </div>
     );
