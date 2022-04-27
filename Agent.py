@@ -20,7 +20,13 @@ class Agent:
     __pitch: float
     __yaw: float
     __roll: float
-    
+
+    __isFormationActive: bool
+    __isAvoidanceActive: bool
+    __isTrajectoryActive: bool
+
+    __targetPoint: np.ndarray
+
     __crazyflie: Crazyflie
     
     def __init__(self, cf: crazyflie, name: str, address: str) -> None:
@@ -34,6 +40,12 @@ class Agent:
         self.__crazyflie = cf
         self.__name = name
         self.__address = address
+
+        self.__isFormationActive = False
+        self.__isAvoidanceActive = False
+        self.__isTrajectoryActive = False
+
+        self.__targetPoint = None
         
         return
     
@@ -167,11 +179,23 @@ class Agent:
 		"""
         retValue = False
 
-        (self.__roll, self.__pitch, self.__yaw)=self.__crazyflie.rpy()
-        self.__speed=self.__crazyflie.acceleration()
-        self.__vel=self.__crazyflie.velocity()
+        # Update agent info
+        (self.__roll, self.__pitch, self.__yaw) = self.__crazyflie.rpy()
+
         self.__pos=self.__crazyflie.position()
+        self.__vel=self.__crazyflie.velocity()
         
+        # Calculate control values
+        controlVel = np.array([0.0, 0.0, 0.0])
+
+        if self.__isFormationActive:
+            controlVel += self.__formationControl
+
+        if self.__isAvoidanceActive:
+            controlVel += self.__avoidanceControl()
+
+        if self.__isTrajectoryActive:
+            controlVel += self.__trajectoryControl()
 
         return retValue
 
