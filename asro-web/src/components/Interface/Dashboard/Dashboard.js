@@ -1,4 +1,4 @@
-import React, { }  from 'react';
+import React, { useEffect }  from 'react';
 import Plot from 'react-plotly.js';
 import {useSelector} from "react-redux";
 
@@ -11,14 +11,31 @@ import Module4 from "../../../static/Module4.svg";
 
 import InfoTuple from './InfoTuple/InfoTuple';
 
+import {useDispatch} from "react-redux";
+import {GET_AGENT_POSE, GET_AGENTS} from "../../../redux/Agent/AgentTypes";
+
 function Dashboard() {
     const agent = useSelector((state) => state.agent);
+    const dispatch = useDispatch();
     
     function UpdateBorder() {
         var plotDiv = document.getElementsByClassName("main-svg"); //class name of plotly main area
         plotDiv[0].style.borderRadius = "32px"; //or however round you want
         return;
     }
+
+    useEffect(() => {
+        setInterval(() => {
+            if (!(agent.selectedAgentName === "")) {
+                dispatch({
+                    type: GET_AGENT_POSE
+                });
+            }
+
+            dispatch({type: GET_AGENTS});
+
+        }, 500);
+      }, [agent.selectedAgentName, dispatch]);
 
     return (
         <div className='Dashboard'>
@@ -70,18 +87,24 @@ function Dashboard() {
                     {(agent.selectedAgentName === "" ? "Please Select an Agent" : agent.selectedAgentName)}
                     </h2>
                     <div className='Dashboard-Indicators-Container'>
-                        <img src={Module1} width='20%'/>
-                        <img src={Module2} width='20%'/>
-                        <img src={Module3} width='20%'/>
-                        <img src={Module4} width='20%'/>
+                        <img src={Module1} width='20%' alt='Module1'/>
+                        <img src={Module2} width='20%' alt='Module2'/>
+                        <img src={Module3} width='20%' alt='Module3'/>
+                        <img src={Module4} width='20%' alt='Module4'/>
                     </div>
                     <div className='Dashboard-Indicators-Info'>
-                        <InfoTuple param="x" value="0.0"/>
-                        <InfoTuple param="y" value="0.0"/>
-                        <InfoTuple param="z" value="0.0"/>
+                        <InfoTuple
+                            param="x"
+                            value={(agent.selectedAgentX === null ? "N/A" : agent.selectedAgentX)}/>
+                        <InfoTuple
+                            param="y"
+                            value={(agent.selectedAgentY === null ? "N/A" : agent.selectedAgentY)}/>
+                        <InfoTuple
+                            param="z"
+                            value={(agent.selectedAgentZ === null ? "N/A" : agent.selectedAgentZ)}/>
                         <InfoTuple 
                             param="state"
-                            value={(agent.selectedAgentState === "" ? "N/A" : agent.selectedAgentState)}/>
+                            value={(agent.selectedAgentState === null ? "N/A" : agent.selectedAgentState)}/>
                     </div>
                 </div>
             </div>

@@ -1,3 +1,4 @@
+from ctypes import addressof
 import os
 import sys
 import redis
@@ -35,39 +36,63 @@ def main() -> None:
     Checks the Redis 'control' channel for any new mission requests.
     If a new request exists, hands over the control to MissionControl.
     """
+    # Initialization
     cfIds = []
     agents = []
+    names = []
+    addresses = []
+    statuses = []
+    
     crazySwarm = Crazyswarm(crazyflies_yaml="./crazyflies.yaml")
     
+    # Geting the agent ids
     for id in crazySwarm.allcfs.crazyfliesById:
         cfIds.append(id)
-        
+    
+    # Creating the agents
     i = 0
     for agent in crazySwarm.allcfs.crazyflies:
         agents.append(
             Agent(
                 cf=agent,
-                name="cf"+str(cfIds[i]),
-                address="random_ass_string"
+                name=f"Agent {cfIds[i]}",
+                address=f"radio:/{cfIds[i]}/110/2M"
             )
         )
+        names.append(f"Agent {cfIds[i]}")
+        addresses.append(f"radio:/{cfIds[i]}/110/2M")
         i+=1
-        
+    
+    # Initializing redis
+    redisClient = redis.Redis()
+    redisClient.set("agents", json.dumps({"names": names, "addresses": addresses}))
+    redisSub = redisClient.pubsub()
+    redisSub.subscribe(["requests"])
+    
+    # Creating mission control    
     missionControl = MissionControl(
         crazySwarm=crazySwarm,
         agents=agents,
-        redisClient=redis.Redis
+        redisClient=redisClient
     )
     
     while True:
         # Read incoming messages from redis
+        msg = redisSub.get_message()
+        mission = ""
+        target = ""
         
         # Parse the message
-    
+        if msg:
+            if msg['type'] == 'message':
+                mission = json.loads(msg['data']).get("mission", None)
+                target = json.loads(msg['data']).get("target", None)
+        
         # Launch a mission if a message exists
-        missionControl.missionZero()
-
-        # Update 'pyrazyswarm'
+        if mission == "mission_takeoff":
+            pass
+        elif mission == "mission_land":
+            pass
 
 if __name__ == "__main__":
     main()

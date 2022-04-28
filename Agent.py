@@ -2,9 +2,13 @@ import numpy as np
 from pycrazyswarm import crazyflie
 import Settings
 import time
+
 # Remove the word 'Sim' in order to run IRL !!!
 from pycrazyswarm.crazyflieSim import Crazyflie
 from pycrazyswarm.crazyswarm_py import Crazyswarm
+
+# TODO: Fix the private values "_" to "__"
+
 class Agent:
     """This class represents the real-world agent.
     It does swarming and other operations to control the agent.
@@ -51,7 +55,7 @@ class Agent:
         
         self._status = False
 
-        self._state = ""
+        self._state = "STATIONARY"
         
         self.__pos = np.array([0.0,0.0,0.0])
         self.__vel= np.array([0.0,0.0,0.0])
@@ -143,6 +147,15 @@ class Agent:
         """
 
         return "online"
+    
+    def getState(self) -> str:
+        """_summary_
+
+        Returns:
+            str: State of the agent
+        """
+        
+        return self._state
     
     def getPos(self) -> np.ndarray:
         """Returns the position of the agent. (Vector3)
