@@ -16,6 +16,17 @@
 
     background-color: #404040;
     border-radius: 16px;
+
+    user-select: none;
+}
+
+.Agent:hover {
+    background-color: #666666;
+    opacity: 0.75;
+}
+
+.Agent:active {
+    opacity: 0.5;
 }
 
 .Agent-Info-One {    

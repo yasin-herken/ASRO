@@ -17,10 +17,17 @@
     justify-content: space-between;
 }
 
+.Scenario:hover {
+    background-color: #666666;
+    opacity: 0.75;
+}
+
 .Scenario-Name {
     margin: 0px;
 
     font-weight: 600;
+
+    user-select: none;
 }
 
 .Scenario-Button {
@@ -28,6 +35,14 @@
     border-style: none;
 }
 
-.SCenario-Img {
+.Scenario-Img {
 
+}
+
+.Scenario-Img:hover {
+    opacity: 0.75;
+}
+
+.Scenario-Img:active {
+    opacity: 0.5;
 }

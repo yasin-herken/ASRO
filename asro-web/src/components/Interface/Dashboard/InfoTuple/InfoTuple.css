@@ -1,0 +1,36 @@
+.InfoTuple {
+    display: inline-flex;
+    flex-direction: row;
+
+    align-items: center;
+
+    background-color: #535353;
+
+    border-radius: 64px;
+    
+}
+
+.InfoTuple-Param {
+    padding: 8px;
+    padding-left: 24px;
+    padding-right: 24px;
+
+    border-radius: 64px;
+
+    background-color: #656565;
+
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.InfoTuple-Value {
+    margin: 0px;
+    padding: 8px;
+    padding-left: 32px;
+    padding-right: 32px;
+
+    border-radius: 64px;
+
+    font-size: 1.25rem;
+    font-weight: 500;
+}

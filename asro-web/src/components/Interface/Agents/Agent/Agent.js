@@ -2,9 +2,22 @@ import React  from 'react';
 
 import "./Agent.css";
 
+import {useDispatch} from "react-redux";
+import {SELECT_AGENT} from "../../../../redux/Agent/AgentTypes"
+
 function Agent({name, address, status, state}) {
+
+    const dispatch = useDispatch();
+
+    function OnClick(event) {
+        dispatch({
+            type: SELECT_AGENT,
+            payload: {name, address, status, state}
+        });
+    }
+    
     return (
-        <div className='Agent'>
+        <div className='Agent' onClick={OnClick}>
             <div className='Agent-Info-One'>
                 <h2 className='Agent-Info-Name'>
                     {name}

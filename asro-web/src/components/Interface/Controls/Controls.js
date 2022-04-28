@@ -2,9 +2,14 @@ import React  from 'react';
 
 import "./Controls.css";
 
+import {useSelector} from "react-redux";
+
 import Scenario from './Scenario/Scenario';
+import CustomButton from './CustomButton/CustomButton';
 
 function Controls() {
+    const agent = useSelector((state) => state.agent);
+
     return (
         <div className='Controls'>
             <h2 className='Controls-Title'>
@@ -23,7 +28,11 @@ function Controls() {
                         Formation
                     </h2>
                     <div className='Controls-Formation-Container'>
-
+                        <CustomButton name="TRIANGLE"/>
+                        <CustomButton name="ARROWHEAD"/>
+                        <CustomButton name="STAR"/>
+                        <CustomButton name="SQUARE"/>
+                        <CustomButton name="PENTAGON"/>
                     </div>
                 </div>
                 <div className='Controls-Commands'>
@@ -31,8 +40,15 @@ function Controls() {
                         Commands
                     </h2>
                     <div className='Controls-Commands-Container'>
+                        <CustomButton name="TAKE OFF"/>
+                        <CustomButton name="LAND"/>
+                        <CustomButton name="KILL SWITCH"/>
+                        <CustomButton name="CIRCLE AROUND"/>
 
                     </div>
+                </div>
+                <div className='Controls-Commands-LastAction'>
+                    {(agent.lastCommand === "" ? "last command will be displayed here" : agent.lastCommand)}
                 </div>
             </div>
         </div>

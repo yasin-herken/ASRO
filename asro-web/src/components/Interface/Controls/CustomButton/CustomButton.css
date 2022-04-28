@@ -1,0 +1,32 @@
+.CustomButton {    
+    padding-top: 12px;
+    padding-bottom: 12px;
+    padding-left: 16px;
+    padding-right: 16px;
+
+    display: inline-flex;
+    flex-direction: column;
+
+    background-color: #404040;
+
+    border-radius: 64px;
+
+    align-items: center;
+}
+
+.CustomButton-Name {
+    margin: 0px;
+
+    font-weight: 500;
+
+    user-select: none;
+}
+
+.CustomButton:hover {
+    background-color: #666666;
+    opacity: 0.75;
+}
+
+.CustomButton:active {
+    opacity: 0.5;
+}

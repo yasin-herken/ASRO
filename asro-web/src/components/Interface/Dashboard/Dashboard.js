@@ -1,23 +1,24 @@
 import React, { }  from 'react';
 import Plot from 'react-plotly.js';
-import {
-    Airspeed,
-    Altimeter,
-    AttitudeIndicator,
-    HeadingIndicator,
-    Variometer
-} from 'react-flight-indicators';
+import {useSelector} from "react-redux";
 
 import "./Dashboard.css";
 
+import Module1 from "../../../static/Module1.svg";
+import Module2 from "../../../static/Module2.svg";
+import Module3 from "../../../static/Module3.svg";
+import Module4 from "../../../static/Module4.svg";
+
+import InfoTuple from './InfoTuple/InfoTuple';
+
 function Dashboard() {
+    const agent = useSelector((state) => state.agent);
     
     function UpdateBorder() {
         var plotDiv = document.getElementsByClassName("main-svg"); //class name of plotly main area
         plotDiv[0].style.borderRadius = "32px"; //or however round you want
         return;
     }
-
 
     return (
         <div className='Dashboard'>
@@ -31,7 +32,7 @@ function Dashboard() {
                         id="plot-gang"
                         type='scatter'
                         mode='markers'
-                        style={{width: '100%'}}
+                        style={{width: '100%', height: '356px'}}
                         layout={
                             {
                                 hovermode: false,
@@ -65,7 +66,23 @@ function Dashboard() {
                     </div>
                 </div>
                 <div className='Dashboard-Indicators'>
-                    
+                    <h2 className='Dashboard-Indicators-Name'>
+                    {(agent.selectedAgentName === "" ? "Please Select an Agent" : agent.selectedAgentName)}
+                    </h2>
+                    <div className='Dashboard-Indicators-Container'>
+                        <img src={Module1} width='20%'/>
+                        <img src={Module2} width='20%'/>
+                        <img src={Module3} width='20%'/>
+                        <img src={Module4} width='20%'/>
+                    </div>
+                    <div className='Dashboard-Indicators-Info'>
+                        <InfoTuple param="x" value="0.0"/>
+                        <InfoTuple param="y" value="0.0"/>
+                        <InfoTuple param="z" value="0.0"/>
+                        <InfoTuple 
+                            param="state"
+                            value={(agent.selectedAgentState === "" ? "N/A" : agent.selectedAgentState)}/>
+                    </div>
                 </div>
             </div>
         </div>
