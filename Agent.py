@@ -232,12 +232,11 @@ class Agent:
             controlVel += self.__trajectoryControl(agents,self._targetPoint)
             print(f"{self.getName()} = {controlVel}")
         self.__crazyflie.cmdVelocityWorld(controlVel,0.0)
-        print(controlVel)
         #self.__crazyflie.goTo(controlVel,0,2.5)
 
         return retValue
 
-    def takeOffAsync(self, Z: float) -> bool:
+    def takeOffAsync(self,Z: float) -> bool:
         """Takes off the agent from the ground. Does not block the flow of the program.
 
         Args:
@@ -281,7 +280,7 @@ class Agent:
         """
         retValue = False
         try:
-            self.__crazyflie.land(targetHeight=self.__crazyflie.initialPosition[2],duration=5)
+            self.__crazyflie.land(targetHeight=self.__crazyflie.initialPosition[2],duration=5.0)
             retValue = True
         except Exception as e:
             print(e.with_traceback())

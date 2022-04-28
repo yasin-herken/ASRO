@@ -35,10 +35,12 @@ def main() -> None:
     If a new request exists, hands over the control to MissionControl.
     """
     cfIds = []
+    agents = []
     crazySwarm = Crazyswarm(crazyflies_yaml="./crazyflies.yaml")
+    
     for id in crazySwarm.allcfs.crazyfliesById:
         cfIds.append(id)
-    agents = []
+        
     i = 0
     for agent in crazySwarm.allcfs.crazyflies:
         agents.append(
@@ -49,21 +51,22 @@ def main() -> None:
             )
         )
         i+=1
+        
     missionControl = MissionControl(
         crazySwarm=crazySwarm,
         agents=agents,
         redisClient=redis.Redis
     )
-    missionControl._syncRedis()
+    
+    while True:
         # Read incoming messages from redis
         
         # Parse the message
     
         # Launch a mission if a message exists
-    missionControl.missionZero()
+        missionControl.missionZero()
 
         # Update 'pyrazyswarm'
-    #pass
 
 if __name__ == "__main__":
     main()

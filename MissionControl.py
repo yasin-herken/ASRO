@@ -88,9 +88,13 @@ class MissionControl:
         self.__crazySwarm.timeHelper.sleep(2.5)'''
         while True:
             for agent in self.__agents:
-                agent.update(self.__agents)
-
+                self.takeOffAgent(agent,2.0)
+                
+            self.__crazySwarm.timeHelper.sleep(5.0)
             
+            for agent in self.__agents:
+                self.landAgent(agent)
+            self.__crazySwarm.timeHelper.sleep(5.0)
         #agent.update(self.__agents)
         self.__crazySwarm.timeHelper.sleep(5.0)
         for agent in self.__agents:
@@ -161,7 +165,7 @@ class MissionControl:
         
         return retValue
 
-    def takeOffAgent(self, target: str) -> bool:
+    def takeOffAgent(self, target: Agent,Z: float) -> bool:
         """Takes off the target agent.
 
         Args:
@@ -171,10 +175,15 @@ class MissionControl:
             bool: Specifies whether the mission was successfull or not.
         """
         retValue = False
-        
+        print(target)
+        try:
+            target.takeOffAsync(Z=Z)
+            retValue = True
+        except Exception as e:
+            print(e.with_traceback())
         return retValue
 
-    def landAgent(self, target: str) -> bool:
+    def landAgent(self, target: Agent) -> bool:
         """Lands the target agent.
 
         Args:
@@ -184,7 +193,11 @@ class MissionControl:
             bool: Specifies whether the mission was successfull or not.
         """
         retValue = False
-        
+        try:
+            target.landAsync()
+            retValue = True
+        except Exception as e:
+            print(e.with_traceback())
         return retValue
 
     def goToAgent(self, point: np.ndarray, target: str) -> bool:
