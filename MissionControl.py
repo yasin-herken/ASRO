@@ -96,23 +96,7 @@ class MissionControl:
                 self.landAgent(agent)
             self.__crazySwarm.timeHelper.sleep(5.0)
         #agent.update(self.__agents)
-        self.__crazySwarm.timeHelper.sleep(5.0)
-        for agent in self.__agents:
-            #print(agent.getPos())
-            pass
-        '''self.__crazySwarm.timeHelper.sleep(2.5)
-        for agent in self.__agents:
-            agent.landSync()
-            
-            # set redis
-            self._syncRedis()
-            # get redis'''
-            
 
-        self.__crazySwarm.timeHelper.sleep(10)
-
-        self.__redisClient.delete("channel")
-        print("here")
         return retValue
 
     def missionOne(self) -> bool:
@@ -165,7 +149,7 @@ class MissionControl:
         
         return retValue
 
-    def takeOffAgent(self, target: Agent,Z: float) -> bool:
+    def takeOffAgent(self, target: str) -> bool:
         """Takes off the target agent.
 
         Args:
@@ -175,15 +159,15 @@ class MissionControl:
             bool: Specifies whether the mission was successfull or not.
         """
         retValue = False
-        print(target)
-        try:
-            target.takeOffAsync(Z=Z)
-            retValue = True
-        except Exception as e:
-            print(e.with_traceback())
+        for agent in self.__agents:
+            if target == agent.getName():
+                agent.takeOffSync(1.5)
+                self.__crazySwarm.timeHelper.sleep(5.0)
+                retValue = True
+        print("Takeoff Completed")
         return retValue
 
-    def landAgent(self, target: Agent) -> bool:
+    def landAgent(self, target: str) -> bool:
         """Lands the target agent.
 
         Args:
@@ -194,10 +178,14 @@ class MissionControl:
         """
         retValue = False
         try:
-            target.landAsync()
-            retValue = True
+           for agent in self.__agents:
+            if target == agent.getName():
+                agent.landSync()
+                self.__crazySwarm.timeHelper.sleep(5.0)
+                retValue = True
         except Exception as e:
             print(e.with_traceback())
+        print("Land Completed")
         return retValue
 
     def goToAgent(self, point: np.ndarray, target: str) -> bool:

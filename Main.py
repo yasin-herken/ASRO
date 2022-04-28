@@ -90,10 +90,13 @@ def main() -> None:
         
         # Launch a mission if a message exists
         if mission == "mission_takeoff":
+            if target:
+                missionControl.takeOffAgent(target=target)
             pass
         elif mission == "mission_land":
+            if target:
+                missionControl.landAgent(target=target)
             pass
-
 if __name__ == "__main__":
     main()
     sys.exit(0)
