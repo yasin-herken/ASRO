@@ -78,14 +78,6 @@ class MissionControl:
         # Simdilik takeOffAsync() yapiyor bu fonksiyon sadece.
         # timeHelper.sleep(0.01) olmazsa simulasyon nedense calismiyor ben de bilmiyorum.
         
-        
-        '''for agent in self.__agents:
-            agent.takeOffSync(1.5)
-            
-            # set redis
-            self._syncRedis()
-            # get redis
-        self.__crazySwarm.timeHelper.sleep(2.5)'''
         while True:
             for agent in self.__agents:
                 self.takeOffAgent(agent,2.0)
@@ -165,6 +157,22 @@ class MissionControl:
                 self.__crazySwarm.timeHelper.sleep(5.0)
                 retValue = True
         print("Takeoff Completed")
+        return retValue
+    def takeOffAll(self) -> bool:
+        retValue = False
+        for agent in self.__agents:
+            agent.takeOffSync(1.5)
+        self.__crazySwarm.timeHelper.sleep(5.0)
+        retValue = True
+        print("Takeoff Completed")
+        return retValue
+    def landAll(self):
+        retValue = False
+        for agent in self.__agents:
+            agent.landAsync()
+        self.__crazySwarm.timeHelper.sleep(5.0)
+        retValue = True
+        print("Land Completed")
         return retValue
 
     def landAgent(self, target: str) -> bool:

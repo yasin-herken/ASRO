@@ -68,7 +68,7 @@ def mission_land():
 
 @app.route('/mission_takeoff_all')
 @cross_origin()
-def mission_takeoff_all():
+def mission_take_off_all():
     
     redisClient.publish("requests", json.dumps({"mission": "mission_takeoff_all"}))
         

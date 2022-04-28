@@ -42,8 +42,8 @@ function Controls() {
                     <div className='Controls-Commands-Container'>
                         <CustomButton name="TAKE OFF"/>
                         <CustomButton name="LAND"/>
-                        <CustomButton name="KILL SWITCH"/>
-                        <CustomButton name="CIRCLE AROUND"/>
+                        <CustomButton name="TAKE_OFF_ALL"/>
+                        <CustomButton name="LAND_ALL"/>
 
                     </div>
                 </div>

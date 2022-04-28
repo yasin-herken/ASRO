@@ -89,14 +89,22 @@ def main() -> None:
                 target = json.loads(msg['data']).get("target", None)
         
         # Launch a mission if a message exists
-        if mission == "mission_takeoff":
+        if mission == "mission_takeoff_all":
+            print("hereee")
+            missionControl.takeOffAll()
+            pass
+        elif mission == "mission_land_all":
+            missionControl.landAll()
+            pass
+        elif mission =="mission_takeoff":
             if target:
                 missionControl.takeOffAgent(target=target)
-            pass
-        elif mission == "mission_land":
+                pass
+        elif mission =="mission_land":
             if target:
                 missionControl.landAgent(target=target)
-            pass
+                pass
+        
 if __name__ == "__main__":
     main()
     sys.exit(0)
