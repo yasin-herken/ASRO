@@ -10,6 +10,7 @@ from Agent import Agent
 from MissionControl import MissionControl
 from pycrazyswarm import Crazyswarm
 
+
 def _watchDog(server: Crazyswarm) -> None:
     """Runs on a thread. Checks the Redis 'emergency' channel.
     Calls the function emergencyExit() if the need arises.
