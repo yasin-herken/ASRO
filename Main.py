@@ -2,7 +2,7 @@ from ctypes import addressof
 import os
 import sys
 import redis
-import time
+import datetime
 import Settings
 import json
 import numpy as np
@@ -44,7 +44,7 @@ def main() -> None:
     statuses = []
     
     crazySwarm = Crazyswarm(crazyflies_yaml="./crazyflies.yaml")
-    
+
     # Geting the agent ids
     for id in crazySwarm.allcfs.crazyfliesById:
         cfIds.append(id)
@@ -56,11 +56,11 @@ def main() -> None:
             Agent(
                 cf=agent,
                 name=f"Agent {cfIds[i]}",
-                address=f"radio:/{cfIds[i]}/110/2M"
+                address=f"radio:/{cfIds[i]}/125/2M"
             )
         )
         names.append(f"Agent {cfIds[i]}")
-        addresses.append(f"radio:/{cfIds[i]}/110/2M")
+        addresses.append(f"radio:/{cfIds[i]}/125/2M")
         i+=1
     
     # Initializing redis
@@ -76,6 +76,8 @@ def main() -> None:
         redisClient=redisClient
     )
     
+    i = 0
+    
     while True:
         # Read incoming messages from redis
         msg = redisSub.get_message()
@@ -86,24 +88,36 @@ def main() -> None:
         if msg:
             if msg['type'] == 'message':
                 mission = json.loads(msg['data']).get("mission", None)
+                print(f"[{datetime.datetime.now()}] New mission: {mission}")
                 target = json.loads(msg['data']).get("target", None)
+                print(f"[{datetime.datetime.now()}] New target: {mission}")
         
         # Launch a mission if a message exists
         if mission == "mission_takeoff_all":
-            print("hereee")
-            missionControl.takeOffAll()
-            pass
+            # missionControl.takeOffAll()
+            if i == 0:
+                missionControl.goTo(np.array([1.0, -1.0, 1.1]), 0.7)
+                i += 1
+            elif i == 1:
+                missionControl.goTo(np.array([-1.0, -1.0, 1.1]), 0.7)
+                i += 1
+            elif i == 2:
+                missionControl.goTo(np.array([-1.0, 1.0, 1.1]), 0.7)
+                i += 1
+            elif i == 3:
+                missionControl.goTo(np.array([1.0, 1.0, 1.1]), 0.7)
+                i += 1
+            elif i == 4:
+                missionControl.goTo(np.array([0.0, 0.0, 1.1]), 0.7)
+                i += 1
         elif mission == "mission_land_all":
             missionControl.landAll()
-            pass
         elif mission =="mission_takeoff":
             if target:
                 missionControl.takeOffAgent(target=target)
-                pass
         elif mission =="mission_land":
             if target:
                 missionControl.landAgent(target=target)
-                pass
         
 if __name__ == "__main__":
     main()

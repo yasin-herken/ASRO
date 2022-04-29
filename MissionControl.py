@@ -1,6 +1,6 @@
 import redis
 import numpy as np
-import marshal
+import datetime
 import json
 from typing import List
 from Agent import Agent
@@ -64,7 +64,7 @@ class MissionControl:
             #print(self.sndMessage)
         return retValue
 
-    def missionZero(self) -> bool:
+    def goTo(self, target, maxSpeed) -> bool:
         """Made for testing purposes only. You can control the agents here like taking off, landing or etc.
 
         Returns:
@@ -78,17 +78,21 @@ class MissionControl:
         # Simdilik takeOffAsync() yapiyor bu fonksiyon sadece.
         # timeHelper.sleep(0.01) olmazsa simulasyon nedense calismiyor ben de bilmiyorum.
         
+        print(f"[{datetime.datetime.now()}] Mission zero start")
+        
+        for agent in self.__agents:
+            agent.setTargetPoint(target)
+            agent.setMaxVel(maxSpeed)
+        
         while True:
             for agent in self.__agents:
-                self.takeOffAgent(agent,2.0)
+                agent.update(self.__agents)
                 
-            self.__crazySwarm.timeHelper.sleep(5.0)
-            
-            for agent in self.__agents:
-                self.landAgent(agent)
-            self.__crazySwarm.timeHelper.sleep(5.0)
-        #agent.update(self.__agents)
-
+                if (not agent.isMoving()):
+                    print(f"[{datetime.datetime.now()}] Mission zero end")
+                    return True
+            self.__crazySwarm.timeHelper.sleep(1 / 100)
+                        
         return retValue
 
     def missionOne(self) -> bool:
@@ -150,23 +154,34 @@ class MissionControl:
         Returns:
             bool: Specifies whether the mission was successfull or not.
         """
+        
+        print(f"[{datetime.datetime.now()}] Mission takeOffAgent started")
+        
         retValue = False
         for agent in self.__agents:
             if target == agent.getName():
-                agent.takeOffSync(1.5)
+                agent.takeOffSync(1.0)
                 self.__crazySwarm.timeHelper.sleep(5.0)
                 retValue = True
         print("Takeoff Completed")
         return retValue
+    
     def takeOffAll(self) -> bool:
+        
+        print(f"[{datetime.datetime.now()}] Mission takeOffAll started")
+        
         retValue = False
         for agent in self.__agents:
-            agent.takeOffSync(1.5)
+            agent.takeOffSync(1.0)
         self.__crazySwarm.timeHelper.sleep(5.0)
         retValue = True
         print("Takeoff Completed")
         return retValue
+    
     def landAll(self):
+        
+        print(f"[{datetime.datetime.now()}] Mission landAll started")
+        
         retValue = False
         for agent in self.__agents:
             agent.landAsync()
@@ -188,8 +203,10 @@ class MissionControl:
         try:
            for agent in self.__agents:
             if target == agent.getName():
-                agent.landSync()
-                self.__crazySwarm.timeHelper.sleep(5.0)
+                #agent.landSync()
+                pos = agent.getPos()
+                target = np.array([pos[0], pos[1], 0.0])
+                self.goTo(target, 0.2)
                 retValue = True
         except Exception as e:
             print(e.with_traceback())

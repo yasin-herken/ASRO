@@ -4,7 +4,7 @@ import Settings
 import time
 
 # Remove the word 'Sim' in order to run IRL !!!
-from pycrazyswarm.crazyflieSim import Crazyflie
+from pycrazyswarm.crazyflie import Crazyflie
 from pycrazyswarm.crazyswarm_py import Crazyswarm
 
 # TODO: Fix the private values "_" to "__"
@@ -21,7 +21,8 @@ class Agent:
     __pos: np.ndarray
     __vel: np.ndarray
     
-    _speed: float
+    __speed: float
+    __isMoving: bool
     
     __pitch: float
     __yaw: float
@@ -35,6 +36,18 @@ class Agent:
 
     __crazyflie: Crazyflie
     
+    # time points
+    __t1: float
+    __t2: float
+    __maxVel: float 
+    
+    # position points
+    __x1: np.ndarray
+    __x2: np.ndarray
+    
+    # validity
+    __validtyCount: int
+    
     def __init__(self, cf: crazyflie, name: str, address: str) -> None:
         """Initializes the agent class.
 
@@ -47,27 +60,36 @@ class Agent:
         self.__name = name
         self.__address = address
 
+        self.__maxVel = 0.5
+        
         self.__isFormationActive = False
         self.__isAvoidanceActive = False
         self.__isTrajectoryActive = True
 
-        self._targetPoint = np.array([0.8,0.5,0.2])
+        self._targetPoint = np.array([0.0, 0.0, 0.0])
         
         self._status = False
-
         self._state = "STATIONARY"
         
-        self.__pos = np.array([0.0,0.0,0.0])
-        self.__vel= np.array([0.0,0.0,0.0])
+        self.__pos = np.array([0.0, 0.0, 0.0])
+        self.__vel= np.array([0.0, 0.0, 0.0])
         
-        self._speed = 0.0
+        self.__speed = 0.0
+        
+        self.__isMoving = False
         
         self.__pitch= 0.0
         self.__yaw= 0.0
         self.__roll = 0.0
 
-        return
-    
+        self.__t1 = time.perf_counter()
+        self.__t2 = time.perf_counter()
+        
+        self.__x1 = np.array([0.0, 0.0, 0.0])
+        self.__x2 = np.array([0.0, 0.0, 0.0])
+        
+        self.__validtyCount = 0   
+        
     def __str__(self):
         return f"{self.__name},{self.__address},{self.__pos}"
 
@@ -95,32 +117,29 @@ class Agent:
         """
         pass
     
-    def __trajectoryControl(self, agents: list,targetPoint:np.ndarray) -> np.ndarray:
+    def __trajectoryControl(self, agents: list) -> np.ndarray:
         """Calculates the trajectory 'force' to be applied to the agent.
         This calculation moves the agent towards the target point.
 
         Args:
             agents (list): List of agents
-            target (np.ndarray): Target point.
 
         Returns:
             np.ndarray: Calculated force. (Vector3)
         """
-        retValue=np.array([0.0,0.0,0.0])
+        retValue = np.array([0.0, 0.0, 0.0])
 
-        swarmCenter=np.array([0.0,0.0,0.0])
-        i =0
+        swarmCenter = np.array([0.0, 0.0, 0.0])
         for otherAgent in agents:
             swarmCenter += otherAgent.getPos()
-            print("f{swarmCenter}")
-            i+=1
-        swarmCenter /= i
+        swarmCenter /= len(agents)
 
-        retValue = targetPoint - swarmCenter
-        # max velocity 10
-        if 3.0<=Settings.getMagnitude(retValue):
-            retValue = Settings.setMagnitude(retValue,1.0)
-        print(retValue)
+        retValue = self._targetPoint - swarmCenter
+        
+        # max velocity 1.0
+        if self.__maxVel < Settings.getMagnitude(retValue):
+            retValue = Settings.setMagnitude(retValue, self.__maxVel)
+        
         return retValue
         
     def getName(self) -> str:
@@ -163,7 +182,7 @@ class Agent:
         Returns:
             np.ndarray: Position of the agent.
         """
-        
+        self.__crazyflie.position()
         return np.array(self.__pos)
     
     def getVel(self) -> np.ndarray:
@@ -182,7 +201,7 @@ class Agent:
             float: Speed of the agent.
         """
         
-        return 0.0
+        return Settings.getMagnitude(self.__vel)
     
     def getPitch(self) -> float:
         """Returns the pitch of the agent.
@@ -190,7 +209,6 @@ class Agent:
         Returns:
             float: Pitch of the agent.
         """
-        (self.__roll, self.__pitch, self.__yaw) = self.__crazyflie.rpy()
         return self.__pitch
     
     def getYaw(self) -> float:
@@ -211,6 +229,24 @@ class Agent:
         (self.__roll, self.__pitch, self.__yaw) = self.__crazyflie.rpy()
         return self.__roll
     
+    def setTargetPoint(self, target):
+        self._targetPoint = target
+        
+        return True
+    
+    def setMaxVel(self, Vel):
+        self.__maxVel = Vel 
+        return True 
+    
+    def isMoving(self) -> bool:
+        """Check if the agent is moving or not.
+
+        Returns:
+            bool: Whether the agent is moving or not.
+        """
+        
+        return self.__isMoving
+    
     def update(self, agents: list) -> bool:
         """Retrieves the agent information and updates the member veriables.
         Depending on the settings, calculates the formation control values and applies them. 
@@ -224,13 +260,26 @@ class Agent:
         retValue = False
 
         # Update agent info
-        (self.__roll, self.__pitch, self.__yaw) = self.__crazyflie.rpy()
-
-        self.__pos=self.__crazyflie.position()
-        (x,y,z)=self.__pos
+        self.__x1 = self.__pos
+        self.__pos = self.__crazyflie.position()
+        self.__x2 = self.__pos
         
-        print(f"{self.getName()} : {[round(x,2),round(y,2),round(z,2)]}")
-        self.__vel=self.__crazyflie.velocity()
+        self.__t2 = time.perf_counter()
+        self.__vel = (self.__x2 - self.__x1) / (self.__t2 - self.__t1)
+        self.__t1 = time.perf_counter()
+        
+        self.__speed = Settings.getMagnitude(self.__vel)
+    
+        # Calculate is moving
+        if self.__speed <= 0.01:
+            self.__validtyCount += 1
+            if 400 <= self.__validtyCount:
+                self.__isMoving = False
+                self.__validtyCount = 0
+            else:
+                self.__isMoving = True
+        else:
+            self.__isMoving = True
         
         # Calculate control values
         controlVel = np.array([0.0, 0.0, 0.0])
@@ -242,14 +291,13 @@ class Agent:
             controlVel += self.__avoidanceControl()
 
         if self.__isTrajectoryActive:
-            controlVel += self.__trajectoryControl(agents,self._targetPoint)
-            print(f"{self.getName()} = {controlVel}")
-        self.__crazyflie.cmdVelocityWorld(controlVel,0.0)
-        #self.__crazyflie.goTo(controlVel,0,2.5)
+            controlVel += self.__trajectoryControl(agents)
+        
+        self.__crazyflie.cmdVelocityWorld(controlVel, 0)
 
         return retValue
 
-    def takeOffAsync(self,Z: float) -> bool:
+    def takeOffAsync(self, Z: float) -> bool:
         """Takes off the agent from the ground. Does not block the flow of the program.
 
         Args:
@@ -293,7 +341,7 @@ class Agent:
         """
         retValue = False
         try:
-            self.__crazyflie.land(targetHeight=self.__crazyflie.initialPosition[2],duration=5.0)
+            self.__crazyflie.land(targetHeight=self.__crazyflie.initialPosition[2],duration=6.0)
             retValue = True
         except Exception as e:
             print(e.with_traceback())
@@ -306,7 +354,7 @@ class Agent:
             bool: Whether the operation was succesfull or not.
         """
         retValue = False
-        self.__crazyflie.land(targetHeight=0.0,duration=2.5)
+        self.__crazyflie.land(targetHeight=0.0, duration=2.5)
         retValue = True
         return retValue
     
