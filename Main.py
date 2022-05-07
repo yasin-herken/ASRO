@@ -91,7 +91,6 @@ def main() -> None:
                 print(f"[{datetime.datetime.now()}] New mission: {mission}")
                 target = json.loads(msg['data']).get("target", None)
                 print(f"[{datetime.datetime.now()}] New target: {mission}")
-        
         # Launch a mission if a message exists
         if mission == "mission_takeoff_all":
             # missionControl.takeOffAll()
@@ -118,6 +117,8 @@ def main() -> None:
         elif mission =="mission_land":
             if target:
                 missionControl.landAgent(target=target)
+        if mission=="mission_one":
+            missionControl.missionOne()
         
 if __name__ == "__main__":
     main()

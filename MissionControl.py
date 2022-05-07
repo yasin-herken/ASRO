@@ -102,7 +102,14 @@ class MissionControl:
             bool: Specifies whether the mission was successfull or not.
         """
         retValue = False
-        
+        self.takeOffAll()
+        self.__crazySwarm.timeHelper.sleep(5.0)
+        self.goTo(np.array([1.0, -1.0, 1.1]), 0.7)
+        self.goTo(np.array([-1.0, -1.0, 1.1]), 0.7)
+        self.goTo(np.array([-1.0, 1.0, 1.1]), 0.7)
+        self.goTo(np.array([1.0, 1.0, 1.1]), 0.7)
+        self.goTo(np.array([0.0, 0.0, 1.1]), 0.7)
+        self.landAll()
         return retValue
 
     def missionTwo(self) -> bool:

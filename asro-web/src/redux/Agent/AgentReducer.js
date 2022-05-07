@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 import { TAKEOFF, LAND,LAND_ALL, SELECT_AGENT, GET_AGENT_POSE, GET_AGENTS, TAKE_OFF_ALL } from './AgentTypes';
+import { SCENARIO_1,SCENARIO_2,SCENARIO_3,SCENARIO_4,SCENARIO_5 } from './AgentTypes';
 
 const INITIAL_STATE = {
     agentCount: 0,
@@ -22,7 +23,6 @@ export const AgentReducer = (state = INITIAL_STATE, action) => {
 
     var newState = Object.assign({}, state);
     var target = newState.selectedAgentName;
-
     switch (action.type) {
         case TAKEOFF:
             newState.lastCommand = "Taking off " + target;
@@ -78,6 +78,26 @@ export const AgentReducer = (state = INITIAL_STATE, action) => {
             axios.get('http://localhost:5000/get_agents').then(resp => {
                 newState.agents = resp.data;
             });
+            break;
+        case SCENARIO_1:
+            newState.lastCommand="Scenario 1";
+            axios.get('http://localhost:5000/mission_one')
+                .then(res => {
+                    // console.log(res);
+                    // console.log(res.data);
+            });
+            break;
+        case SCENARIO_2:
+            newState.lastCommand="Scenario 2";
+            break;
+        case SCENARIO_3:
+            newState.lastCommand="Scenario 3";
+            break;
+        case SCENARIO_4:
+            newState.lastCommand="Scenario 4";
+            break;
+        case SCENARIO_5:
+            newState.lastCommand="Scenario 5";
             break;
         default:
             break;
