@@ -5,7 +5,7 @@ We are a highly-motivated small team of three collage friends with great passion
 Smart Swarm Robots (Akıllı Sürü Robotları), aka ASRO, is a project that aims to create highly efficient swarm control of drones using complex algorithms and artificial intelligence. We provide both an interface using the ASRO Web Application and a back end system to control the swarm and the individual agents.
 
 ### What is swarm?
-Swarming is a behaviour found in nature, like flock of birds or bees living in a hive. This behaviour looks complex from the outside but it is fairly simple from the perspective of an individual inside the swarm. We call these individuals *agents*. To give a better example, image a flock of birds. Each bird is called an agent, and the whole flock is called a swarm.
+Swarming is a behaviour found in nature, like a flock of birds or bees living in a hive. This behaviour looks complex from the outside but it is fairly simple from the perspective of an individual inside the swarm. We call these individuals *agents*. To give a better example, imagine a flock of birds. Each bird is called an agent, and the whole flock is called a swarm.
 
 ![Swarm of birds](./Resources/swarm_of_birds.gif)
 
