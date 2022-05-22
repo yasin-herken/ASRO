@@ -1,11 +1,9 @@
-import React  from 'react';
-
 import "./Controls.css";
-
-import {useSelector} from "react-redux";
-
 import Scenario from './Scenario/Scenario';
 import CustomButton from './CustomButton/CustomButton';
+
+import React  from 'react';
+import {useSelector} from "react-redux";
 
 function Controls() {
     const agent = useSelector((state) => state.agent);

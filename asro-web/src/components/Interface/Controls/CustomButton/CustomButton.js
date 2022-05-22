@@ -1,9 +1,13 @@
-import React  from 'react';
-
+import {
+    takeOff,
+    takeOffAll,
+    land,
+    landAll
+} from "../../../../actions/AgentActions";
 import "./CustomButton.css"
 
+import React  from 'react';
 import {useDispatch} from "react-redux";
-import {TAKEOFF, LAND,LAND_ALL,TAKE_OFF_ALL} from "../../../../redux/Agent/AgentTypes";
 
 function CustomButton({name}) {
     const dispatch = useDispatch();
@@ -18,28 +22,16 @@ function CustomButton({name}) {
 
         switch (cmd) {
             case "TAKE OFF":
-                dispatch({
-                    type: TAKEOFF,
-                    payload: {}
-                })
+                dispatch(takeOff())
                 break;
             case "LAND":
-                dispatch({
-                    type: LAND,
-                    payload: {}
-                })
+                dispatch(land())
                 break;
             case "TAKE_OFF_ALL":
-                dispatch({
-                    type: TAKE_OFF_ALL,
-                    payload: {}
-                })
+                dispatch(takeOffAll())
                 break;
             case "LAND_ALL":
-                dispatch({
-                    type: LAND_ALL,
-                    payload: {}
-                })
+                dispatch(landAll())
                 break;
             default:
                 break;

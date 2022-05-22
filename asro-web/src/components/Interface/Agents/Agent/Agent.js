@@ -1,19 +1,18 @@
-import React  from 'react';
+import {
+    selectAgent
+} from "../../../../actions/AgentActions"
 
 import "./Agent.css";
 
+import React  from 'react';
 import {useDispatch} from "react-redux";
-import {SELECT_AGENT} from "../../../../redux/Agent/AgentTypes"
 
 function Agent({name, address, status, state}) {
 
     const dispatch = useDispatch();
 
     function OnClick(event) {
-        dispatch({
-            type: SELECT_AGENT,
-            payload: {name, address, status, state}
-        });
+        dispatch(selectAgent());
     }
     
     return (

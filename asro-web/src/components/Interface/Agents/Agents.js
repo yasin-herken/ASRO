@@ -32,7 +32,7 @@ function Agents() {
 
             for (var i = 0; i < names.length; i++) {
                 retValue.push(
-                    <Agent key={i*48} name={names[i]} address={addresses[i]} status="online" state="STATIONARY"/>
+                    <Agent key={names[i]} name={names[i]} address={addresses[i]} status="online" state="STATIONARY"/>
                 )
             }
         }

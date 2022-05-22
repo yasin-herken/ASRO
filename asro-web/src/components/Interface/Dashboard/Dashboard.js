@@ -1,6 +1,7 @@
-import React, { useEffect }  from 'react';
-import Plot from 'react-plotly.js';
-import {useSelector} from "react-redux";
+import {
+    getAgents,
+    getAgentPose
+} from "../../../actions/AgentActions";
 
 import "./Dashboard.css";
 
@@ -8,11 +9,12 @@ import Module1 from "../../../static/Module1.svg";
 import Module2 from "../../../static/Module2.svg";
 import Module3 from "../../../static/Module3.svg";
 import Module4 from "../../../static/Module4.svg";
-
 import InfoTuple from './InfoTuple/InfoTuple';
 
+import React, { useEffect }  from 'react';
+import Plot from 'react-plotly.js';
+import {useSelector} from "react-redux";
 import {useDispatch} from "react-redux";
-import {GET_AGENT_POSE, GET_AGENTS} from "../../../redux/Agent/AgentTypes";
 
 function Dashboard() {
     const agent = useSelector((state) => state.agent);
@@ -25,16 +27,17 @@ function Dashboard() {
     }
 
     useEffect(() => {
+        dispatch(getAgents());
+    }, [dispatch]);
+
+    
+    useEffect(() => {
         setInterval(() => {
-            if (!(agent.selectedAgentName === "")) {
-                dispatch({
-                    type: GET_AGENT_POSE
-                });
+            if (agent.selectedAgentName !== "") {
+                dispatch(getAgentPose());
             }
 
-            dispatch({type: GET_AGENTS});
-
-        }, 500);
+        }, 250);
       }, [agent.selectedAgentName, dispatch]);
 
     return (
