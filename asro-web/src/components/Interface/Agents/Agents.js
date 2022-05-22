@@ -25,8 +25,7 @@ function Agents() {
         
         var retValue = []
 
-        if (Object.keys(agents).length !== 0 )
-        {
+        if (Object.keys(agents).length !== 0 ) {
             var names = agents.names;
             var addresses = agents.addresses;
 
@@ -35,6 +34,12 @@ function Agents() {
                     <Agent key={names[i]} name={names[i]} address={addresses[i]} status="online" state="STATIONARY"/>
                 )
             }
+        } else {
+            retValue.push(
+                <h3 key={"no_agents_to_show"}>
+                    No agents to show
+                </h3>
+            );
         }
         
 
