@@ -1,4 +1,3 @@
-from ctypes import addressof
 import os
 import sys
 import redis
