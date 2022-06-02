@@ -34,3 +34,4 @@ There are some requirements to fullfill in order to install the ASRO Software. Y
 
 ## CrazyFlie Server
 ROS == Noetic / Melodic
+CrazySwarm == LATEST
