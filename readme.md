@@ -33,5 +33,5 @@ There are some requirements to fullfill in order to install the ASRO Software. Y
 * Redis >= x.x
 
 ## CrazyFlie Server
-ROS == Noetic or Melodic
-CrazySwarm == LATEST
+* ROS == Noetic or Melodic
+* CrazySwarm == LATEST
