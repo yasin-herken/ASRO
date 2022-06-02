@@ -15,3 +15,22 @@ All agents follow three simple rules. When they are combined, the swarming behav
 * Go in the direction of the swarm. (Trajectory)
 
 Each can be tweaked and modified to achive a more controlled and efficient swarm fo agents. For example, we can 'control' the direction of the swarm to make them go in a certain direction.
+
+### Requirements
+There are some requirements to fullfill in order to install the ASRO Software. You can manually install these modules/frameworks but we highly suggest you to use "setup.sh" to automatically download/install/build everything.
+
+## Front-End
+* NodeJS >= 18.3
+* NPM >= 8.11
+
+## Back-End
+* Python >= 3.8
+* Flask >= x.x
+* Redis >= x.x
+
+## Mission-Control
+* Python >= 3.8
+* Redis >= x.x
+
+## CrazyFlie Server
+ROS == Noetic / Melodic
