@@ -1,24 +1,38 @@
 import os
 import sys
+from cv2 import log
 import redis
-import datetime
-import Settings
+import logging
 import json
+import select
 import numpy as np
 
 from Agent import Agent
 from MissionControl import MissionControl
 from pycrazyswarm import Crazyswarm
+from threading import Thread
 
+def getChar(block = False):
+    if block or select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
+        return sys.stdin.read(1)
 
 def _watchDog(server: Crazyswarm) -> None:
-    """Runs on a thread. Checks the Redis 'emergency' channel.
+    """Runs on a thread. Checks the Redis 'emergency' channel and the input 'q'.
     Calls the function emergencyExit() if the need arises.
 
     Args:
         server (Crazyswarm): To be used when calling emergencyExit().
     """
-    pass
+    try:
+        while True:
+            key = getChar()
+
+            if key == "q":
+                emergencyExit(server)
+    except KeyboardInterrupt as e:
+        logging.info("Keyboard interrupt detected.")
+    except Exception as e:
+        logging.info(f"An exception occured.\n {e.with_traceback()}")
 
 def emergencyExit(server: Crazyswarm) -> None:
     """Kills the Crazyswarm server and turns off all the agents.
@@ -26,7 +40,8 @@ def emergencyExit(server: Crazyswarm) -> None:
     Args:
         server (Crazyswarm): Server to be killed.
     """
-    pass
+    logging.info("Emergency! Exiting the program.")
+    os._exit(-3)
 
 def main() -> None:
     """Entry point for the ASRO software. Initializes the Crazyswarm server.
@@ -36,20 +51,26 @@ def main() -> None:
     If a new request exists, hands over the control to MissionControl.
     """
     # Initialization
+    i = 0
     cfIds = []
     agents = []
     names = []
     addresses = []
     statuses = []
-    
-    crazySwarm = Crazyswarm(crazyflies_yaml="./crazyflies.yaml")
+    configFile = "./crazyflies.yaml"
+
+    logging.info(f"Reading config file '{configFile}'.")
+
+    # Start the crazyswarm/ros server
+    crazySwarm = Crazyswarm(crazyflies_yaml=configFile)
 
     # Geting the agent ids
     for id in crazySwarm.allcfs.crazyfliesById:
         cfIds.append(id)
 
+    logging.info("Creating instances of 'Agent' class.")
+
     # Creating the agents
-    i = 0
     for agent in crazySwarm.allcfs.crazyflies:
         agents.append(
             Agent(
@@ -62,14 +83,17 @@ def main() -> None:
         addresses.append(f"radio:/{cfIds[i]}/125/2M")
         i+=1
 
-    print(names)
-    
+    logging.info(f"Created agents '{names}'.")
+
     # Initializing redis
+    logging.info("Initializing Redis.")
     redisClient = redis.Redis()
     redisClient.set("agents", json.dumps({"names": names, "addresses": addresses}))
     redisSub = redisClient.pubsub()
     redisSub.subscribe(["requests"])
     
+    logging.info("Creating an instance of 'MissionControl'.")
+
     # Creating mission control    
     missionControl = MissionControl(
         crazySwarm=crazySwarm,
@@ -77,21 +101,36 @@ def main() -> None:
         redisClient=redisClient
     )
     
+    # Start the watchdog
+    watchdogThread = Thread(target=_watchDog, args=[crazySwarm])
+    watchdogThread.start()
+
     i = 0
-    
+
+    logging.info("All ready! Listening... Press 'q' to exit.")
     while True:
         # Read incoming messages from redis
-        msg = redisSub.get_message()
+        try:
+            msg = redisSub.get_message()
+        except KeyboardInterrupt as e:
+            logging.info("Keyboard interrupt detected.")
+            emergencyExit(crazySwarm)
+
         mission = ""
         target = ""
         
         # Parse the message
-        if msg:
-            if msg['type'] == 'message':
-                mission = json.loads(msg['data']).get("mission", None)
-                print(f"[{datetime.datetime.now()}] New mission: {mission}")
-                target = json.loads(msg['data']).get("target", None)
-                print(f"[{datetime.datetime.now()}] New target: {mission}")
+        if msg is not None and msg["type"] == "message":
+            parsed = json.loads(msg['data'])
+
+            mission = parsed.get("mission", None)
+            if mission:
+                logging.info(f"Incoming misson request: {mission}")
+
+            target = parsed.get("target", None)
+            if target:
+                logging.info(f"Incoming target: {target}")
+
         # Launch a mission if a message exists
         if mission == "mission_takeoff_all":
             # missionControl.takeOffAll()
@@ -112,15 +151,17 @@ def main() -> None:
                 i += 1
         elif mission == "mission_land_all":
             missionControl.landAll()
-        elif mission =="mission_takeoff":
-            if target:
-                missionControl.takeOffAgent(target=target)
-        elif mission =="mission_land":
-            if target:
-                missionControl.landAgent(target=target)
-        if mission=="mission_one":
+
+        elif mission == "mission_takeoff" and target:
+            missionControl.takeOffAgent(target=target)
+
+        elif mission == "mission_land" and target:
+            missionControl.landAgent(target=target)
+
+        elif mission=="mission_one":
             missionControl.missionOne()
         
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%d/%m/%Y %H:%M:%S')
     main()
     sys.exit(0)

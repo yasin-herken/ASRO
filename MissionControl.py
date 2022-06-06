@@ -1,10 +1,11 @@
+import logging
 import redis
 import numpy as np
-import datetime
 import json
 from typing import List
 from Agent import Agent
 from pycrazyswarm import Crazyswarm
+
 class NumpyEncoder(json.JSONEncoder):
     """ Special json encoder for numpy types """
     def default(self, obj):
@@ -18,6 +19,7 @@ class NumpyEncoder(json.JSONEncoder):
         elif isinstance(obj, (np.ndarray,)):
             return obj.tolist()
         return json.JSONEncoder.default(self, obj)
+
 class MissionControl:
     """Handles the agent operations depending on the mission on hand.
     """
@@ -38,6 +40,7 @@ class MissionControl:
         self.__redisClient=redisClient
         self.__redisClient=redis.Redis(host="localhost",port=6379)
         return
+
     def _syncRedis(self) -> bool:
         """Sends to agents' info to the Redis server as 'cf{no}_{param}'.
 
@@ -61,7 +64,6 @@ class MissionControl:
             }
             self.data=json.dumps(self.sndMessage, cls=NumpyEncoder)
             self.__redisClient.set("channel",self.data)
-            #print(self.sndMessage)
         return retValue
 
     def goTo(self, target, maxSpeed) -> bool:
@@ -78,8 +80,8 @@ class MissionControl:
         # Simdilik takeOffAsync() yapiyor bu fonksiyon sadece.
         # timeHelper.sleep(0.01) olmazsa simulasyon nedense calismiyor ben de bilmiyorum.
         
-        print(f"[{datetime.datetime.now()}] Mission zero start")
-        
+        logging.info("Starting mission goTo.")
+
         for agent in self.__agents:
             agent.setTargetPoint(target)
             agent.setMaxVel(maxSpeed)
@@ -89,7 +91,7 @@ class MissionControl:
                 agent.update(self.__agents)
                 
                 if (not agent.isMoving()):
-                    print(f"[{datetime.datetime.now()}] Mission zero end")
+                    logging.info("Ending mission goTo with success.")
                     return True
             self.__crazySwarm.timeHelper.sleep(1 / 100)
                         
@@ -103,13 +105,17 @@ class MissionControl:
         """
         retValue = False
         self.takeOffAll()
+
         self.__crazySwarm.timeHelper.sleep(5.0)
+
         self.goTo(np.array([1.0, -1.0, 1.1]), 0.7)
         self.goTo(np.array([-1.0, -1.0, 1.1]), 0.7)
         self.goTo(np.array([-1.0, 1.0, 1.1]), 0.7)
         self.goTo(np.array([1.0, 1.0, 1.1]), 0.7)
         self.goTo(np.array([0.0, 0.0, 1.1]), 0.7)
+
         self.landAll()
+
         return retValue
 
     def missionTwo(self) -> bool:
@@ -161,40 +167,46 @@ class MissionControl:
         Returns:
             bool: Specifies whether the mission was successfull or not.
         """
-        
-        print(f"[{datetime.datetime.now()}] Mission takeOffAgent started")
-        
         retValue = False
+
+        logging.info(f"Starting mission takeOffAgent. Target is '{target}'")
+
         for agent in self.__agents:
             if target == agent.getName():
                 agent.takeOffSync(1.0)
                 self.__crazySwarm.timeHelper.sleep(5.0)
                 retValue = True
-        print("Takeoff Completed")
+
+        logging.info(f"Ending mission takeOffAgent with success. Target was '{target}'")
+
         return retValue
     
     def takeOffAll(self) -> bool:
         
-        print(f"[{datetime.datetime.now()}] Mission takeOffAll started")
+        logging.info("Starting mission takeOffAll.")
         
         retValue = False
         for agent in self.__agents:
             agent.takeOffSync(1.0)
         self.__crazySwarm.timeHelper.sleep(5.0)
         retValue = True
-        print("Takeoff Completed")
+
+        logging.info("Ending mission takeOffAll withsuccess")
+
         return retValue
     
     def landAll(self):
-        
-        print(f"[{datetime.datetime.now()}] Mission landAll started")
-        
         retValue = False
+
+        logging.info("Starting mission landAll.")
+        
         for agent in self.__agents:
             agent.landAsync()
         self.__crazySwarm.timeHelper.sleep(5.0)
         retValue = True
-        print("Land Completed")
+
+        logging.info("Ending missionLandAll with success.")
+
         return retValue
 
     def landAgent(self, target: str) -> bool:
@@ -207,6 +219,9 @@ class MissionControl:
             bool: Specifies whether the mission was successfull or not.
         """
         retValue = False
+
+        logging.info(f"Starting mission landAgent. Target is '{target}'")
+
         try:
            for agent in self.__agents:
             if target == agent.getName():
@@ -217,7 +232,9 @@ class MissionControl:
                 retValue = True
         except Exception as e:
             print(e.with_traceback())
-        print("Land Completed")
+            
+        logging.info(f"Ending mission landAgent with success. Target was '{target}'")
+
         return retValue
 
     def goToAgent(self, point: np.ndarray, target: str) -> bool:

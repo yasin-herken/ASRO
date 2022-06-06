@@ -15,13 +15,13 @@ import {
 
 import store from '../store';
 import axios from 'axios';
+
 // const hostAddress = "http://localhost:5000";
 const hostAddress = "http://10.211.55.12:5000";
 
 export const takeOff = () => async (dispatch) => {
     // Get the selectedAgent
     var target = store.getState().asro.selectedAgent.name;
-
     if (target === "") {
         return;
     }
@@ -102,7 +102,6 @@ export const getAgents = () => async (dispatch) => {
 export const getAgentPose = () => async (dispatch) => {
     // Get the selectedAgent
     var target = store.getState().asro.selectedAgent.name;
-
     if (target === "") {
         return;
     }
