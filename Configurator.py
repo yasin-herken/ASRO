@@ -1,8 +1,7 @@
-from email.headerregistry import Address
 import yaml
 import pathlib
 import os
-import numpy as np
+
 def agent_yaml(address = "0xE7E7E7E7E7",channel = 80,initialPosition = [0.0,0.0,0.0]):
     address = int(address[-2:],16)
     print(address)
@@ -28,16 +27,20 @@ class yaml_file:
                 }
             ]
         }
+
     def yaml_delete_file(self):
         os.remove(self.path)
+
     def yaml_create_file(self):
         with open(self.path,"w") as file:
             file.write("")
+
     def yaml_add_default_file(self):
         if os.stat(self.path).st_size == 0:
             with open(self.path,"w") as file:
                 # Add default content to the yaml
                 yaml.dump(self.yaml_content,file)
+
     def yaml_update_file(self):
         with open(self.path,"r") as file:
             data = yaml.safe_load(file)
@@ -57,6 +60,7 @@ class yaml_file:
                         with open(self.path,"w") as file:
                             yaml.dump(data,file)
                     counter = counter + 1
+
     def yaml_extend_file(self):
         counter = 0
         for agent_yaml in self.agents_yaml:
@@ -73,9 +77,11 @@ class yaml_file:
             ]
                 
             self.yaml_content.get("crazyflies").extend(extend_content)
+            
             with open(self.path,"w") as file:
                 yaml.dump(self.yaml_content,file)
             counter = counter + 1
+
     def yaml_check_file(self):
         with open(self.path,"r") as file:
             data = yaml.safe_load(file)
