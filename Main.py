@@ -47,7 +47,7 @@ def main() -> None:
     # Geting the agent ids
     for id in crazySwarm.allcfs.crazyfliesById:
         cfIds.append(id)
-    
+
     # Creating the agents
     i = 0
     for agent in crazySwarm.allcfs.crazyflies:
@@ -61,6 +61,8 @@ def main() -> None:
         names.append(f"Agent {cfIds[i]}")
         addresses.append(f"radio:/{cfIds[i]}/125/2M")
         i+=1
+
+    print(names)
     
     # Initializing redis
     redisClient = redis.Redis()

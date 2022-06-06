@@ -6,7 +6,7 @@ import React  from 'react';
 import {useSelector} from "react-redux";
 
 function Controls() {
-    const agent = useSelector((state) => state.agent);
+    const agent = useSelector((state) => state.asro);
 
     return (
         <div className='Controls'>

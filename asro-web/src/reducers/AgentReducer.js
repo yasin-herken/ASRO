@@ -17,14 +17,17 @@ const INITIAL_STATE = {
     agentCount: 0,
     agents: {},
 
-    selectedAgentName: "",
-    selectedAgentAddress: "",
-    selectedAgentStatus: "",
-    selectedAgentState: "",
-
-    selectedAgentX: 0.0,
-    selectedAgentY: 0.0,
-    selectedAgentZ: 0.0,
+    selectedAgent: {
+        "name": "",
+        "address": "",
+        "status": "",
+        "state": "",
+        "coords": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+        }
+    },
 
     lastCommand: "",
 };
@@ -35,18 +38,33 @@ export const AgentReducer = (state = INITIAL_STATE, action) => {
 
     switch (action.type) {
         case TAKE_OFF:
+            newState.lastCommand = "Requesting take off for " + action.target + ".";
             break;
         case LAND:
+            newState.lastCommand = "Requesting landing for " + action.target + ".";
             break;
         case TAKE_OFF_ALL:
+            newState.lastCommand = "Requesting take off for all.";
             break;
         case LAND_ALL:
+            newState.lastCommand = "Requesting landing for all.";
             break;
         case SELECT_AGENT:
+            newState.selectedAgent = action.agent;
+            newState.selectedAgent.coords = {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            };
+            newState.lastCommand = "Selected " + action.agent.name;
             break;
         case GET_AGENT_POSE:
+            newState.selectedAgent.state = action.pose.state;
+            newState.selectedAgent.coords = action.pose.coords;
             break;
         case GET_AGENTS:
+            newState.lastCommand = "Loading agents " + action.target;
+            newState.agents = action.agents;
             break;
         case SCENARIO_1:
             break;
