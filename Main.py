@@ -1,6 +1,5 @@
 import os
 import sys
-from cv2 import log
 import redis
 import logging
 import json

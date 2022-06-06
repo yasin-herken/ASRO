@@ -63,7 +63,7 @@ class MissionControl:
                 'row':agent.getRoll()
             }
             self.data=json.dumps(self.sndMessage, cls=NumpyEncoder)
-            self.__redisClient.set("channel",self.data)
+            self.__redisClient.set("channel", self.data)
         return retValue
 
     def goTo(self, target, maxSpeed) -> bool:
