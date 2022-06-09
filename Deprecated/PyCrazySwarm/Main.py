@@ -4,42 +4,46 @@ import redis
 import logging
 import json
 import select
-import rospy
 import numpy as np
 
-from sim_cf import crazyflie
 from Agent import Agent
 from MissionControl import MissionControl, Point
+from pycrazyswarm import Crazyswarm
 from threading import Thread
 
 def getChar(block = False):
     if block or select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
         return sys.stdin.read(1)
 
-def _watchDog() -> None:
+def _watchDog(server: Crazyswarm) -> None:
     """Runs on a thread. Checks the Redis 'emergency' channel and the input 'q'.
     Calls the function emergencyExit() if the need arises.
+
+    Args:
+        server (Crazyswarm): To be used when calling emergencyExit().
     """
     try:
         while True:
             key = getChar()
 
             if key == "q":
-                emergencyExit()
+                emergencyExit(server)
     except KeyboardInterrupt as e:
         logging.info("Keyboard interrupt detected.")
     except Exception as e:
         logging.info(f"An exception occured.\n {e.with_traceback()}")
 
-def emergencyExit() -> None:
-    """Kills the ROS server and turns off all the agents.
+def emergencyExit(server: Crazyswarm) -> None:
+    """Kills the Crazyswarm server and turns off all the agents.
+
+    Args:
+        server (Crazyswarm): Server to be killed.
     """
     logging.info("Emergency! Exiting the program.")
-    rospy.signal_shutdown("Emergency exit.")
     os._exit(-3)
 
 def main() -> None:
-    """Entry point for the ASRO software. Initializes the ROS server.
+    """Entry point for the ASRO software. Initializes the Crazyswarm server.
     Creates Agents and the Redis server which will be used by the WebApplication.
     
     Checks the Redis 'control' channel for any new mission requests.
@@ -47,33 +51,36 @@ def main() -> None:
     """
     # Initialization
     i = 0
-    agentCount = 1
     cfIds = []
     agents = []
     names = []
     addresses = []
     statuses = []
+    configFile = "./crazyflies.yaml"
 
-    logging.info("Initializing the ROS Node")
+    logging.info(f"Reading config file '{configFile}'.")
 
-    # Start the ROS server
-    rospy.init_node('ASRO')
-    rospyRate = rospy.Rate(100) # Hz
+    # Start the crazyswarm/ros server
+    crazySwarm = Crazyswarm(crazyflies_yaml=configFile)
+
+    # Geting the agent ids
+    for id in crazySwarm.allcfs.crazyfliesById:
+        cfIds.append(id)
 
     logging.info("Creating instances of 'Agent' class.")
 
     # Creating the agents
-    for i in range(1, agentCount + 1):
+    for agent in crazySwarm.allcfs.crazyflies:
         agents.append(
             Agent(
-                cf=crazyflie.Crazyflie(f"cf{i}", f"/cf{i}"),
-                initialPos= np.array([0.0, 0.0, 0.0]),
-                name=f"cf{i}",
-                address=f"radio:/{i}//80/2M - Unknown"
+                cf=agent,
+                name=f"Agent {cfIds[i]}",
+                address=f"radio:/{cfIds[i]}/125/2M"
             )
         )
-        names.append(f"cf{i}")
-        addresses.append(f"radio:/{i}//80/2M - Unknown")
+        names.append(f"Agent {cfIds[i]}")
+        addresses.append(f"radio:/{cfIds[i]}/125/2M")
+        i+=1
 
     logging.info(f"Created agents '{names}'.")
 
@@ -88,13 +95,13 @@ def main() -> None:
 
     # Creating mission control    
     missionControl = MissionControl(
-        rospyRate=rospyRate,
+        crazySwarm=crazySwarm,
         agents=agents,
         redisClient=redisClient
     )
     
     # Start the watchdog
-    watchdogThread = Thread(target=_watchDog)
+    watchdogThread = Thread(target=_watchDog, args=[crazySwarm])
     watchdogThread.start()
 
     i = 0
@@ -106,7 +113,7 @@ def main() -> None:
             msg = redisSub.get_message()
         except KeyboardInterrupt as e:
             logging.info("Keyboard interrupt detected.")
-            emergencyExit()
+            emergencyExit(crazySwarm)
 
         mission = ""
         target = ""
@@ -211,12 +218,7 @@ def main() -> None:
             missionControl.takeOffAll()
             missionControl.testFormation()
 
-        # Update the agents to keep sending messages
-        for agent in agents:
-            agent.update(agents)
-
-        # Sync
-        rospyRate.sleep()
+        crazySwarm.timeHelper.sleep(1 / 100)
         
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%d/%m/%Y %H:%M:%S')

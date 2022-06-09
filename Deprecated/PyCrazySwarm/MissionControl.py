@@ -2,12 +2,11 @@ import logging
 import redis
 import numpy as np
 import json
-import rospy
 import Settings
 
 from typing import List
 from Agent import Agent
-
+from pycrazyswarm import Crazyswarm
 
 class NumpyEncoder(json.JSONEncoder):
     """ Special json encoder for numpy types """
@@ -40,24 +39,21 @@ class MissionControl:
     """Handles the agent operations depending on the mission on hand.
     """
     
-    __rospyRate: rospy.Rate
+    __crazySwarm: Crazyswarm
     __agents: List[Agent]
     __redisClient: redis.Redis
-
-
     
-    def __init__(self, rospyRate: rospy.Rate, agents: List[Agent],redisClient:redis.Redis):
+    def __init__(self, crazySwarm: Crazyswarm, agents: List[Agent],redisClient:redis.Redis):
         """Initialize the MissionControl.
 
         Args:
             crazySwarm (Crazyswarm): Crazyswarm server (ROS and other stuff).
             agents (List[Agent]): Agents to be operated.
         """
-        self.__rospyRate = rospyRate
+        self.__crazySwarm = crazySwarm
         self.__agents = agents
         self.__redisClient=redisClient
         self.__redisClient=redis.Redis(host="localhost",port=6379)
-
         return
 
     def _syncRedis(self) -> bool:
@@ -219,7 +215,7 @@ class MissionControl:
                 retValue = True
                 break
 
-            self.__rospyRate.sleep()
+            self.__crazySwarm.timeHelper.sleep(1 / 100)
 
         logging.info(f"Ending mission takeOffAgent with success. Target was '{target.getName()}'")
 
@@ -289,7 +285,7 @@ class MissionControl:
                 retValue = True
                 break
 
-            self.__rospyRate.sleep()
+            self.__crazySwarm.timeHelper.sleep(1 / 100)
 
             
         logging.info(f"Ending mission landAgent with success. Target was '{target.getName()}'")
@@ -328,7 +324,7 @@ class MissionControl:
                     point.arrived = True
                     break
 
-                self.__rospyRate.sleep()
+                self.__crazySwarm.timeHelper.sleep(1 / 100)
 
             # Last point
             if i == len(points) - 1:

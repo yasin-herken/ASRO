@@ -1,3 +1,5 @@
+from re import I
+from cv2 import sqrt
 import numpy
 
 def getMagnitude(vector: numpy.ndarray) -> numpy.float64:

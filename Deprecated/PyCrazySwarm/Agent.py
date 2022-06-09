@@ -1,17 +1,11 @@
 import numpy as np
+from pycrazyswarm import crazyflie
 import Settings
 import time
-import rospy
 
 # Remove the word 'Sim' in order to run IRL !!!
-from sim_cf.crazyflie import Crazyflie
-
-from crazyflie_driver.msg import GenericLogData
-from crazyflie_driver.msg import Position
-from crazyflie_driver.msg import Hover
-from crazyflie_driver.msg import FullState
-from std_msgs.msg import Empty
-from geometry_msgs.msg import Twist
+from pycrazyswarm.crazyflie import Crazyflie
+from pycrazyswarm.crazyswarm_py import Crazyswarm
 
 # TODO: Fix the private values "_" to "__"
 
@@ -24,7 +18,6 @@ class Agent:
     _status:  bool
     _state: str
     
-    __initialPos: np.ndarray
     __pos: np.ndarray
     __vel: np.ndarray
     
@@ -57,19 +50,8 @@ class Agent:
     
     # validity
     __validtyCount: int
-
-    # The publisher to be able to control in position
-    __pubSetpointPos: rospy.Publisher
-    __pubHover: rospy.Publisher
-    __pubStop: rospy.Publisher
-    __pubFullState: rospy.Publisher
-    __pubStop: rospy.Publisher
-    __pubTwist: rospy.Publisher
-
-    # Message structures
-    __hoverMsg: Hover
     
-    def __init__(self, cf: Crazyflie, initialPos: np.ndarray, name: str, address: str) -> None:
+    def __init__(self, cf: crazyflie, name: str, address: str) -> None:
         """Initializes the agent class.
 
         Args:
@@ -94,8 +76,7 @@ class Agent:
         self._status = False
         self._state = "STATIONARY"
         
-        self.__initialPos = initialPos
-        self.__pos = initialPos
+        self.__pos = np.array([0.0, 0.0, 0.0])
         self.__vel= np.array([0.0, 0.0, 0.0])
         
         self.__speed = 0.0
@@ -112,22 +93,7 @@ class Agent:
         self.__x1 = np.array([0.0, 0.0, 0.0])
         self.__x2 = np.array([0.0, 0.0, 0.0])
         
-        self.__validtyCount = 0
-
-        # Subscribe to get the local position of the crazyflie with prefix cf_prefix
-        rospy.Subscriber(self.__name + "/local_position" , GenericLogData , self.__localPositionCallback)
-        rospy.Subscriber(self.__name + "/external_position" , GenericLogData , self.__externalPositionCallback)
-
-        # The publisher to be able to control in position
-        self.__pubSetPointPos = rospy.Publisher(self.__name + "/cmd_position", Position , queue_size=10)
-        self.__pubHover = rospy.Publisher(self.__name + "/cmd_hover", Hover , queue_size=10)
-        self.__pubStop = rospy.Publisher(self.__name + "/cmd_stop", Empty , queue_size=10)
-        self.__pubFullState = rospy.Publisher(self.__name + "/cmd_full_state", FullState , queue_size=10)
-        self.__pubStop = rospy.Publisher(self.__name + "/cmd_stop", Empty , queue_size=10)
-        self.__pubTwist= rospy.Publisher(self.__name + "/cmd_vel", Twist , queue_size=10)
-
-        # Message structures
-        self.__hoverMsg = Hover()
+        self.__validtyCount = 0   
         
     def __str__(self):
         return f"{self.__name}, {self.__address}, {self.__pos}"
@@ -204,28 +170,7 @@ class Agent:
             retValue = Settings.setMagnitude(retValue, self.__maxVel)
         
         return retValue
-
-    def __localPositionCallback(self, msg):
-        self.__pos[0] = msg.values[0]
-        self.__pos[1] = msg.values[1]
-        self.__pos[2] = msg.values[2]
-
-        # Update agent info
-        self.__x1 = self.__x2
-        self.__x2 = self.__pos
         
-        self.__t2 = time.perf_counter()
-        self.__vel = (self.__x2 - self.__x1) / (self.__t2 - self.__t1)
-        self.__t1 = time.perf_counter()
-        
-        self.__speed = Settings.getMagnitude(self.__vel)
-    
-    def __externalPositionCallback(self, msg):
-        return
-        self.__pos[0] = msg.values[0]
-        self.__pos[1] = msg.values[1]
-        self.__pos[2] = msg.values[2]   
-
     def getName(self) -> str:
         """Returns the name of the agent.
 
@@ -266,7 +211,8 @@ class Agent:
         Returns:
             np.ndarray: Position of the agent.
         """
-        return self.__pos
+        self.__crazyflie.position()
+        return np.array(self.__pos)
     
     def getVel(self) -> np.ndarray:
         """Returns the velocity of the agent. (Vector3)
@@ -311,14 +257,6 @@ class Agent:
         """
         (self.__roll, self.__pitch, self.__yaw) = self.__crazyflie.rpy()
         return self.__roll
-    
-    def getInitialPos(self) -> np.ndarray:
-        """Returns the initial position of the agent.
-
-        Returns:
-            np.ndarray: Initial position of the agent.
-        """
-        return self.__initialPos
     
     def setTargetPoint(self, target) -> bool:
         self._targetPoint = target
@@ -366,6 +304,17 @@ class Agent:
 		"""
         retValue = False
 
+        # Update agent info
+        self.__x1 = self.__pos
+        self.__pos = self.__crazyflie.position()
+        self.__x2 = self.__pos
+        
+        self.__t2 = time.perf_counter()
+        self.__vel = (self.__x2 - self.__x1) / (self.__t2 - self.__t1)
+        self.__t1 = time.perf_counter()
+        
+        self.__speed = Settings.getMagnitude(self.__vel)
+
         # Calculate is moving
         if self.__speed <= 0.01:
             self.__validtyCount += 1
@@ -389,16 +338,7 @@ class Agent:
         if self.__isTrajectoryActive:
             controlVel += self.__trajectoryControl(agents)
 
-        # Send the message
-        self.__hoverMsg.header.frame_id = 'world'
-        self.__hoverMsg.header.seq += 1
-        self.__hoverMsg.header.stamp = rospy.Time.now()
-        self.__hoverMsg.vx = controlVel[0]
-        self.__hoverMsg.vy = controlVel[1]
-        self.__hoverMsg.yawrate = 0.0
-        self.__hoverMsg.zDistance = self.__pos[2] + controlVel[2]
-
-        self.__pubHover.publish(self.__hoverMsg)
+        self.__crazyflie.cmdVelocityWorld(controlVel, 0)
 
         return retValue
 
