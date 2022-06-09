@@ -7,7 +7,7 @@ import select
 import numpy as np
 
 from Agent import Agent
-from MissionControl import MissionControl
+from MissionControl import MissionControl, Point
 from pycrazyswarm import Crazyswarm
 from threading import Thread
 
@@ -129,25 +129,33 @@ def main() -> None:
             target = parsed.get("target", None)
             if target:
                 logging.info(f"Incoming target: {target}")
+        else:
+            if "trajectory_test" in sys.argv:
+                mission = "mission_trajectory_test"
+                sys.argv.remove("trajectory_test")
+            elif "takeoff_land_test" in sys.argv:
+                mission = "mission_takeoff_land_test"
+                sys.argv.remove("takeoff_land_test")
+            elif "takeoff_test" in sys.argv:
+                mission = "mission_takeoff_test"
+                sys.argv.remove("takeoff_test")
+            elif "takeoff_all_test" in sys.argv:
+                mission = "mission_takeoff_all_test"
+                sys.argv.remove("takeoff_all_test")
+            elif "land_test" in sys.argv:
+                mission = "mission_land_test"
+                sys.argv.remove("land_test")
+            elif "land_all_test" in sys.argv:
+                mission = "mission_land_all_test"
+                sys.argv.remove("land_all_test")
+            elif "formation_test" in sys.argv:
+                mission = "mission_formation_test"
+                sys.argv.remove("formation_test")
 
         # Launch a mission if a message exists
         if mission == "mission_takeoff_all":
-            # missionControl.takeOffAll()
-            if i == 0:
-                missionControl.goTo(np.array([1.0, -1.0, 1.1]), 0.7)
-                i += 1
-            elif i == 1:
-                missionControl.goTo(np.array([-1.0, -1.0, 1.1]), 0.7)
-                i += 1
-            elif i == 2:
-                missionControl.goTo(np.array([-1.0, 1.0, 1.1]), 0.7)
-                i += 1
-            elif i == 3:
-                missionControl.goTo(np.array([1.0, 1.0, 1.1]), 0.7)
-                i += 1
-            elif i == 4:
-                missionControl.goTo(np.array([0.0, 0.0, 1.1]), 0.7)
-                i += 1
+            missionControl.takeOffAll()
+
         elif mission == "mission_land_all":
             missionControl.landAll()
 
@@ -157,8 +165,60 @@ def main() -> None:
         elif mission == "mission_land" and target:
             missionControl.landAgent(target=target)
 
-        elif mission=="mission_one":
+        elif mission == "mission_one":
             missionControl.missionOne()
+        
+        elif mission == "mission_trajectory_test":
+            # TODO: To it in a loop
+            missionControl.goToAgent(
+                names[0],
+                [
+                    Point(0.0, 0.0, 1.0, False),
+                    Point(1.0, 0.0, 1.0, False),
+                    Point(0.0, 0.0, 1.0, False),
+                    Point(-1.0, 0.0, 1.0, False),
+                    Point(0.0, 0.0, 1.0, False),
+                    Point(0.0, 1.0, 1.0, False),
+                    Point(0.0, 0.0, 1.0, False),
+                    Point(0.0, -1.0, 1.0, False),
+                    Point(0.0, 0.0, 1.0, False),
+                    Point(0.0, 0.0, 2.0, False),
+                    Point(0.0, 0.0, 1.0, False),
+                    Point(0.0, 0.0, 0.0, False),
+                ],
+                0.5
+            )
+        
+        elif mission == "mission_takeoff_land_test":
+            i = 0
+            while i < 10:
+                i += 1
+                missionControl.takeOffAgent(names[0])
+                missionControl.landAgent(names[0])
+
+        elif mission == "mission_takeoff_test":
+            # TODO: To it in a loop
+            missionControl.takeOffAgent(names[0])
+
+        elif mission == "mission_takeoff_all_test":
+            # TODO: To it in a loop
+            missionControl.takeOffAll()
+        
+        elif mission == "mission_land_test":
+            # TODO: To it in a loop
+            missionControl.landAgent(names[0])
+
+        elif mission == "mission_land_all_test":
+            # TODO: To it in a loop
+            missionControl.landAll()
+        elif mission == "mission_formation_test":
+            for i, agent in enumerate(agents):
+                logging.info(f"Index: {i}, agent: {agent.getName()}")
+                
+            missionControl.takeOffAll()
+            missionControl.testFormation()
+
+        crazySwarm.timeHelper.sleep(1 / 100)
         
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%d/%m/%Y %H:%M:%S')

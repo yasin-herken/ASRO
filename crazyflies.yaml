@@ -3,3 +3,23 @@ crazyflies:
     channel: 125
     type: "default"
     initialPosition: [0.0, 0.0, 0.0]
+  
+  - id: 195
+    channel: 125
+    type: "default"
+    initialPosition: [1.0, 0.0, 0.0]
+  
+  - id: 196
+    channel: 125
+    type: "default"
+    initialPosition: [0.0, 1.0, 0.0]
+
+  - id: 197
+    channel: 125
+    type: "default"
+    initialPosition: [-1.0, 0.0, 0.0]
+  
+  - id: 198
+    channel: 125
+    type: "default"
+    initialPosition: [0.0, -1.0, 0.0]

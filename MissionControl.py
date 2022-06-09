@@ -2,6 +2,8 @@ import logging
 import redis
 import numpy as np
 import json
+import Settings
+
 from typing import List
 from Agent import Agent
 from pycrazyswarm import Crazyswarm
@@ -19,6 +21,19 @@ class NumpyEncoder(json.JSONEncoder):
         elif isinstance(obj, (np.ndarray,)):
             return obj.tolist()
         return json.JSONEncoder.default(self, obj)
+
+class Point:
+    x: float
+    y: float
+    z: float
+
+    arrived: bool
+
+    def __init__(self, x, y, z, arrived):
+        self.x = x
+        self.y = y
+        self.z = z
+        self.arrived = arrived
 
 class MissionControl:
     """Handles the agent operations depending on the mission on hand.
@@ -79,22 +94,45 @@ class MissionControl:
         
         # Simdilik takeOffAsync() yapiyor bu fonksiyon sadece.
         # timeHelper.sleep(0.01) olmazsa simulasyon nedense calismiyor ben de bilmiyorum.
-        
-        logging.info("Starting mission goTo.")
+                        
+        return retValue
 
+    def testFormation(self) -> bool:
+        """Takes the Agents into the specified formation.
+
+        Returns:
+            bool: Specifies whether the mission was successfull or not.
+        """
+        retValue = False
+        logging.info("Starting mission takeFormation.")
+
+        # Activate and give the formation parameters
         for agent in self.__agents:
-            agent.setTargetPoint(target)
-            agent.setMaxVel(maxSpeed)
-        
+            agent.setFormationControl(True)
+            agent.setFormationMatrix(Settings.FORMATION_PYRAMID)
+
+        # Wait for the formation to happen
+        stoppedAgents = set()
         while True:
+
             for agent in self.__agents:
                 agent.update(self.__agents)
-                
-                if (not agent.isMoving()):
-                    logging.info("Ending mission goTo with success.")
-                    return True
+                if not agent.isMoving():
+                    stoppedAgents.add(agent.getName)
+            
+            if len(stoppedAgents) == len(self.__agents):
+                retValue = True
+                break
+
             self.__crazySwarm.timeHelper.sleep(1 / 100)
-                        
+
+        # Deactivate the formation parameters
+        for agent in self.__agents:
+            agent.setFormationControl(False)
+            agent.setFormationMatrix(np.array([0.0]))
+
+        logging.info(f"Ending mission takeFormation with success. Formation was: 'PYRAMID'")
+
         return retValue
 
     def missionOne(self) -> bool:
@@ -104,17 +142,6 @@ class MissionControl:
             bool: Specifies whether the mission was successfull or not.
         """
         retValue = False
-        self.takeOffAll()
-
-        self.__crazySwarm.timeHelper.sleep(5.0)
-
-        self.goTo(np.array([1.0, -1.0, 1.1]), 0.7)
-        self.goTo(np.array([-1.0, -1.0, 1.1]), 0.7)
-        self.goTo(np.array([-1.0, 1.0, 1.1]), 0.7)
-        self.goTo(np.array([1.0, 1.0, 1.1]), 0.7)
-        self.goTo(np.array([0.0, 0.0, 1.1]), 0.7)
-
-        self.landAll()
 
         return retValue
 
@@ -173,39 +200,58 @@ class MissionControl:
 
         for agent in self.__agents:
             if target == agent.getName():
-                agent.takeOffSync(1.0)
-                self.__crazySwarm.timeHelper.sleep(5.0)
-                retValue = True
+                target = agent
+                break
+        
+        agent.update(self.__agents)
+        currPos = agent.getPos()
+        agent.setTargetPoint(np.array([currPos[0], currPos[1], currPos[2] + 0.75]))
+        agent.setMaxVel(1.0)
 
-        logging.info(f"Ending mission takeOffAgent with success. Target was '{target}'")
+        while True:
+            agent.update(self.__agents)
+
+            if (not agent.isMoving()):
+                retValue = True
+                break
+
+            self.__crazySwarm.timeHelper.sleep(1 / 100)
+
+        logging.info(f"Ending mission takeOffAgent with success. Target was '{target.getName()}'")
 
         return retValue
     
     def takeOffAll(self) -> bool:
-        
+        """Takes off all the agents.
+
+        Returns:
+            bool: Specifies whether the mission was successfull or not.
+        """
         logging.info("Starting mission takeOffAll.")
         
         retValue = False
-        for agent in self.__agents:
-            agent.takeOffSync(1.0)
-        self.__crazySwarm.timeHelper.sleep(5.0)
-        retValue = True
 
-        logging.info("Ending mission takeOffAll withsuccess")
+        for agent in self.__agents:
+            retValue = self.takeOffAgent(agent.getName())
+
+        logging.info(f"Ending mission takeOffAll with success. Total target count: {len(self.__agents)}")
 
         return retValue
     
     def landAll(self):
+        """Lands all the agents.
+
+        Returns:
+            bool: Specifies whether the mission was successfull or not.
+        """
         retValue = False
 
         logging.info("Starting mission landAll.")
         
         for agent in self.__agents:
-            agent.landAsync()
-        self.__crazySwarm.timeHelper.sleep(5.0)
-        retValue = True
+            retValue = self.landAgent(agent.getName())
 
-        logging.info("Ending missionLandAll with success.")
+        logging.info(f"Ending missionLandAll with success. Total target count: {len(self.__agents)})")
 
         return retValue
 
@@ -213,7 +259,7 @@ class MissionControl:
         """Lands the target agent.
 
         Args:
-            target (str): Agent to be taken off.
+            target (str): Agent to be landing.
 
         Returns:
             bool: Specifies whether the mission was successfull or not.
@@ -222,22 +268,31 @@ class MissionControl:
 
         logging.info(f"Starting mission landAgent. Target is '{target}'")
 
-        try:
-           for agent in self.__agents:
+        for agent in self.__agents:
             if target == agent.getName():
-                #agent.landSync()
-                pos = agent.getPos()
-                target = np.array([pos[0], pos[1], 0.0])
-                self.goTo(target, 0.2)
+                target = agent
+                break
+        
+        agent.update(self.__agents)
+        currPos = agent.getPos()
+        agent.setTargetPoint(np.array([currPos[0], currPos[1], -0.05]))
+        agent.setMaxVel(0.75)
+
+        while True:
+            agent.update(self.__agents)
+
+            if (not agent.isMoving()):
                 retValue = True
-        except Exception as e:
-            print(e.with_traceback())
+                break
+
+            self.__crazySwarm.timeHelper.sleep(1 / 100)
+
             
-        logging.info(f"Ending mission landAgent with success. Target was '{target}'")
+        logging.info(f"Ending mission landAgent with success. Target was '{target.getName()}'")
 
         return retValue
 
-    def goToAgent(self, point: np.ndarray, target: str) -> bool:
+    def goToAgent(self, target: str, points: List[Point], maxVel: float) -> bool:
         """Moves the target agent to the specified point.
 
         Args:
@@ -248,6 +303,33 @@ class MissionControl:
             bool: Specifies whether the mission was successfull or not.
         """
         retValue = False
+
+        logging.info(f"Starting mission goToAgent. Target is '{target}'")
+
+        # Find the target Agent object
+        for agent in self.__agents:
+            if agent.getName == target:
+                target = agent
+                break
+
+        # Itarete over the points
+        for i, point in enumerate(points):
+            agent.setTargetPoint(np.array([point.x, point.y, point.z]))
+            agent.setMaxVel(maxVel)
+
+            while True:
+                agent.update(self.__agents)
+
+                if (not agent.isMoving()):
+                    point.arrived = True
+                    break
+
+                self.__crazySwarm.timeHelper.sleep(1 / 100)
+
+            # Last point
+            if i == len(points) - 1:
+                logging.info(f"Ending mission goToAgent with success. Target was '{target}'")
+                retValue = True
         
         return retValue
     

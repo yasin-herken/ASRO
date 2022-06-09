@@ -28,9 +28,12 @@ class Agent:
     __yaw: float
     __roll: float
 
+    # Swarm related
     __isFormationActive: bool
     __isAvoidanceActive: bool
     __isTrajectoryActive: bool
+    __isSwarming: bool
+    __formationMatrix: np.ndarray
 
     _targetPoint: np.ndarray
 
@@ -65,6 +68,8 @@ class Agent:
         self.__isFormationActive = False
         self.__isAvoidanceActive = False
         self.__isTrajectoryActive = True
+        self.__isSwarming = False
+        self.__formationMatrix = np.array([0.0])
 
         self._targetPoint = np.array([0.0, 0.0, 0.0])
         
@@ -91,7 +96,7 @@ class Agent:
         self.__validtyCount = 0   
         
     def __str__(self):
-        return f"{self.__name},{self.__address},{self.__pos}"
+        return f"{self.__name}, {self.__address}, {self.__pos}"
 
     def __formationControl(self, agents: list) -> np.ndarray:
         """Calculates the formation 'force' to be applied to the agent.
@@ -103,7 +108,28 @@ class Agent:
         Returns:
             np.ndarray: Calculated force. (Vector3)
         """
-        pass
+        retValue = np.array([0.0, 0.0, 0.0])
+
+        # Find your own index
+        idx = 0
+        for i, agent in enumerate(agents):
+            if agent == self:
+                idx = i
+                break
+
+        # Itarete over agents and calculate the desired vectors
+        for i, agent in enumerate(agents):
+            if agent != self:
+                distanceToOtherAgent = agent.getPos() - self.getPos()
+
+                distanceToDesiredPoint = Settings.setMagnitude(
+                    distanceToOtherAgent,
+                    self.__formationMatrix[idx][i]
+                )
+            
+                retValue += (distanceToOtherAgent - distanceToDesiredPoint)
+
+        return retValue
     
     def __avoidanceControl(self, agents: list) -> np.ndarray:
         """Calculates the avoidance 'force' to be applied to the agent.
@@ -128,11 +154,14 @@ class Agent:
             np.ndarray: Calculated force. (Vector3)
         """
         retValue = np.array([0.0, 0.0, 0.0])
-
         swarmCenter = np.array([0.0, 0.0, 0.0])
-        for otherAgent in agents:
-            swarmCenter += otherAgent.getPos()
-        swarmCenter /= len(agents)
+
+        if self.__isSwarming:
+            for otherAgent in agents:
+                swarmCenter += otherAgent.getPos()
+            swarmCenter /= len(agents)
+        else:
+            swarmCenter = self.getPos()
 
         retValue = self._targetPoint - swarmCenter
         
@@ -229,15 +258,31 @@ class Agent:
         (self.__roll, self.__pitch, self.__yaw) = self.__crazyflie.rpy()
         return self.__roll
     
-    def setTargetPoint(self, target):
+    def setTargetPoint(self, target) -> bool:
         self._targetPoint = target
         
         return True
     
-    def setMaxVel(self, Vel):
-        self.__maxVel = Vel 
-        return True 
+    def setMaxVel(self, vel) -> bool:
+        self.__maxVel = vel
+
+        return True
+
+    def setFormationControl(self, status: bool) -> bool:
+        self.__isFormationActive = status
+
+        return True
     
+    def setFormationMatrix(self, matrix: np.ndarray) -> bool:
+        self.__formationMatrix = matrix
+
+        return True
+    
+    def setSwarming(self, swarming: bool) -> bool:
+        self.__isSwarming = bool
+
+        return True
+
     def isMoving(self) -> bool:
         """Check if the agent is moving or not.
 
@@ -269,7 +314,7 @@ class Agent:
         self.__t1 = time.perf_counter()
         
         self.__speed = Settings.getMagnitude(self.__vel)
-    
+
         # Calculate is moving
         if self.__speed <= 0.01:
             self.__validtyCount += 1
@@ -285,14 +330,14 @@ class Agent:
         controlVel = np.array([0.0, 0.0, 0.0])
 
         if self.__isFormationActive:
-            controlVel += self.__formationControl()
+            controlVel += self.__formationControl(agents)
 
         if self.__isAvoidanceActive:
             controlVel += self.__avoidanceControl()
 
         if self.__isTrajectoryActive:
             controlVel += self.__trajectoryControl(agents)
-        
+
         self.__crazyflie.cmdVelocityWorld(controlVel, 0)
 
         return retValue
