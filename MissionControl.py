@@ -315,13 +315,13 @@ class MissionControl:
         
         agent.update(self.__agents)
         currPos = agent.getPos()
-        agent.setTargetPoint(np.array([currPos[0], currPos[1], 0.05]))
-        agent.setMaxVel(0.75)
+        agent.setTargetPoint(np.array([currPos[0], currPos[1], 0.1]))
+        agent.setMaxVel(0.1)
 
         while True:
             agent.update(self.__agents)
 
-            if (not agent.isMoving()):
+            if (agent.getState() == "LANDED"):
                 retValue = True
                 break
 

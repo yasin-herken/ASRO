@@ -193,7 +193,7 @@ def main() -> None:
         
         elif mission == "mission_takeoff_land_test":
             i = 0
-            while i < 5:
+            while i < 3:
                 i += 1
                 missionControl.takeOffAgent(names[0])
                 missionControl.landAgent(names[0])
