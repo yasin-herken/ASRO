@@ -362,6 +362,11 @@ class MissionControl:
 
                 if (not agent.isMoving()):
                     point.arrived = True
+                    pos = agent.getPos()
+                    pos[0] = round(pos[0], 2)
+                    pos[1] = round(pos[1], 2)
+                    pos[2] = round(pos[2], 2)
+                    logging.info(f"{agent.getName()} arrived at x: {pos[0]}, y:{pos[1]} , z:{pos[2]}")
                     break
 
                 self.__rospyRate.sleep()
