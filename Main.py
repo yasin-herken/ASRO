@@ -1,5 +1,6 @@
 import os
 import sys
+from typing import List
 import redis
 import logging
 import json
@@ -16,7 +17,7 @@ def getChar(block = False):
     if block or select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
         return sys.stdin.read(1)
 
-def _watchDog() -> None:
+def _watchDog(agents: List[Agent], rospyRate: rospy.Rate) -> None:
     """Runs on a thread. Checks the Redis 'emergency' channel and the input 'q'.
     Calls the function emergencyExit() if the need arises.
     """
@@ -26,6 +27,12 @@ def _watchDog() -> None:
 
             if key == "q":
                 emergencyExit()
+
+            # Update the agents
+            for agent in agents:
+                agent.update(agents)
+            rospyRate.sleep()
+
     except KeyboardInterrupt as e:
         logging.info("Keyboard interrupt detected.")
     except Exception as e:
@@ -47,7 +54,7 @@ def main() -> None:
     """
     # Initialization
     i = 0
-    agentCount = 1
+    agentCount = 6
     cfIds = []
     agents = []
     names = []
@@ -65,18 +72,49 @@ def main() -> None:
 
     logging.info("Creating instances of 'Agent' class.")
 
-    # Creating the agents
-    for i in range(1, agentCount + 1):
-        agents.append(
-            Agent(
-                cf=crazyflie.Crazyflie(f"cf{i}", f"/cf{i}"),
+    # Add agents
+    agents.append(Agent(
+                cf=crazyflie.Crazyflie(f"cf{1}", f"/cf{1}"),
+                initialPos= np.array([0.0, -1.0, 0.0]),
+                name=f"cf{1}",
+                address=f"radio:/{1}//80/2M - Unknown"
+            ))
+    names.append("cf1")
+    agents.append(Agent(
+                cf=crazyflie.Crazyflie(f"cf{2}", f"/cf{2}"),
+                initialPos= np.array([0.0, -0.5, 0.0]),
+                name=f"cf{2}",
+                address=f"radio:/{2}//80/2M - Unknown"
+            ))
+    names.append("cf2")
+    agents.append(Agent(
+                cf=crazyflie.Crazyflie(f"cf{3}", f"/cf{3}"),
                 initialPos= np.array([0.0, 0.0, 0.0]),
-                name=f"cf{i}",
-                address=f"radio:/{i}//80/2M - Unknown"
-            )
-        )
-        names.append(f"cf{i}")
-        addresses.append(f"radio:/{i}//80/2M - Unknown")
+                name=f"cf{3}",
+                address=f"radio:/{3}//80/2M - Unknown"
+            ))
+    names.append("cf3")
+    agents.append(Agent(
+                cf=crazyflie.Crazyflie(f"cf{4}", f"/cf{4}"),
+                initialPos= np.array([0.0, 0.5, 0.0]),
+                name=f"cf{4}",
+                address=f"radio:/{4}//80/2M - Unknown"
+            ))
+    names.append("cf4")
+    agents.append(Agent(
+                cf=crazyflie.Crazyflie(f"cf{5}", f"/cf{5}"),
+                initialPos= np.array([0.0, 1.0, 0.0]),
+                name=f"cf{5}",
+                address=f"radio:/{5}//80/2M - Unknown"
+            ))
+    names.append("cf5")
+    agents.append(Agent(
+            cf=crazyflie.Crazyflie(f"cf{6}", f"/cf{6}"),
+            initialPos= np.array([0.0, 1.5, 0.0]),
+            name=f"cf{6}",
+            address=f"radio:/{6}//80/2M - Unknown"
+        ))
+    names.append("cf6")
 
     logging.info(f"Created agents '{names}'.")
 
@@ -97,7 +135,7 @@ def main() -> None:
     )
     
     # Start the watchdog
-    watchdogThread = Thread(target=_watchDog)
+    watchdogThread = Thread(target=_watchDog, args=[agents, rospyRate])
     watchdogThread.start()
 
     i = 0
@@ -188,7 +226,7 @@ def main() -> None:
                     Point(0.0, 0.0, 0.5, False),
                     Point(0.0, 0.0, 0.0, False),
                 ],
-                maxVel=1.0
+                maxVel=0.2
             )
         
         elif mission == "mission_takeoff_land_test":
@@ -197,6 +235,7 @@ def main() -> None:
                 i += 1
                 missionControl.takeOffAgent(names[0])
                 missionControl.landAgent(names[0])
+                rospy.sleep(3)
 
         elif mission == "mission_takeoff_test":
             # TODO: To it in a loop
@@ -226,13 +265,6 @@ def main() -> None:
         elif mission == "mission_local_rotation_test":
             # TODO: To it in a loop
             missionControl.takeOffAgent(names[0])
-
-
-        # Update the agents to keep sending messages
-        for agent in agents:
-            agent.update(agents)
-
-        # Sync
         
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%d/%m/%Y %H:%M:%S')

@@ -108,15 +108,32 @@ class MissionControl:
         retValue = False
         logging.info("Starting mission takeFormation.")
 
+        # Check if formationMatrix matches the agent count
+        formationMatrix = Settings.FORMATION_HEXAGON
+        rowsCount = len(formationMatrix)
+        isValid = True
+        
+        for i in range(rowsCount):
+            columnsCount = len(formationMatrix[i])
+            if rowsCount != columnsCount:
+                isValid = False
+        
+        if (not isValid):
+            logging.info("Formatin matrix is invalid. Rows and columns count do not match. Aborthing!")
+            return False
+
+        if (len(self.__agents) != rowsCount):
+            logging.info(f"Agent count and formationMatrix does not match. Agents: {len(self.__agents)} formationMatrix: {rowsCount}x{rowsCount}")
+            return False
+
         # Activate and give the formation parameters
         for agent in self.__agents:
             agent.setFormationControl(True)
-            agent.setFormationMatrix(Settings.FORMATION_PYRAMID)
+            agent.setFormationMatrix(formationMatrix)
 
         # Wait for the formation to happen
         stoppedAgents = set()
         while True:
-
             for agent in self.__agents:
                 agent.update(self.__agents)
                 if not agent.isMoving():
@@ -126,7 +143,7 @@ class MissionControl:
                 retValue = True
                 break
 
-            self.__crazySwarm.timeHelper.sleep(1 / 100)
+            self.__rospyRate.sleep()
 
         # Deactivate the formation parameters
         for agent in self.__agents:
@@ -243,19 +260,14 @@ class MissionControl:
                 target = agent
                 break
         
-        agent.update(self.__agents)
         currPos = agent.getPos()
-        agent.setTargetPoint(np.array([currPos[0], currPos[1], currPos[2] + 0.75]))
-        agent.setMaxVel(1.0)
+        agent.setTargetPoint(np.array([currPos[0], currPos[1], currPos[2] + 1.0]))
+        agent.setMaxVel(0.2)
 
         while True:
-            agent.update(self.__agents)
-
-            if (not agent.isMoving()):
+            if (agent.getState() == "HOVERING"):
                 retValue = True
                 break
-
-            self.__rospyRate.sleep()
 
         logging.info(f"Ending mission takeOffAgent with success. Target was '{target.getName()}'")
 
@@ -319,14 +331,9 @@ class MissionControl:
         agent.setMaxVel(0.1)
 
         while True:
-            agent.update(self.__agents)
-
             if (agent.getState() == "LANDED"):
                 retValue = True
                 break
-
-            self.__rospyRate.sleep()
-
             
         logging.info(f"Ending mission landAgent with success. Target was '{target.getName()}'")
 
@@ -358,13 +365,14 @@ class MissionControl:
             agent.setMaxVel(maxVel)
 
             while True:
-                agent.update(self.__agents)
-
-                if (not agent.isMoving()):
+                if (agent.getState() == "HOVERING"):
                     point.arrived = True
+                    pos = agent.getPos()
+                    pos[0] = round(pos[0], 2)
+                    pos[1] = round(pos[1], 2)
+                    pos[2] = round(pos[2], 2)
+                    logging.info(f"{agent.getName()} arrived at x: {pos[0]}, y:{pos[1]} , z:{pos[2]}")
                     break
-
-                self.__rospyRate.sleep()
 
             # Last point
             if i == len(points) - 1:

@@ -1,3 +1,4 @@
+import logging
 import numpy as np
 import Settings
 import time
@@ -27,9 +28,7 @@ class Agent:
     __initialPos: np.ndarray
     __pos: np.ndarray
     __vel: np.ndarray
-    
     __speed: float
-    __isMoving: bool
     
     __pitch: float
     __yaw: float
@@ -98,10 +97,7 @@ class Agent:
         self.__initialPos = initialPos
         self.__pos = initialPos
         self.__vel= np.array([0.0, 0.0, 0.0])
-        
         self.__speed = 0.0
-        
-        self.__isMoving = False
         
         self.__pitch= 0.0
         self.__yaw= 0.0
@@ -116,8 +112,8 @@ class Agent:
         self.__validtyCount = 0
 
         # Subscribe to get the local position of the crazyflie with prefix cf_prefix
-        rospy.Subscriber(self.__name + "/local_position" , GenericLogData , self.__localPositionCallback)
-        rospy.Subscriber(self.__name + "/external_position" , GenericLogData , self.__externalPositionCallback)
+        rospy.Subscriber("/" + self.__name + "/local_position" , GenericLogData , self.__localPositionCallback)
+        rospy.Subscriber("/" + self.__name + "/external_position" , GenericLogData , self.__externalPositionCallback)
 
         # The publisher to be able to control in position
         self.__pubSetPointPos = rospy.Publisher(self.__name + "/cmd_position", Position , queue_size=10)
@@ -213,6 +209,8 @@ class Agent:
         self.__pos[1] = msg.values[1]
         self.__pos[2] = msg.values[2]
 
+        print(self.__pos)
+
         # Update agent info
         self.__x1 = self.__x2
         self.__x2 = self.__pos
@@ -224,10 +222,11 @@ class Agent:
         self.__speed = Settings.getMagnitude(self.__vel)
 
     def __externalPositionCallback(self, msg):
-        return
         self.__pos[0] = msg.values[0]
         self.__pos[1] = msg.values[1]
         self.__pos[2] = msg.values[2]
+
+        print(self.__pos)
 
         # Update agent info
         self.__x1 = self.__x2
@@ -357,15 +356,6 @@ class Agent:
         self.__isSwarming = swarming
 
         return True
-
-    def isMoving(self) -> bool:
-        """Check if the agent is moving or not.
-
-        Returns:
-            bool: Whether the agent is moving or not.
-        """
-        
-        return self.__isMoving
     
     def update(self, agents: list, isActive = True) -> bool:
         """Retrieves the agent information and updates the member veriables.
@@ -383,18 +373,13 @@ class Agent:
         if self.__speed <= 0.01:
             self.__validtyCount += 1
             if 400 <= self.__validtyCount:
-                self.__isMoving = False
+                self._state = "HOVERING"
                 self.__validtyCount = 0
-            else:
-                self._state = "MOVING"
-                self.__isMoving = True
         else:
             self._state = "MOVING"
-            self.__isMoving = True
         
         # Calculate is landed
         if self.__pos[2] <= 0.15 and self._targetPoint[2] <= 0.10:
-            self.__isMoving = False
             self._state = "LANDED"
             return
 
@@ -412,7 +397,7 @@ class Agent:
 
         # Send the message
         if isActive:
-            # Move/Fix the agent into position
+            # Hover Messages
             self.__hoverMsg.header.frame_id = 'world'
             self.__hoverMsg.header.seq += 1
             self.__hoverMsg.header.stamp = rospy.Time.now()
@@ -421,7 +406,7 @@ class Agent:
             self.__hoverMsg.yawrate = 0.0
             self.__hoverMsg.zDistance = self.__initialPos[2] + controlVel[2]
 
-            # Rotate the agent if necessary 
+            # Point Messages
             self.__PointMsg.header.frame_id = 'world'
             self.__PointMsg.header.seq += 1
             self.__PointMsg.header.stamp = rospy.Time.now()
@@ -429,8 +414,29 @@ class Agent:
             self.__PointMsg.y = self.__initialPos[1] + controlVel[1]
             self.__PointMsg.z = self.__initialPos[2] + controlVel[2]
 
-            self.__pubHover.publish(self.__hoverMsg)
+            # Full State Messages
+            self.__fullStateMsg.header.frame_id = 'world'
+            self.__fullStateMsg.header.seq += 1
+            self.__fullStateMsg.header.stamp = rospy.Time.now()
+            self.__fullStateMsg.pose.position.x = self.__initialPos[0] + controlVel[0]
+            self.__fullStateMsg.pose.position.y = self.__initialPos[1] + controlVel[1]
+            self.__fullStateMsg.pose.position.z = self.__initialPos[2] + controlVel[2]
+
+            # Services
+            # self.__crazyflie.goTo(
+            # [self.__initialPos[0] + controlVel[0], self.__initialPos[1] + controlVel[1], self.__initialPos[2] + controlVel[2]],
+            # yaw=0.0,
+            # duration=2.0,
+            # relative=True
+            # )
+            
+            self.__pubFullState.publish(self.__fullStateMsg)
+            # self.__pubHover.publish(self.__hoverMsg)
             # self.__pubSetPointPos.publish(self.__PointMsg)
+
+            # Log info
+            if False:
+                logging.info(f"{self.__name} pos: {self.__pos} target: {self._targetPoint} controlVel: {controlVel}")
 
         return retValue
 
