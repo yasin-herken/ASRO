@@ -1,3 +1,4 @@
+from queue import Full
 import numpy as np
 import Settings
 import time
@@ -68,6 +69,7 @@ class Agent:
 
     # Message structures
     __hoverMsg: Hover
+    __fullStateMsg: FullState
     
     def __init__(self, cf: Crazyflie, initialPos: np.ndarray, name: str, address: str) -> None:
         """Initializes the agent class.
@@ -119,7 +121,7 @@ class Agent:
         rospy.Subscriber(self.__name + "/external_position" , GenericLogData , self.__externalPositionCallback)
 
         # The publisher to be able to control in position
-        self.__pubSetPointPos = rospy.Publisher(self.__name + "/cmd_position", Position , queue_size=10)
+        self.__pubSetPointPos = rospy.Publisher(self.__name + "/4", Position , queue_size=10)
         self.__pubHover = rospy.Publisher(self.__name + "/cmd_hover", Hover , queue_size=10)
         self.__pubStop = rospy.Publisher(self.__name + "/cmd_stop", Empty , queue_size=10)
         self.__pubFullState = rospy.Publisher(self.__name + "/cmd_full_state", FullState , queue_size=10)
@@ -128,6 +130,8 @@ class Agent:
 
         # Message structures
         self.__hoverMsg = Hover()
+        self.__fullStateMsg = FullState()
+        self.__PointMsg = Position()
         
     def __str__(self):
         return f"{self.__name}, {self.__address}, {self.__pos}"
@@ -209,7 +213,6 @@ class Agent:
         self.__pos[0] = msg.values[0]
         self.__pos[1] = msg.values[1]
         self.__pos[2] = msg.values[2]
-
         # Update agent info
         self.__x1 = self.__x2
         self.__x2 = self.__pos
@@ -219,12 +222,22 @@ class Agent:
         self.__t1 = time.perf_counter()
         
         self.__speed = Settings.getMagnitude(self.__vel)
-    
+
     def __externalPositionCallback(self, msg):
         return
         self.__pos[0] = msg.values[0]
         self.__pos[1] = msg.values[1]
-        self.__pos[2] = msg.values[2]   
+        self.__pos[2] = msg.values[2]
+
+        # Update agent info
+        self.__x1 = self.__x2
+        self.__x2 = self.__pos
+        
+        self.__t2 = time.perf_counter()
+        self.__vel = (self.__x2 - self.__x1) / (self.__t2 - self.__t1)
+        self.__t1 = time.perf_counter()
+        
+        self.__speed = Settings.getMagnitude(self.__vel)  
 
     def getName(self) -> str:
         """Returns the name of the agent.
@@ -354,7 +367,7 @@ class Agent:
         
         return self.__isMoving
     
-    def update(self, agents: list) -> bool:
+    def update(self, agents: list, isActive = True) -> bool:
         """Retrieves the agent information and updates the member veriables.
         Depending on the settings, calculates the formation control values and applies them. 
 
@@ -390,15 +403,23 @@ class Agent:
             controlVel += self.__trajectoryControl(agents)
 
         # Send the message
-        self.__hoverMsg.header.frame_id = 'world'
-        self.__hoverMsg.header.seq += 1
-        self.__hoverMsg.header.stamp = rospy.Time.now()
-        self.__hoverMsg.vx = controlVel[0]
-        self.__hoverMsg.vy = controlVel[1]
-        self.__hoverMsg.yawrate = 0.0
-        self.__hoverMsg.zDistance = self.__pos[2] + controlVel[2]
-
-        self.__pubHover.publish(self.__hoverMsg)
+        if isActive:
+            # Move/Fix the agent into position
+            self.__hoverMsg.header.frame_id = 'world'
+            self.__hoverMsg.header.seq += 1
+            self.__hoverMsg.header.stamp = rospy.Time.now()
+            self.__hoverMsg.vx = 0.0
+            self.__hoverMsg.vy = 0.0
+            self.__hoverMsg.yawrate = 30.0
+            self.__hoverMsg.zDistance = 1.0
+            # Rotate the agent if necessary 
+            self.__PointMsg.header.frame_id = 'world'
+            self.__PointMsg.header.seq += 1
+            self.__PointMsg.header.stamp = rospy.Time.now()
+            self.__PointMsg.x = self.__initialPos[0] + controlVel[0]
+            self.__PointMsg.y = self.__initialPos[1] + controlVel[1]
+            self.__PointMsg.z = self.__initialPos[2] + controlVel[2]
+            self.__pubSetPointPos.publish(self.__PointMsg)
 
         return retValue
 

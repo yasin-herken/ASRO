@@ -43,8 +43,6 @@ class MissionControl:
     __rospyRate: rospy.Rate
     __agents: List[Agent]
     __redisClient: redis.Redis
-
-
     
     def __init__(self, rospyRate: rospy.Rate, agents: List[Agent],redisClient:redis.Redis):
         """Initialize the MissionControl.
@@ -138,6 +136,24 @@ class MissionControl:
         logging.info(f"Ending mission takeFormation with success. Formation was: 'PYRAMID'")
 
         return retValue
+    
+    def testPosition(self) -> bool:
+        """__summary__
+
+        Returns:
+            bool: Specifies whether the operation was successfull or not.
+        """
+        retValue = False
+
+        while True:
+            for agent in self.__agents:
+                agent.update(self.__agents, isActive=False)
+                pos = agent.getPos()
+                print(f"{agent.getName()} x: {round(pos[0], 2)}, y: {round(pos[1], 2)}, z: {round(pos[2], 2)}")
+                
+            self.__rospyRate.sleep()
+
+        return retValue
 
     def missionOne(self) -> bool:
         """_summary_
@@ -187,6 +203,42 @@ class MissionControl:
         """
         retValue = False
         
+        return retValue
+    
+    def rotateAgent(self, target: str) -> bool:
+        """Rotates the target agent.
+
+        Args:
+            target (str): Agent to be rotated.
+
+        Returns:
+            bool: Specifies whether the mission was successfull or not.
+        """
+        retValue = False
+
+        logging.info(f"Starting mission takeOffAgent. Target is '{target}'")
+
+        for agent in self.__agents:
+            if target == agent.getName():
+                target = agent
+                break
+        
+        agent.update(self.__agents)
+        currPos = agent.getPos()
+        agent.setTargetPoint(np.array([currPos[0], currPos[1], currPos[2] + 1.00]))
+        agent.setMaxVel(1.0)
+
+        while True:
+            agent.update(self.__agents)
+
+            if (not agent.isMoving()):
+                retValue = True
+                break
+
+            self.__rospyRate.sleep()
+
+        logging.info(f"Ending mission takeOffAgent with success. Target was '{target.getName()}'")
+
         return retValue
 
     def takeOffAgent(self, target: str) -> bool:
@@ -279,7 +331,7 @@ class MissionControl:
         
         agent.update(self.__agents)
         currPos = agent.getPos()
-        agent.setTargetPoint(np.array([currPos[0], currPos[1], -0.05]))
+        agent.setTargetPoint(np.array([currPos[0], currPos[1], 0.05]))
         agent.setMaxVel(0.75)
 
         while True:

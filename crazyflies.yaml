@@ -1,0 +1,6 @@
+crazyflies:
+  - id: 0xE7
+    channel: 80
+    type: "default"
+    initialPosition: [0.0, 0.0, 0.0]
+ 

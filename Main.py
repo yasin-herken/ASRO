@@ -144,6 +144,12 @@ def main() -> None:
             elif "formation_test" in sys.argv:
                 mission = "mission_formation_test"
                 sys.argv.remove("formation_test")
+            elif "position_test" in sys.argv:
+                mission = "mission_position_test"
+                sys.argv.remove("position_test")
+            elif "local_rotation_test" in sys.argv:
+                mission = "mission_local_rotation_test"
+                sys.argv.remove("local_rotation_test")
 
         # Launch a mission if a message exists
         if mission == "mission_takeoff_all":
@@ -167,15 +173,15 @@ def main() -> None:
                 names[0],
                 [
                     Point(0.0, 0.0, 1.0, False),
-                    Point(1.0, 0.0, 1.0, False),
+                    Point(0.3, 0.0, 1.0, False),
                     Point(0.0, 0.0, 1.0, False),
-                    Point(-1.0, 0.0, 1.0, False),
+                    Point(-0.3, 0.0, 1.0, False),
                     Point(0.0, 0.0, 1.0, False),
-                    Point(0.0, 1.0, 1.0, False),
+                    Point(0.0, 0.3, 1.0, False),
                     Point(0.0, 0.0, 1.0, False),
-                    Point(0.0, -1.0, 1.0, False),
+                    Point(0.0, -0.3, 1.0, False),
                     Point(0.0, 0.0, 1.0, False),
-                    Point(0.0, 0.0, 2.0, False),
+                    Point(0.0, 0.0, 1.3, False),
                     Point(0.0, 0.0, 1.0, False),
                     Point(0.0, 0.0, 0.0, False),
                 ],
@@ -210,13 +216,20 @@ def main() -> None:
                 
             missionControl.takeOffAll()
             missionControl.testFormation()
+        
+        elif mission == "mission_position_test":
+            missionControl.testPosition()
+
+        elif mission == "mission_local_rotation_test":
+            # TODO: To it in a loop
+            missionControl.takeOffAgent(names[0])
+
 
         # Update the agents to keep sending messages
         for agent in agents:
             agent.update(agents)
 
         # Sync
-        rospyRate.sleep()
         
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%d/%m/%Y %H:%M:%S')
