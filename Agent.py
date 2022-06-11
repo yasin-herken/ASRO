@@ -81,7 +81,7 @@ class Agent:
         self.__name = name
         self.__address = address
 
-        self.__maxVel = 0.5
+        self.__maxVel = 0.3
         
         self.__isFormationActive = False
         self.__isAvoidanceActive = False
@@ -112,8 +112,8 @@ class Agent:
         self.__validtyCount = 0
 
         # Subscribe to get the local position of the crazyflie with prefix cf_prefix
-        rospy.Subscriber("/" + self.__name + "/local_position" , GenericLogData , self.__localPositionCallback)
-        rospy.Subscriber("/" + self.__name + "/external_position" , GenericLogData , self.__externalPositionCallback)
+        rospy.Subscriber(self.__name + "/local_position" , GenericLogData , self.__localPositionCallback)
+        rospy.Subscriber(self.__name + "/external_position" , GenericLogData , self.__externalPositionCallback)
 
         # The publisher to be able to control in position
         self.__pubSetPointPos = rospy.Publisher(self.__name + "/cmd_position", Position , queue_size=10)
@@ -122,6 +122,7 @@ class Agent:
         self.__pubFullState = rospy.Publisher(self.__name + "/cmd_full_state", FullState , queue_size=10)
         self.__pubStop = rospy.Publisher(self.__name + "/cmd_stop", Empty , queue_size=10)
         self.__pubTwist= rospy.Publisher(self.__name + "/cmd_vel", Twist , queue_size=10)
+        rospy.sleep(1 / 10)
 
         # Message structures
         self.__hoverMsg = Hover()
@@ -209,24 +210,24 @@ class Agent:
         self.__pos[1] = msg.values[1]
         self.__pos[2] = msg.values[2]
 
-        print(self.__pos)
-
         # Update agent info
         self.__x1 = self.__x2
         self.__x2 = self.__pos
-        
+
         self.__t2 = time.perf_counter()
+        # print(round(self.__t2, 6))
         self.__vel = (self.__x2 - self.__x1) / (self.__t2 - self.__t1)
         self.__t1 = time.perf_counter()
         
         self.__speed = Settings.getMagnitude(self.__vel)
 
     def __externalPositionCallback(self, msg):
+        return
         self.__pos[0] = msg.values[0]
         self.__pos[1] = msg.values[1]
         self.__pos[2] = msg.values[2]
 
-        print(self.__pos)
+        print("external")
 
         # Update agent info
         self.__x1 = self.__x2
@@ -334,6 +335,7 @@ class Agent:
     
     def setTargetPoint(self, target) -> bool:
         self._targetPoint = target
+        self._state = "MOVING"
         
         return True
     
@@ -385,15 +387,23 @@ class Agent:
 
         # Calculate control values
         controlVel = np.array([0.0, 0.0, 0.0])
+        formationVel = np.array([0.0, 0.0, 0.0])
+        avoidanceVel = np.array([0.0, 0.0, 0.0])
+        trajectoryVel = np.array([0.0, 0.0, 0.0])
 
         if self.__isFormationActive:
-            controlVel += self.__formationControl(agents)
+            formationVel = self.__formationControl(agents)
+            formationVel = Settings.setMagnitude(formationVel, 0.2)
 
         if self.__isAvoidanceActive:
-            controlVel += self.__avoidanceControl()
+            avoidanceVel = self.__avoidanceControl()
 
         if self.__isTrajectoryActive:
-            controlVel += self.__trajectoryControl(agents)
+            trajectoryVel = self.__trajectoryControl(agents)
+
+        controlVel = formationVel + avoidanceVel + trajectoryVel
+
+  
 
         # Send the message
         if isActive:
@@ -405,6 +415,8 @@ class Agent:
             self.__hoverMsg.vy = controlVel[1]
             self.__hoverMsg.yawrate = 0.0
             self.__hoverMsg.zDistance = self.__initialPos[2] + controlVel[2]
+            if self.__isFormationActive:
+                self.__hoverMsg.zDistance = 1.0
 
             # Point Messages
             self.__PointMsg.header.frame_id = 'world'
@@ -430,8 +442,8 @@ class Agent:
             # relative=True
             # )
             
-            self.__pubFullState.publish(self.__fullStateMsg)
-            # self.__pubHover.publish(self.__hoverMsg)
+            # self.__pubFullState.publish(self.__fullStateMsg)
+            self.__pubHover.publish(self.__hoverMsg)
             # self.__pubSetPointPos.publish(self.__PointMsg)
 
             # Log info

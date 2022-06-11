@@ -7,7 +7,7 @@ import json
 import select
 import rospy
 import numpy as np
-
+import time
 from sim_cf import crazyflie
 from Agent import Agent
 from MissionControl import MissionControl, Point
@@ -22,7 +22,7 @@ def _watchDog(agents: List[Agent], rospyRate: rospy.Rate) -> None:
     Calls the function emergencyExit() if the need arises.
     """
     try:
-        while True:
+        while not rospy.is_shutdown():
             key = getChar()
 
             if key == "q":
@@ -211,7 +211,7 @@ def main() -> None:
         elif mission == "mission_trajectory_test":
             # TODO: To it in a loop
             missionControl.goToAgent(
-                target=names[0],
+                target="cf1",
                 points=[
                     Point(0.0, 0.0, 0.5, False),
                     Point(0.5, 0.0, 0.5, False),
@@ -226,7 +226,7 @@ def main() -> None:
                     Point(0.0, 0.0, 0.5, False),
                     Point(0.0, 0.0, 0.0, False),
                 ],
-                maxVel=0.2
+                maxVel=0.75
             )
         
         elif mission == "mission_takeoff_land_test":
@@ -257,7 +257,9 @@ def main() -> None:
                 logging.info(f"Index: {i}, agent: {agent.getName()}")
                 
             missionControl.takeOffAll()
+            time.sleep(5.0)
             missionControl.testFormation()
+            rospy.sleep(5)
         
         elif mission == "mission_position_test":
             missionControl.testPosition()

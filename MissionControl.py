@@ -135,8 +135,8 @@ class MissionControl:
         stoppedAgents = set()
         while True:
             for agent in self.__agents:
-                agent.update(self.__agents)
-                if not agent.isMoving():
+
+                if False:
                     stoppedAgents.add(agent.getName)
             
             if len(stoppedAgents) == len(self.__agents):
@@ -355,7 +355,7 @@ class MissionControl:
 
         # Find the target Agent object
         for agent in self.__agents:
-            if agent.getName == target:
+            if agent.getName() == target:
                 target = agent
                 break
 
