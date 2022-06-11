@@ -12,7 +12,7 @@ from crazyflie_driver.msg import Hover
 from crazyflie_driver.msg import FullState
 from std_msgs.msg import Empty
 from geometry_msgs.msg import Twist
-
+from timehelper import TimeHelper
 initialPosition = None
 
 def local_position_callback(msg):
@@ -34,17 +34,47 @@ def external_position_callback(msg):
     external_position.y = msg.values[1]
     external_position.z = msg.values[2]
     external_position.header = msg.header
-
+def goTo(target):
+    fullstateMsg.header.frame_id = 'world'
+    fullstateMsg.header.seq += 1
+    fullstateMsg.header.stamp = rospy.Time.now()
+    fullstateMsg.pose.position.z = target
+    pubFullState.publish(fullstateMsg)
+    timehelper.sleep(1/100)
+def rotate(angle):
+    fullstateMsg.header.frame_id = 'world'
+    fullstateMsg.header.seq += 1
+    fullstateMsg.header.stamp = rospy.Time.now()
+    fullstateMsg.pose.position.z = 1.0
+    fullstateMsg.twist.angular.z = 40
+    fullstateMsg.twist.linear.x = 4
+    pubFullState.publish(fullstateMsg)
+    timehelper.sleep(1/100)
+def hover(target):
+    hoverMsg.header.frame_id = 'world'
+    hoverMsg.header.stamp = rospy.Time.now()
+    hoverMsg.header.seq += 1
+    hoverMsg.vx = 0.0
+    hoverMsg.vy = 0.0
+    hoverMsg.zDistance = target
+    hoverMsg.yawrate +=0.1
+    pubHover.publish(hoverMsg)
+    timehelper.sleep(1/100)
+def vel():
+    fullstateMsg.header.frame_id = '/base_link'
+    fullstateMsg.header.seq += 1
+    fullstateMsg.header.stamp = rospy.Time.now()
+    fullstateMsg.twist.linear.z += 0.5 + 0.001
+    pubFullState.publish(fullstateMsg)
 if __name__ == '__main__':
     rospy.init_node('ASRO')
-    
     cf_prefix = "cf1"
     cf = crazyflie.Crazyflie("cf1", "/cf1")
 
     cf.setParam("commander/enHighLevel", 1)
     
     freq_pub = 50
-
+    timehelper = TimeHelper()
     rate = rospy.Rate(freq_pub)
 
     # Subscribe to get the local position of the crazyflie with prefix cf_prefix
@@ -63,20 +93,12 @@ if __name__ == '__main__':
     posMsg = Position()
     hoverMsg = Hover()
     current_position = Position()
-
+    fullstateMsg = FullState()
+    velMsg = Twist()
     # Hover usage
     try:
         while True:
-            if initialPosition != None:
-                hoverMsg.header.frame_id = 'world'
-                hoverMsg.header.seq += 1
-                hoverMsg.header.stamp = rospy.Time.now()
-                hoverMsg.vx = 0.0
-                hoverMsg.vy = 0.0
-                hoverMsg.yawrate = 0.0
-                hoverMsg.zDistance = initialPosition[2] + 0.5
-
-                pubHover.publish(hoverMsg)
+            hover(1.0)
             rate.sleep()
     except KeyboardInterrupt as e:
         print("Keyboard interrupt.")
