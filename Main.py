@@ -188,7 +188,7 @@ def main() -> None:
                     Point(0.0, 0.0, 0.5, False),
                     Point(0.0, 0.0, 0.0, False),
                 ],
-                maxVel=1.0
+                maxVel=0.2
             )
         
         elif mission == "mission_takeoff_land_test":
@@ -197,6 +197,7 @@ def main() -> None:
                 i += 1
                 missionControl.takeOffAgent(names[0])
                 missionControl.landAgent(names[0])
+                rospy.sleep(3)
 
         elif mission == "mission_takeoff_test":
             # TODO: To it in a loop

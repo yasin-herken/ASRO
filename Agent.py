@@ -412,7 +412,7 @@ class Agent:
 
         # Send the message
         if isActive:
-            # Move/Fix the agent into position
+            # Hover Messages
             self.__hoverMsg.header.frame_id = 'world'
             self.__hoverMsg.header.seq += 1
             self.__hoverMsg.header.stamp = rospy.Time.now()
@@ -421,7 +421,7 @@ class Agent:
             self.__hoverMsg.yawrate = 0.0
             self.__hoverMsg.zDistance = self.__initialPos[2] + controlVel[2]
 
-            # Rotate the agent if necessary 
+            # Point Messages
             self.__PointMsg.header.frame_id = 'world'
             self.__PointMsg.header.seq += 1
             self.__PointMsg.header.stamp = rospy.Time.now()
@@ -429,7 +429,24 @@ class Agent:
             self.__PointMsg.y = self.__initialPos[1] + controlVel[1]
             self.__PointMsg.z = self.__initialPos[2] + controlVel[2]
 
-            self.__pubHover.publish(self.__hoverMsg)
+            # Full State Messages
+            self.__fullStateMsg.header.frame_id = 'world'
+            self.__fullStateMsg.header.seq += 1
+            self.__fullStateMsg.header.stamp = rospy.Time.now()
+            self.__fullStateMsg.pose.position.x = self.__initialPos[0] + controlVel[0]
+            self.__fullStateMsg.pose.position.y = self.__initialPos[1] + controlVel[1]
+            self.__fullStateMsg.pose.position.z = self.__initialPos[2] + controlVel[2]
+
+            # Services
+            # self.__crazyflie.goTo(
+            # [self.__initialPos[0] + controlVel[0], self.__initialPos[1] + controlVel[1], self.__initialPos[2] + controlVel[2]],
+            # yaw=0.0,
+            # duration=2.0,
+            # relative=True
+            # )
+            
+            self.__pubFullState.publish(self.__fullStateMsg)
+            # self.__pubHover.publish(self.__hoverMsg)
             # self.__pubSetPointPos.publish(self.__PointMsg)
 
         return retValue
