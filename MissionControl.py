@@ -205,11 +205,11 @@ class MissionControl:
         
         return retValue
     
-    def rotateAgent(self, target: str) -> bool:
-        """Rotates the target agent.
+    def hoverAgent(self, target: str) -> bool:
+        """Hovers the target agent at it's current position.
 
         Args:
-            target (str): Agent to be rotated.
+            target (str): Agent to be hovered.
 
         Returns:
             bool: Specifies whether the mission was successfull or not.
@@ -222,22 +222,6 @@ class MissionControl:
             if target == agent.getName():
                 target = agent
                 break
-        
-        agent.update(self.__agents)
-        currPos = agent.getPos()
-        agent.setTargetPoint(np.array([currPos[0], currPos[1], currPos[2] + 1.00]))
-        agent.setMaxVel(1.0)
-
-        while True:
-            agent.update(self.__agents)
-
-            if (not agent.isMoving()):
-                retValue = True
-                break
-
-            self.__rospyRate.sleep()
-
-        logging.info(f"Ending mission takeOffAgent with success. Target was '{target.getName()}'")
 
         return retValue
 

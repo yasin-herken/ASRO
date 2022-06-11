@@ -54,6 +54,9 @@ def main() -> None:
     addresses = []
     statuses = []
 
+    # Fix the issue where rospy disables the logging
+    os.environ['ROS_PYTHON_LOG_CONFIG_FILE'] = "`rospack find rosgraph`/conf/python_logging.yaml"
+
     logging.info("Initializing the ROS Node")
 
     # Start the ROS server
@@ -170,27 +173,27 @@ def main() -> None:
         elif mission == "mission_trajectory_test":
             # TODO: To it in a loop
             missionControl.goToAgent(
-                names[0],
-                [
+                target=names[0],
+                points=[
+                    Point(0.0, 0.0, 0.5, False),
+                    Point(0.5, 0.0, 0.5, False),
+                    Point(0.0, 0.0, 0.5, False),
+                    Point(-0.5, 0.0, 0.5, False),
+                    Point(0.0, 0.0, 0.5, False),
+                    Point(0.0, 0.5, 0.5, False),
+                    Point(0.0, 0.0, 0.5, False),
+                    Point(0.0, -0.5, 0.5, False),
+                    Point(0.0, 0.0, 0.5, False),
                     Point(0.0, 0.0, 1.0, False),
-                    Point(0.3, 0.0, 1.0, False),
-                    Point(0.0, 0.0, 1.0, False),
-                    Point(-0.3, 0.0, 1.0, False),
-                    Point(0.0, 0.0, 1.0, False),
-                    Point(0.0, 0.3, 1.0, False),
-                    Point(0.0, 0.0, 1.0, False),
-                    Point(0.0, -0.3, 1.0, False),
-                    Point(0.0, 0.0, 1.0, False),
-                    Point(0.0, 0.0, 1.3, False),
-                    Point(0.0, 0.0, 1.0, False),
+                    Point(0.0, 0.0, 0.5, False),
                     Point(0.0, 0.0, 0.0, False),
                 ],
-                0.5
+                maxVel=1.0
             )
         
         elif mission == "mission_takeoff_land_test":
             i = 0
-            while i < 10:
+            while i < 5:
                 i += 1
                 missionControl.takeOffAgent(names[0])
                 missionControl.landAgent(names[0])
