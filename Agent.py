@@ -399,23 +399,32 @@ class Agent:
         if 0.06 <= Settings.getMagnitude(controlVel):
             controlVel = Settings.setMagnitude(controlVel, 0.06)
 
-        isHighSpeed = False if (self.__speed <= 0.05) else False
-        isHighControl = False if (Settings.getMagnitude(controlVel) <= 0.05) else False
+        isHighSpeed = False if (self.__speed <= 0.05) else True
+        isHighControl = False if (Settings.getMagnitude(controlVel) <= 0.05) else True
 
         # Calculate is states
         if self._state == "TAKING_OFF" and 0.49 <= self.__pos[2]:
             self._state = "HOVERING"
-        elif self._state != "TAKING_OFF" and self.__pos[2] <= 0.15 and self._targetPoint[2] <= 0.10:
+            if self.__validtyCount < 0:
+                self.__validtyCount -= 1
+        elif self._state == "LANDING" and self.__pos[2] <= 0.15 and self._targetPoint[2] <= 0.10:
             self._state = "STATIONARY"
-        elif not isHighSpeed and not isHighControl:
+            if self.__validtyCount < 0:
+                self.__validtyCount -= 1
+        elif self._state == "STATIONARY":
+            pass
+        elif self._state != "TAKING_OFF" and not isHighSpeed and not isHighControl:
             self.__validtyCount += 1
-            if 300 <= self.__validtyCount:
+            if 180 <= self.__validtyCount:
                 self._state = "HOVERING"
                 self.__validtyCount = 0
         elif isHighSpeed and isHighControl:
             self._state = "MOVING"
+            if self.__validtyCount < 0:
+                self.__validtyCount -= 1
         
-        print(round(self.__speed, 4))
+        print(self._state)
+        # print(round(self.__speed, 4))
 
         # Send the message
         if isActive:
@@ -426,15 +435,7 @@ class Agent:
             self.__hoverMsg.vx = 0.0
             self.__hoverMsg.vy = 0.0
             self.__hoverMsg.yawrate = 0.0
-            self.__hoverMsg.zDistance = 0.5
-
-            # Point Messages
-            self.__PointMsg.header.frame_id = 'world'
-            self.__PointMsg.header.seq += 1
-            self.__PointMsg.header.stamp = rospy.Time.now()
-            self.__PointMsg.x = self.__initialPos[0] + controlVel[0]
-            self.__PointMsg.y = self.__initialPos[1] + controlVel[1]
-            self.__PointMsg.z = self.__initialPos[2] + controlVel[2]
+            self.__hoverMsg.zDistance = self._targetPoint[2]
 
             # Full State Messages
             self.__fullStateMsg.header.frame_id = 'world'
@@ -442,11 +443,10 @@ class Agent:
             self.__fullStateMsg.header.stamp = rospy.Time.now()
             self.__fullStateMsg.pose.position.x = self.__pos[0] + controlVel[0]
             self.__fullStateMsg.pose.position.y = self.__pos[1] + controlVel[1]
-            self.__fullStateMsg.pose.position.z = 0.5
+            self.__fullStateMsg.pose.position.z = self._targetPoint[2]
 
             # Services
             if self._state == "MOVING":
-                print("msg full")
                 goal =  np.array(
                     [
                         round(self.__pos[0] + controlVel[0], 2),
@@ -458,7 +458,6 @@ class Agent:
 
                 self.__pubFullState.publish(self.__fullStateMsg)
             elif self._state == "HOVERING":
-                print("msg hover")
                 self.__pubHover.publish(self.__hoverMsg)
 
             # self.__pubSetPointPos.publish(self.__PointMsg)
@@ -468,7 +467,7 @@ class Agent:
 
         return retValue
 
-    def takeOffAsync(self, Z: float) -> bool:
+    def takeOffAsync(self, height: float) -> bool:
         """Takes off the agent from the ground. Does not block the flow of the program.
 
         Args:
@@ -480,30 +479,12 @@ class Agent:
         retValue = False
         
         try:
-            self.__crazyflie.takeoff(targetHeight=Z, duration=2.0)
+            self.__crazyflie.takeoff(targetHeight=height, duration=2.0)
             self._state = "TAKING_OFF"
             retValue = True
         except Exception as e:
             print(e.with_traceback())
     
-        return retValue
-
-    def takeOffSync(self, height: float) -> bool:
-        """Takes off the agent from the ground. Blocks the flow of the program.
-
-        Args:
-            height (float): Target height to be taken off to.
-
-        Returns:
-            bool: Whether the operation was succesfull or not.
-        """
-        retValue = False
-
-        self.__crazyflie.takeoff(targetHeight=height, duration=2.0)
-        self._state = "TAKING_OFF"
-        retValue = True
-
-        
         return retValue
     
     def landAsync(self) -> bool:
@@ -514,23 +495,11 @@ class Agent:
         """
         retValue = False
         try:
-            self.__crazyflie.land(0.0, duration=2.0)
+            self.__crazyflie.land(0.00, duration=2.0)
             self._state = "LANDING"
             retValue = True
         except Exception as e:
             print(e.with_traceback())
-        return retValue
-    
-    def landSync(self) -> bool:
-        """Lands the agent from the ground. Block the flow of the program.
-
-        Returns:
-            bool: Whether the operation was succesfull or not.
-        """
-        retValue = False
-        self.__crazyflie.land(targetHeight=0.0, duration=2.0)
-        self._state = "LANDING"
-        retValue = True
         return retValue
     
     def goToAsync(self, x: float, y: float, z: float) -> bool:

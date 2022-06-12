@@ -370,6 +370,7 @@ q
                     pos[2] = round(pos[2], 2)
                     logging.info(f"{agent.getName()} arrived at x: {pos[0]}, y:{pos[1]} , z:{pos[2]}")
                     break
+            rospy.sleep(2)
 
             # Last point
             if i == len(points) - 1:
