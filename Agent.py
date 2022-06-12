@@ -85,7 +85,7 @@ class Agent:
         
         self.__isFormationActive = False
         self.__isAvoidanceActive = False
-        self.__isTrajectoryActive = True
+        self.__isTrajectoryActive = False
         self.__isSwarming = False
         self.__formationMatrix = np.array([0.0])
 
@@ -94,8 +94,8 @@ class Agent:
         self._status = False
         self._state = "STATIONARY"
         
-        self.__initialPos = initialPos
-        self.__pos = initialPos
+        self.__initialPos = np.array(initialPos)
+        self.__pos = np.array(initialPos)
         self.__vel= np.array([0.0, 0.0, 0.0])
         self.__speed = 0.0
         
@@ -128,6 +128,9 @@ class Agent:
         self.__hoverMsg = Hover()
         self.__fullStateMsg = FullState()
         self.__PointMsg = Position()
+
+        # Activate service controls
+        self.__crazyflie.setParam("commander/enHighLevel", 1)
         
     def __str__(self):
         return f"{self.__name}, {self.__address}, {self.__pos}"
@@ -211,8 +214,8 @@ class Agent:
         self.__pos[2] = msg.values[2]
 
         # Update agent info
-        self.__x1 = self.__x2
-        self.__x2 = self.__pos
+        self.__x1 = np.array(self.__x2)
+        self.__x2 = np.array(self.__pos)
 
         self.__t2 = time.perf_counter()
         # print(round(self.__t2, 6))
@@ -344,8 +347,13 @@ class Agent:
 
         return True
 
-    def setFormationControl(self, status: bool) -> bool:
+    def setFormationActive(self, status: bool) -> bool:
         self.__isFormationActive = status
+
+        return True
+
+    def setTrajectoryActive(self, status: bool) -> bool:
+        self.__isTrajectoryActive = status
 
         return True
     
@@ -371,20 +379,6 @@ class Agent:
 		"""
         retValue = False
 
-        # Calculate is moving
-        if self.__speed <= 0.01:
-            self.__validtyCount += 1
-            if 400 <= self.__validtyCount:
-                self._state = "HOVERING"
-                self.__validtyCount = 0
-        else:
-            self._state = "MOVING"
-        
-        # Calculate is landed
-        if self.__pos[2] <= 0.15 and self._targetPoint[2] <= 0.10:
-            self._state = "LANDED"
-            return
-
         # Calculate control values
         controlVel = np.array([0.0, 0.0, 0.0])
         formationVel = np.array([0.0, 0.0, 0.0])
@@ -393,7 +387,7 @@ class Agent:
 
         if self.__isFormationActive:
             formationVel = self.__formationControl(agents)
-            formationVel = Settings.setMagnitude(formationVel, 0.2)
+            formationVel = Settings.setMagnitude(formationVel, 0.5)
 
         if self.__isAvoidanceActive:
             avoidanceVel = self.__avoidanceControl()
@@ -402,8 +396,26 @@ class Agent:
             trajectoryVel = self.__trajectoryControl(agents)
 
         controlVel = formationVel + avoidanceVel + trajectoryVel
+        if 0.06 <= Settings.getMagnitude(controlVel):
+            controlVel = Settings.setMagnitude(controlVel, 0.06)
 
-  
+        isHighSpeed = False if (self.__speed <= 0.05) else False
+        isHighControl = False if (Settings.getMagnitude(controlVel) <= 0.05) else False
+
+        # Calculate is states
+        if self._state == "TAKING_OFF" and 0.49 <= self.__pos[2]:
+            self._state = "HOVERING"
+        elif self._state != "TAKING_OFF" and self.__pos[2] <= 0.15 and self._targetPoint[2] <= 0.10:
+            self._state = "STATIONARY"
+        elif not isHighSpeed and not isHighControl:
+            self.__validtyCount += 1
+            if 300 <= self.__validtyCount:
+                self._state = "HOVERING"
+                self.__validtyCount = 0
+        elif isHighSpeed and isHighControl:
+            self._state = "MOVING"
+        
+        print(round(self.__speed, 4))
 
         # Send the message
         if isActive:
@@ -411,12 +423,10 @@ class Agent:
             self.__hoverMsg.header.frame_id = 'world'
             self.__hoverMsg.header.seq += 1
             self.__hoverMsg.header.stamp = rospy.Time.now()
-            self.__hoverMsg.vx = controlVel[0]
-            self.__hoverMsg.vy = controlVel[1]
+            self.__hoverMsg.vx = 0.0
+            self.__hoverMsg.vy = 0.0
             self.__hoverMsg.yawrate = 0.0
-            self.__hoverMsg.zDistance = self.__initialPos[2] + controlVel[2]
-            if self.__isFormationActive:
-                self.__hoverMsg.zDistance = 1.0
+            self.__hoverMsg.zDistance = 0.5
 
             # Point Messages
             self.__PointMsg.header.frame_id = 'world'
@@ -430,25 +440,31 @@ class Agent:
             self.__fullStateMsg.header.frame_id = 'world'
             self.__fullStateMsg.header.seq += 1
             self.__fullStateMsg.header.stamp = rospy.Time.now()
-            self.__fullStateMsg.pose.position.x = self.__initialPos[0] + controlVel[0]
-            self.__fullStateMsg.pose.position.y = self.__initialPos[1] + controlVel[1]
-            self.__fullStateMsg.pose.position.z = self.__initialPos[2] + controlVel[2]
+            self.__fullStateMsg.pose.position.x = self.__pos[0] + controlVel[0]
+            self.__fullStateMsg.pose.position.y = self.__pos[1] + controlVel[1]
+            self.__fullStateMsg.pose.position.z = 0.5
 
             # Services
-            # self.__crazyflie.goTo(
-            # [self.__initialPos[0] + controlVel[0], self.__initialPos[1] + controlVel[1], self.__initialPos[2] + controlVel[2]],
-            # yaw=0.0,
-            # duration=2.0,
-            # relative=True
-            # )
-            
-            # self.__pubFullState.publish(self.__fullStateMsg)
-            self.__pubHover.publish(self.__hoverMsg)
+            if self._state == "MOVING":
+                print("msg full")
+                goal =  np.array(
+                    [
+                        round(self.__pos[0] + controlVel[0], 2),
+                        round(self.__pos[1] + controlVel[1], 2),
+                        round(self.__pos[2] + controlVel[2], 2)
+                    ]   
+                )
+                # logging.info(f"{self.__name} goal: {goal}")
+
+                self.__pubFullState.publish(self.__fullStateMsg)
+            elif self._state == "HOVERING":
+                print("msg hover")
+                self.__pubHover.publish(self.__hoverMsg)
+
             # self.__pubSetPointPos.publish(self.__PointMsg)
 
             # Log info
-            if False:
-                logging.info(f"{self.__name} pos: {self.__pos} target: {self._targetPoint} controlVel: {controlVel}")
+            # logging.info(f"{self.__name} pos: {self.__pos} target: {self._targetPoint} controlVel: {controlVel}")
 
         return retValue
 
@@ -464,7 +480,8 @@ class Agent:
         retValue = False
         
         try:
-            self.__crazyflie.takeoff(targetHeight=Z, duration=1.0)
+            self.__crazyflie.takeoff(targetHeight=Z, duration=2.0)
+            self._state = "TAKING_OFF"
             retValue = True
         except Exception as e:
             print(e.with_traceback())
@@ -482,7 +499,8 @@ class Agent:
         """
         retValue = False
 
-        self.__crazyflie.takeoff(targetHeight=height, duration=5.0)
+        self.__crazyflie.takeoff(targetHeight=height, duration=2.0)
+        self._state = "TAKING_OFF"
         retValue = True
 
         
@@ -496,7 +514,8 @@ class Agent:
         """
         retValue = False
         try:
-            self.__crazyflie.land(targetHeight=self.__crazyflie.initialPosition[2],duration=6.0)
+            self.__crazyflie.land(0.0, duration=2.0)
+            self._state = "LANDING"
             retValue = True
         except Exception as e:
             print(e.with_traceback())
@@ -509,7 +528,8 @@ class Agent:
             bool: Whether the operation was succesfull or not.
         """
         retValue = False
-        self.__crazyflie.land(targetHeight=0.0, duration=2.5)
+        self.__crazyflie.land(targetHeight=0.0, duration=2.0)
+        self._state = "LANDING"
         retValue = True
         return retValue
     
@@ -525,6 +545,14 @@ class Agent:
             bool: Whether the operation was succesfull or not.
         """
         retValue = False
+
+        self.__crazyflie.goTo(
+                goal=[x, y, z],
+                yaw=0.0,
+                duration=4.0,
+                relative=False
+            )
+        self._state = "MOVING"
         
         return retValue
     
@@ -540,8 +568,19 @@ class Agent:
             bool: Whether the operation was succesfull or not.
         """
         retValue = False
-        
 
+        return retValue
+
+    def kill(self) -> bool:
+        """Stops all the agen motors.
+
+        Returns:
+            bool: Whether the operation was succesfull or not.
+        """
+        retValue = False
+
+        for i in range(5):
+            self.__pubStop.publish(Empty())
 
         return retValue
     

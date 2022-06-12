@@ -1,6 +1,7 @@
 import os
 import sys
 from typing import List
+from cupshelpers import missingExecutables
 import redis
 import logging
 import json
@@ -26,7 +27,7 @@ def _watchDog(agents: List[Agent], rospyRate: rospy.Rate) -> None:
             key = getChar()
 
             if key == "q":
-                emergencyExit()
+                emergencyExit(agents)
 
             # Update the agents
             for agent in agents:
@@ -38,10 +39,13 @@ def _watchDog(agents: List[Agent], rospyRate: rospy.Rate) -> None:
     except Exception as e:
         logging.info(f"An exception occured.\n {e.with_traceback()}")
 
-def emergencyExit() -> None:
+def emergencyExit(agents: List[Agent]) -> None:
     """Kills the ROS server and turns off all the agents.
     """
     logging.info("Emergency! Exiting the program.")
+    for agent in agents:
+        agent.landAsync()
+        agent.kill()
     rospy.signal_shutdown("Emergency exit.")
     os._exit(-3)
 
@@ -80,41 +84,7 @@ def main() -> None:
                 address=f"radio:/{1}//80/2M - Unknown"
             ))
     names.append("cf1")
-    agents.append(Agent(
-                cf=crazyflie.Crazyflie(f"cf{2}", f"/cf{2}"),
-                initialPos= np.array([0.0, -0.5, 0.0]),
-                name=f"cf{2}",
-                address=f"radio:/{2}//80/2M - Unknown"
-            ))
-    names.append("cf2")
-    agents.append(Agent(
-                cf=crazyflie.Crazyflie(f"cf{3}", f"/cf{3}"),
-                initialPos= np.array([0.0, 0.0, 0.0]),
-                name=f"cf{3}",
-                address=f"radio:/{3}//80/2M - Unknown"
-            ))
-    names.append("cf3")
-    agents.append(Agent(
-                cf=crazyflie.Crazyflie(f"cf{4}", f"/cf{4}"),
-                initialPos= np.array([0.0, 0.5, 0.0]),
-                name=f"cf{4}",
-                address=f"radio:/{4}//80/2M - Unknown"
-            ))
-    names.append("cf4")
-    agents.append(Agent(
-                cf=crazyflie.Crazyflie(f"cf{5}", f"/cf{5}"),
-                initialPos= np.array([0.0, 1.0, 0.0]),
-                name=f"cf{5}",
-                address=f"radio:/{5}//80/2M - Unknown"
-            ))
-    names.append("cf5")
-    agents.append(Agent(
-            cf=crazyflie.Crazyflie(f"cf{6}", f"/cf{6}"),
-            initialPos= np.array([0.0, 1.5, 0.0]),
-            name=f"cf{6}",
-            address=f"radio:/{6}//80/2M - Unknown"
-        ))
-    names.append("cf6")
+
 
     logging.info(f"Created agents '{names}'.")
 
@@ -210,10 +180,10 @@ def main() -> None:
         
         elif mission == "mission_trajectory_test":
             # TODO: To it in a loop
+            missionControl.takeOffAgent(target=names[0])
             missionControl.goToAgent(
                 target="cf1",
                 points=[
-                    Point(0.0, 0.0, 0.5, False),
                     Point(0.5, 0.0, 0.5, False),
                     Point(0.0, 0.0, 0.5, False),
                     Point(-0.5, 0.0, 0.5, False),
@@ -224,10 +194,10 @@ def main() -> None:
                     Point(0.0, 0.0, 0.5, False),
                     Point(0.0, 0.0, 1.0, False),
                     Point(0.0, 0.0, 0.5, False),
-                    Point(0.0, 0.0, 0.0, False),
                 ],
                 maxVel=0.75
             )
+            missionControl.landAgent(target=names[0])
         
         elif mission == "mission_takeoff_land_test":
             i = 0
@@ -260,6 +230,7 @@ def main() -> None:
             time.sleep(5.0)
             missionControl.testFormation()
             rospy.sleep(5)
+            missionControl.landAll()
         
         elif mission == "mission_position_test":
             missionControl.testPosition()

@@ -128,8 +128,8 @@ class MissionControl:
 
         # Activate and give the formation parameters
         for agent in self.__agents:
-            agent.setFormationControl(True)
             agent.setFormationMatrix(formationMatrix)
+            agent.setFormationActive(True)
 
         # Wait for the formation to happen
         stoppedAgents = set()
@@ -142,13 +142,6 @@ class MissionControl:
             if len(stoppedAgents) == len(self.__agents):
                 retValue = True
                 break
-
-            self.__rospyRate.sleep()
-
-        # Deactivate the formation parameters
-        for agent in self.__agents:
-            agent.setFormationControl(False)
-            agent.setFormationMatrix(np.array([0.0]))
 
         logging.info(f"Ending mission takeFormation with success. Formation was: 'PYRAMID'")
 
@@ -261,8 +254,9 @@ class MissionControl:
                 break
         
         currPos = agent.getPos()
-        agent.setTargetPoint(np.array([currPos[0], currPos[1], currPos[2] + 1.0]))
-        agent.setMaxVel(0.2)
+        # agent.setTargetPoint(np.array([currPos[0], currPos[1], currPos[2] + 1.0]))
+        # agent.setMaxVel(0.2)
+        agent.takeOffAsync(currPos[2] + 0.5)
 
         while True:
             if (agent.getState() == "HOVERING"):
@@ -312,7 +306,7 @@ class MissionControl:
 
         Args:
             target (str): Agent to be landing.
-
+q
         Returns:
             bool: Specifies whether the mission was successfull or not.
         """
@@ -327,11 +321,12 @@ class MissionControl:
         
         agent.update(self.__agents)
         currPos = agent.getPos()
-        agent.setTargetPoint(np.array([currPos[0], currPos[1], 0.1]))
-        agent.setMaxVel(0.1)
+        # agent.setTargetPoint(np.array([currPos[0], currPos[1], 0.1]))
+        # agent.setMaxVel(0.1)
+        agent.landAsync()
 
         while True:
-            if (agent.getState() == "LANDED"):
+            if (agent.getState() == "STATIONARY"):
                 retValue = True
                 break
             
@@ -362,7 +357,9 @@ class MissionControl:
         # Itarete over the points
         for i, point in enumerate(points):
             agent.setTargetPoint(np.array([point.x, point.y, point.z]))
+            agent.setTrajectoryActive(True)
             agent.setMaxVel(maxVel)
+            # agent.goToAsync(point.x, point.y, point.z)
 
             while True:
                 if (agent.getState() == "HOVERING"):
@@ -391,6 +388,10 @@ class MissionControl:
             bool: Specifies whether the operation was successfull or not.
         """
         retValue = False
+
+        for agent in self.__agents:
+            agent.kill()
+        retValue = True
         
         return retValue
     
