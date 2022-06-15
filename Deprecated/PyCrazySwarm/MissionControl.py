@@ -205,8 +205,9 @@ class MissionControl:
         
         agent.update(self.__agents)
         currPos = agent.getPos()
-        agent.setTargetPoint(np.array([currPos[0], currPos[1], currPos[2] + 0.75]))
+        agent.setTargetPoint(np.array([currPos[0], currPos[1], currPos[2] + 0.5]))
         agent.setMaxVel(1.0)
+        # agent.landAsync()
 
         while True:
             agent.update(self.__agents)
@@ -275,8 +276,9 @@ class MissionControl:
         
         agent.update(self.__agents)
         currPos = agent.getPos()
-        agent.setTargetPoint(np.array([currPos[0], currPos[1], -0.05]))
+        agent.setTargetPoint(np.array([currPos[0], currPos[1], 0.05]))
         agent.setMaxVel(0.75)
+        # agent.landAsync()
 
         while True:
             agent.update(self.__agents)
@@ -287,7 +289,6 @@ class MissionControl:
 
             self.__crazySwarm.timeHelper.sleep(1 / 100)
 
-            
         logging.info(f"Ending mission landAgent with success. Target was '{target.getName()}'")
 
         return retValue

@@ -495,7 +495,7 @@ class Agent:
         """
         retValue = False
         try:
-            self.__crazyflie.land(0.00, duration=2.0)
+            self.__crazyflie.land(0.0, duration=3.0)
             self._state = "LANDING"
             retValue = True
         except Exception as e:

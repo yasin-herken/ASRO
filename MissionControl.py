@@ -256,7 +256,7 @@ class MissionControl:
         currPos = agent.getPos()
         # agent.setTargetPoint(np.array([currPos[0], currPos[1], currPos[2] + 1.0]))
         # agent.setMaxVel(0.2)
-        agent.takeOffAsync(currPos[2] + 0.5)
+        agent.takeOffAsync(0.5)
 
         while True:
             if (agent.getState() == "HOVERING"):

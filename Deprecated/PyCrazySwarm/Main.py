@@ -173,25 +173,26 @@ def main() -> None:
             missionControl.goToAgent(
                 names[0],
                 [
+                    Point(0.0, 0.0, 0.5, False),
+                    Point(0.5, 0.0, 0.5, False),
+                    Point(0.0, 0.0, 0.5, False),
+                    Point(-0.5, 0.0, 0.5, False),
+                    Point(0.0, 0.0, 0.5, False),
+                    Point(0.0, 0.5, 0.5, False),
+                    Point(0.0, 0.0, 0.5, False),
+                    Point(0.0, -0.5, 0.5, False),
+                    Point(0.0, 0.0, 0.5, False),
                     Point(0.0, 0.0, 1.0, False),
-                    Point(1.0, 0.0, 1.0, False),
-                    Point(0.0, 0.0, 1.0, False),
-                    Point(-1.0, 0.0, 1.0, False),
-                    Point(0.0, 0.0, 1.0, False),
-                    Point(0.0, 1.0, 1.0, False),
-                    Point(0.0, 0.0, 1.0, False),
-                    Point(0.0, -1.0, 1.0, False),
-                    Point(0.0, 0.0, 1.0, False),
-                    Point(0.0, 0.0, 2.0, False),
-                    Point(0.0, 0.0, 1.0, False),
-                    Point(0.0, 0.0, 0.0, False),
+                    Point(0.0, 0.0, 0.5, False),
+                    Point(0.0, 0.0, 0.05, False),
                 ],
-                0.5
+                1.0
             )
+            emergencyExit(crazySwarm)
         
         elif mission == "mission_takeoff_land_test":
             i = 0
-            while i < 10:
+            while i < 3:
                 i += 1
                 missionControl.takeOffAgent(names[0])
                 missionControl.landAgent(names[0])

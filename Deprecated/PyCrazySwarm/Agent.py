@@ -338,6 +338,9 @@ class Agent:
         if self.__isTrajectoryActive:
             controlVel += self.__trajectoryControl(agents)
 
+        if  self._targetPoint[2] <= 0.1 and self.__pos[2] <= 0.12:
+            return
+
         self.__crazyflie.cmdVelocityWorld(controlVel, 0)
 
         return retValue
@@ -360,23 +363,6 @@ class Agent:
             print(e.with_traceback())
     
         return retValue
-
-    def takeOffSync(self, height: float) -> bool:
-        """Takes off the agent from the ground. Blocks the flow of the program.
-
-        Args:
-            height (float): Target height to be taken off to.
-
-        Returns:
-            bool: Whether the operation was succesfull or not.
-        """
-        retValue = False
-
-        self.__crazyflie.takeoff(targetHeight=height, duration=5.0)
-        retValue = True
-
-        
-        return retValue
     
     def landAsync(self) -> bool:
         """Lands the agent from the ground. Does not block the flow of the program.
@@ -386,23 +372,12 @@ class Agent:
         """
         retValue = False
         try:
-            self.__crazyflie.land(targetHeight=self.__crazyflie.initialPosition[2],duration=6.0)
+            self.__crazyflie.land(targetHeight=self.__crazyflie.initialPosition[2], duration=3.0)
             retValue = True
         except Exception as e:
             print(e.with_traceback())
         return retValue
-    
-    def landSync(self) -> bool:
-        """Lands the agent from the ground. Block the flow of the program.
 
-        Returns:
-            bool: Whether the operation was succesfull or not.
-        """
-        retValue = False
-        self.__crazyflie.land(targetHeight=0.0, duration=2.5)
-        retValue = True
-        return retValue
-    
     def goToAsync(self, x: float, y: float, z: float) -> bool:
         """Moves the agent to the desired point. Does not block the flow of the program.
 
@@ -416,23 +391,6 @@ class Agent:
         """
         retValue = False
         
-        return retValue
-    
-    def goToSync(self, x: float, y: float, z: float) -> bool:
-        """Moves the agent to the desired point. Blocks the flow of the program.
-
-        Args:
-            x (float): X value of the point.
-            y (float): Y value of the point
-            z (float): Z value of the point.
-
-        Returns:
-            bool: Whether the operation was succesfull or not.
-        """
-        retValue = False
-        
-
-
         return retValue
     
     
