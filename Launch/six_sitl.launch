@@ -68,7 +68,6 @@
   <arg name="y_6" default="1.5" />
   <arg name="z_6" default="0.03" />
 
-
   <!-- The following line causes gzmsg and gzerr messages to be printed to the console
       (even when Gazebo is started through roslaunch) -->
   <arg name="verbose" default="true"/>
