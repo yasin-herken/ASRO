@@ -108,11 +108,11 @@ def main() -> None:
         missionControl.landAgent(agents[0])
 
     elif "takeoff_land_test" in sys.argv:
-       for i in range(100):
+       for i in range(10):
         missionControl.takeOffAll()
-        rospy.sleep(5)
+        rospy.sleep(3)
         missionControl.landAll()
-        rospy.sleep(5)
+        rospy.sleep(3)
 
     elif "formation_test" in sys.argv:
         for i, agent in enumerate(agents):

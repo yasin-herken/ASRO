@@ -329,8 +329,10 @@ class Agent:
         
 
         # Update the state of the agent
-        self.__state = self.__estimateState(trajectoryVel)
-        print(self.__state)
+        newState = self.__estimateState(trajectoryVel)
+        if self.__state != newState:
+            logging.info(f"Changing state {self.__state} -> {newState}")
+            self.__state = newState
 
         controlVel = formationVel + avoidanceVel + trajectoryVel
 
