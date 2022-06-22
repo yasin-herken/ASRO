@@ -1,17 +1,13 @@
 import os
 import sys
 from typing import List
-from cupshelpers import missingExecutables
-import redis
 import logging
-import json
 import select
 import rospy
 import numpy as np
-import time
 from sim_cf import crazyflie
 from Agent import Agent
-from MissionControl import MissionControl, Point
+from MissionControl import MissionControl
 from threading import Thread
 
 def getChar(block = False):
@@ -44,7 +40,6 @@ def emergencyExit(agents: List[Agent]) -> None:
     """
     logging.info("Emergency! Exiting the program.")
     for agent in agents:
-        agent.landAsync()
         agent.kill()
     rospy.signal_shutdown("Emergency exit.")
     os._exit(-3)
@@ -57,7 +52,6 @@ def main() -> None:
     If a new request exists, hands over the control to MissionControl.
     """
     # Initialization
-    i = 0
     agents = []
 
     # Fix the issue where rospy disables the logging
@@ -72,18 +66,19 @@ def main() -> None:
     logging.info("Creating instances of 'Agent' class.")
 
     # Add agents
-    agents.append(Agent(
-                cf=crazyflie.Crazyflie(f"cf{1}", f"/cf{1}"),
-                initialPos= np.array([0.0, -1.0, 0.0]),
-                name=f"cf{1}"
-            ))
+    agents.append(
+        Agent(
+            initialPos= np.array([0.0, 0.0, 0.0]),
+            name="cf1",
+            cf=crazyflie.Crazyflie("cf1", "/cf1")
+        )
+    )
 
     logging.info(f"Created agents.")
     logging.info("Creating an instance of 'MissionControl'.")
 
     # Creating mission control    
     missionControl = MissionControl(
-        rospyRate=rospyRate,
         agents=agents
     )
     
@@ -91,34 +86,34 @@ def main() -> None:
     watchdogThread = Thread(target=_watchDog, args=[agents, rospyRate])
     watchdogThread.start()
 
-    i = 0
-
     logging.info("All ready! Listening... Press 'q' to exit.")
 
     if "trajectory_test" in sys.argv:
-        missionControl.takeOffAgent(target=agent[0])
+        missionControl.takeOffAgent(agents[0])
         missionControl.goToAgent(
-            target="cf1",
-            points=[
-                Point(0.5, 0.0, 0.5, False),
-                Point(0.0, 0.0, 0.5, False),
-                Point(-0.5, 0.0, 0.5, False),
-                Point(0.0, 0.0, 0.5, False),
-                Point(0.0, 0.5, 0.5, False),
-                Point(0.0, 0.0, 0.5, False),
-                Point(0.0, -0.5, 0.5, False),
-                Point(0.0, 0.0, 0.5, False),
-                Point(0.0, 0.0, 1.0, False),
-                Point(0.0, 0.0, 0.5, False),
-            ],
-            maxVel=0.5
+            agent=agents[0],
+            points=np.array(
+                [
+                    [0.5, 0.0, 0.5],
+                    [0.0, 0.0, 0.5],
+                    [-0.5, 0.0, 0.5],
+                    [0.0, 0.0, 0.5],
+                    [0.0, 0.5, 0.5],
+                    [0.0, 0.0, 0.5],
+                    [0.0, -0.5, 0.5],
+                    [0.0, 0.0, 0.5]
+                ]
+            )
         )
-        missionControl.landAgent(target=agent[0])
+        missionControl.landAgent(agents[0])
+
     elif "takeoff_land_test" in sys.argv:
+       for i in range(100):
         missionControl.takeOffAll()
         rospy.sleep(5)
-        missionControl.landAll(agent[0])
+        missionControl.landAll()
         rospy.sleep(5)
+
     elif "formation_test" in sys.argv:
         for i, agent in enumerate(agents):
             logging.info(f"Index: {i}, agent: {agent.getName()}")
