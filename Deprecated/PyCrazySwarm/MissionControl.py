@@ -1,4 +1,5 @@
 import logging
+from cv2 import threshold
 import redis
 import numpy as np
 import json
@@ -7,7 +8,7 @@ import Settings
 from typing import List
 from Agent import Agent
 from pycrazyswarm import Crazyswarm
-
+threshold = 0.01
 class NumpyEncoder(json.JSONEncoder):
     """ Special json encoder for numpy types """
     def default(self, obj):
@@ -41,9 +42,8 @@ class MissionControl:
     
     __crazySwarm: Crazyswarm
     __agents: List[Agent]
-    __redisClient: redis.Redis
     
-    def __init__(self, crazySwarm: Crazyswarm, agents: List[Agent],redisClient:redis.Redis):
+    def __init__(self, crazySwarm: Crazyswarm, agents: List[Agent]):
         """Initialize the MissionControl.
 
         Args:
@@ -52,34 +52,7 @@ class MissionControl:
         """
         self.__crazySwarm = crazySwarm
         self.__agents = agents
-        self.__redisClient=redisClient
-        self.__redisClient=redis.Redis(host="localhost",port=6379)
         return
-
-    def _syncRedis(self) -> bool:
-        """Sends to agents' info to the Redis server as 'cf{no}_{param}'.
-
-        Returns:
-            bool: Specifies whether the operation was successfull or not.
-        """
-        
-        retValue = True
-        for agent in self.__agents:
-            self.sndMessage={
-                'name':agent.getName(),
-                'adress':agent.getAddress(),
-                'status':agent.getStatus(),
-                'state':"HOVERING",
-                'pos': agent.getPos(),
-                'vel':agent.getVel(),
-                'speed':agent.getSpeed(),
-                'pitch':agent.getPitch(),
-                'yaw':agent.getYaw(),
-                'row':agent.getRoll()
-            }
-            self.data=json.dumps(self.sndMessage, cls=NumpyEncoder)
-            self.__redisClient.set("channel", self.data)
-        return retValue
 
     def goTo(self, target, maxSpeed) -> bool:
         """Made for testing purposes only. You can control the agents here like taking off, landing or etc.
@@ -103,36 +76,55 @@ class MissionControl:
         Returns:
             bool: Specifies whether the mission was successfull or not.
         """
+        location = []
         retValue = False
         logging.info("Starting mission takeFormation.")
 
         # Activate and give the formation parameters
         for agent in self.__agents:
             agent.setFormationControl(True)
-            agent.setFormationMatrix(Settings.FORMATION_PYRAMID)
+            agent.setFormationMatrix(Settings.FORMATION_TRIANGLE)
 
         # Wait for the formation to happen
         stoppedAgents = set()
         while True:
-
-            for agent in self.__agents:
-                agent.update(self.__agents)
-                if not agent.isMoving():
-                    stoppedAgents.add(agent.getName)
+            w, h = 3, 3
+            matrix = [[0 for x in range(w)] for y in range(h)] 
             
-            if len(stoppedAgents) == len(self.__agents):
-                retValue = True
-                break
-
+            for i in range(len(self.__agents)):
+                self.__agents[i].update(self.__agents)
+                for j in range(len(self.__agents)):
+                    if (i==j):
+                        matrix[i][j] = 0.0
+                    else:
+                        dis = Settings.getDistance(self.__agents[i].getPos(),self.__agents[j].getPos())
+                        value = dis - Settings.FORMATION_TRIANGLE[i][j]
+                        matrix[i][j] = abs(value)
+            flag = 0;
+            for i in range(len(self.__agents)):
+                for j in range(len(self.__agents)):
+                    value = abs(matrix[i][j])
+                    if value>threshold:
+                        flag=1
+            print(matrix)
             self.__crazySwarm.timeHelper.sleep(1 / 100)
-
+            if(flag==0):
+                print("here")
+                break
         # Deactivate the formation parameters
         for agent in self.__agents:
             agent.setFormationControl(False)
             agent.setFormationMatrix(np.array([0.0]))
 
         logging.info(f"Ending mission takeFormation with success. Formation was: 'PYRAMID'")
-
+        for agent in self.__agents:
+            location.append(agent.getPos())
+        for locate in location:
+            print(f"location {locate}")
+        result = []
+        for i in range(1,len(location)):
+            result.append(Settings.getDistance(self.__agents[0].getPos(),self.__agents[i].getPos()))
+        print(result)
         return retValue
 
     def missionOne(self) -> bool:
@@ -205,21 +197,22 @@ class MissionControl:
         
         agent.update(self.__agents)
         currPos = agent.getPos()
-        agent.setTargetPoint(np.array([currPos[0], currPos[1], currPos[2] + 0.5]))
-        agent.setMaxVel(1.0)
+        agent.setTargetPoint(np.array([currPos[0], currPos[1],1.5]))
+        agent.setMaxVel(0.5)
         # agent.landAsync()
 
         while True:
             agent.update(self.__agents)
-
             if (not agent.isMoving()):
                 retValue = True
+                #agent._targetPoint = agent.getPos()
+                agent.update(self.__agents)
                 break
 
-            self.__crazySwarm.timeHelper.sleep(1 / 100)
-
+            self.__crazySwarm.timeHelper.sleep(1/100)
+        
         logging.info(f"Ending mission takeOffAgent with success. Target was '{target.getName()}'")
-
+        print(f"{agent} {agent.getPos()}")
         return retValue
     
     def takeOffAll(self) -> bool:
@@ -234,7 +227,7 @@ class MissionControl:
 
         for agent in self.__agents:
             retValue = self.takeOffAgent(agent.getName())
-
+        self.__crazySwarm.timeHelper.sleep(1/100)
         logging.info(f"Ending mission takeOffAll with success. Total target count: {len(self.__agents)}")
 
         return retValue
@@ -251,7 +244,7 @@ class MissionControl:
         
         for agent in self.__agents:
             retValue = self.landAgent(agent.getName())
-
+        self.__crazySwarm.timeHelper.sleep(1/100)
         logging.info(f"Ending missionLandAll with success. Total target count: {len(self.__agents)})")
 
         return retValue
@@ -276,8 +269,8 @@ class MissionControl:
         
         agent.update(self.__agents)
         currPos = agent.getPos()
-        agent.setTargetPoint(np.array([currPos[0], currPos[1], 0.05]))
-        agent.setMaxVel(0.75)
+        agent.setTargetPoint(np.array([currPos[0], currPos[1], 0.11]))
+        agent.setMaxVel(0.3)
         # agent.landAsync()
 
         while True:
@@ -287,7 +280,7 @@ class MissionControl:
                 retValue = True
                 break
 
-            self.__crazySwarm.timeHelper.sleep(1 / 100)
+            self.__crazySwarm.timeHelper.sleep(1/100)
 
         logging.info(f"Ending mission landAgent with success. Target was '{target.getName()}'")
 

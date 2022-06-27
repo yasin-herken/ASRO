@@ -1,5 +1,13 @@
 crazyflies:
-  - id: 0xE7
+  - id: 0xE1
+    channel: 80
+    type: "default"
+    initialPosition: [-1.0, 0.0, 0.0]
+  - id: 0xE2
+    channel: 80
+    type: "default"
+    initialPosition: [-0.5, 0.0, 0.0]
+  - id: 0xE3
     channel: 80
     type: "default"
     initialPosition: [0.0, 0.0, 0.0]

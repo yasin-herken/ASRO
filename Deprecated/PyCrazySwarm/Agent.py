@@ -126,9 +126,8 @@ class Agent:
                     distanceToOtherAgent,
                     self.__formationMatrix[idx][i]
                 )
-            
+                
                 retValue += (distanceToOtherAgent - distanceToDesiredPoint)
-
         return retValue
     
     def __avoidanceControl(self, agents: list) -> np.ndarray:
@@ -308,24 +307,22 @@ class Agent:
         self.__x1 = self.__pos
         self.__pos = self.__crazyflie.position()
         self.__x2 = self.__pos
-        
         self.__t2 = time.perf_counter()
         self.__vel = (self.__x2 - self.__x1) / (self.__t2 - self.__t1)
         self.__t1 = time.perf_counter()
-        
         self.__speed = Settings.getMagnitude(self.__vel)
 
         # Calculate is moving
-        if self.__speed <= 0.01:
-            self.__validtyCount += 1
-            if 400 <= self.__validtyCount:
-                self.__isMoving = False
-                self.__validtyCount = 0
-            else:
-                self.__isMoving = True
-        else:
-            self.__isMoving = True
         
+        
+        distance = Settings.getDistance(self.getPos(),self._targetPoint)
+        distanceForMetre = Settings.getMagnitude(distance)
+        if (distanceForMetre< 0.001 ):
+            print("False")
+            self.__isMoving = False
+        else:
+            print(f"target : {self._targetPoint}")
+            self.__isMoving = True
         # Calculate control values
         controlVel = np.array([0.0, 0.0, 0.0])
 
@@ -337,10 +334,10 @@ class Agent:
 
         if self.__isTrajectoryActive:
             controlVel += self.__trajectoryControl(agents)
-
+            
         if  self._targetPoint[2] <= 0.1 and self.__pos[2] <= 0.12:
             return
-
+        print(f"{self.getName()} {controlVel}")
         self.__crazyflie.cmdVelocityWorld(controlVel, 0)
 
         return retValue
