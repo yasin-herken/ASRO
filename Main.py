@@ -3,9 +3,10 @@ import sys
 from typing import List
 import logging
 import select
-import rospy
 import numpy as np
-from sim_cf import crazyflie
+
+from pycrazyswarm import Crazyswarm
+
 from Agent import Agent
 from MissionControl import MissionControl
 from threading import Thread
@@ -14,21 +15,16 @@ def getChar(block = False):
     if block or select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
         return sys.stdin.read(1)
 
-def _watchDog(agents: List[Agent], rospyRate: rospy.Rate) -> None:
+def _watchDog(agents: List[Agent]) -> None:
     """Runs on a thread. Checks the Redis 'emergency' channel and the input 'q'.
     Calls the function emergencyExit() if the need arises.
     """
     try:
-        while not rospy.is_shutdown():
+        while True:
             key = getChar()
 
             if key == "q":
                 emergencyExit(agents)
-
-            # Update the agents
-            for agent in agents:
-                agent.update(agents)
-            rospyRate.sleep()
 
     except KeyboardInterrupt as e:
         logging.info("Keyboard interrupt detected.")
@@ -41,7 +37,6 @@ def emergencyExit(agents: List[Agent]) -> None:
     logging.info("Emergency! Exiting the program.")
     for agent in agents:
         agent.kill()
-    rospy.signal_shutdown("Emergency exit.")
     os._exit(-3)
 
 def main() -> None:
@@ -53,40 +48,49 @@ def main() -> None:
     """
     # Initialization
     agents = []
+    cfIds = []
 
-    # Fix the issue where rospy disables the logging
-    os.environ['ROS_PYTHON_LOG_CONFIG_FILE'] = "`rospack find rosgraph`/conf/python_logging.yaml"
+    logging.info("Initializing Crasyswarm server")
 
-    logging.info("Initializing the ROS Node")
-
-    # Start the ROS server
-    rospy.init_node('ASRO')
-    rospyRate = rospy.Rate(100) # Hz
+    # Start the Crazyswarm server
+    crazySwarm = Crazyswarm(crazyflies_yaml="./crazyflies.yaml")
 
     logging.info("Creating instances of 'Agent' class.")
+    
+    # Geting the agent ids
+    for cfId in crazySwarm.allcfs.crazyfliesById:
+        cfIds.append(cfId)
 
     # Add agents
-    agents.append(
-        Agent(
-            initialPos= np.array([0.0, 0.0, 0.0]),
-            name="cf1",
-            cf=crazyflie.Crazyflie("cf1", "/cf1")
+    for agent in crazySwarm.allcfs.crazyflies:
+        agents.append(
+            Agent(
+                cf=agent,
+                initialPos=agent.initialPosition,
+                name=f"cf{agent.id}"
+            )
         )
-    )
+        logging.info(f"Created: cf{agent.id}")
 
-    logging.info(f"Created agents.")
+    logging.info(f"Created all agents.")
     logging.info("Creating an instance of 'MissionControl'.")
 
     # Creating mission control    
     missionControl = MissionControl(
-        agents=agents
+        agents=agents,
+        crazyServer=crazySwarm
     )
     
     # Start the watchdog
-    watchdogThread = Thread(target=_watchDog, args=[agents, rospyRate])
+    watchdogThread = Thread(target=_watchDog, args=[agents])
     watchdogThread.start()
 
     logging.info("All ready! Listening... Press 'q' to exit.")
+
+    # Update the agents
+    for agent in agents:
+        agent.update(agents)
+    crazySwarm.timeHelper.sleep(1 / 100)
 
     if "trajectory_test" in sys.argv:
         missionControl.takeOffAgent(agents[0])
@@ -108,23 +112,29 @@ def main() -> None:
         missionControl.landAgent(agents[0])
 
     elif "takeoff_land_test" in sys.argv:
-       for i in range(10):
-        missionControl.takeOffAll()
-        rospy.sleep(3)
-        missionControl.landAll()
-        rospy.sleep(3)
+        for i in range(3):
+            missionControl.takeOffAll()
+            crazySwarm.timeHelper.sleep(1)
+            missionControl.landAll()
+            crazySwarm.timeHelper.sleep(1)
 
     elif "formation_test" in sys.argv:
         for i, agent in enumerate(agents):
             logging.info(f"Index: {i}, agent: {agent.getName()}")
             
         missionControl.takeOffAll()
-        rospy.sleep(5)
+        crazySwarm.timeHelper.sleep(5)
         missionControl.testFormation()
-        rospy.sleep(5)
+        crazySwarm.timeHelper.sleep(5)
         missionControl.landAll()
+
+    else:
+        logging.info("Please specify the operation by giving an argument")
+    
+
             
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%d/%m/%Y %H:%M:%S')
     main()
-    sys.exit(0)
+    logging.info("All went according to the plan, good bye!")
+    os._exit(0)

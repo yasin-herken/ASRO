@@ -1,40 +1,25 @@
 import logging
-import redis
 import numpy as np
-import json
-import rospy
 import Settings
 
 from typing import List
 from Agent import Agent
-
-
-class NumpyEncoder(json.JSONEncoder):
-    """ Special json encoder for numpy types """
-    def default(self, obj):
-        if isinstance(obj, (np.int_, np.intc, np.intp, np.int8,
-                            np.int16, np.int32, np.int64, np.uint8,
-                            np.uint16, np.uint32, np.uint64)):
-            return int(obj)
-        elif isinstance(obj, (np.float_, np.float16, np.float32,
-                              np.float64)):
-            return float(obj)
-        elif isinstance(obj, (np.ndarray,)):
-            return obj.tolist()
-        return json.JSONEncoder.default(self, obj)
+from pycrazyswarm import Crazyswarm
 
 class MissionControl:
     """Handles the agent operations depending on the mission on hand.
     """
     __agents: List[Agent]
+    __crazyServer: Crazyswarm
     
-    def __init__(self, agents: List[Agent]):
+    def __init__(self, agents: List[Agent], crazyServer: Crazyswarm):
         """Initialize the MissionControl.
 
         Args:
             agents (List[Agent]): Agents to be operated.
         """
         self.__agents = agents
+        self.__crazyServer = crazyServer
 
         return
 
@@ -136,7 +121,7 @@ class MissionControl:
         
         return retValue
 
-    def takeOffAgent(self, agent: Agent) -> bool:
+    def takeOffAgent(self, targetAgent: Agent) -> bool:
         """Takes off the target agent.
 
         Args:
@@ -147,19 +132,24 @@ class MissionControl:
         """
         retValue = False
 
-        logging.info(f"Starting mission takeOffAgent. Target is '{agent.getName()}'")
+        logging.info(f"Starting mission takeOffAgent. Target is '{targetAgent.getName()}'")
         
-        currPos = agent.getPos()
-        agent.setTargetPoint(np.array([0.0, 0.0, 0.5]))
-        agent.setTargetHeight(0.5)
-        rospy.sleep(1)
+        currPos = targetAgent.getPos()
+        targetAgent.setTargetPoint(np.array([currPos[0], currPos[1], 0.5]))
+        targetAgent.setTargetHeight(0.5)
+        self.__crazyServer.timeHelper.sleep(1)
 
         while True:
-            if (agent.getState() == "HOVERING"):
+            # Update the agents
+            for agent in self.__agents:
+                agent.update(self.__agents)
+            self.__crazyServer.timeHelper.sleep(1 / 100)
+
+            if (targetAgent.getState() == "HOVERING"):
                 retValue = True
                 break
 
-        logging.info(f"Ending mission takeOffAgent with success. Target was '{agent.getName()}'")
+        logging.info(f"Ending mission takeOffAgent with success. Target was '{targetAgent.getName()}'")
 
         return retValue
     
@@ -180,7 +170,7 @@ class MissionControl:
 
         return retValue
     
-    def landAgent(self, agent: Agent) -> bool:
+    def landAgent(self, targetAgent: Agent) -> bool:
         """Lands the target agent.
 
         Args:
@@ -190,18 +180,24 @@ class MissionControl:
         """
         retValue = False
 
-        logging.info(f"Starting mission landAgent. Target is '{agent.getName()}'")
+        logging.info(f"Starting mission landAgent. Target is '{targetAgent.getName()}'")
 
-        currPos = agent.getPos()
-        agent.setTargetPoint(np.array([currPos[0], currPos[1], 0.05]))
-        agent.setTargetHeight(0.0)
+        currPos = targetAgent.getPos()
+        targetAgent.setTargetPoint(np.array([currPos[0], currPos[1], 0.0]))
+        targetAgent.setTargetHeight(0.0)
+        self.__crazyServer.timeHelper.sleep(1)
 
         while True:
-            if (agent.getState() == "STATIONARY"):
+            # Update the agents
+            for agent in self.__agents:
+                agent.update(self.__agents)
+            self.__crazyServer.timeHelper.sleep(1 / 100)
+
+            if (targetAgent.getState() == "STATIONARY"):
                 retValue = True
                 break
             
-        logging.info(f"Ending mission landAgent with success. Target was '{agent.getName()}'")
+        logging.info(f"Ending mission landAgent with success. Target was '{targetAgent.getName()}'")
 
         return retValue
 
@@ -222,7 +218,7 @@ class MissionControl:
 
         return retValue
 
-    def goToAgent(self, agent: Agent, points: np.ndarray) -> bool:
+    def goToAgent(self, targetAgent: Agent, points: np.ndarray) -> bool:
         """Moves the target agent to the specified point.
 
         Args:
@@ -234,21 +230,27 @@ class MissionControl:
         """
         retValue = False
 
-        logging.info(f"Starting mission goToAgent. Target is '{agent.getName()}'")
+        logging.info(f"Starting mission goToAgent. Target is '{targetAgent.getName()}'")
 
         # Itarete over the points
         for i, point in enumerate(points):
-            agent.setTargetPoint(np.array([point[0], point[1], point[2]]))
-            rospy.sleep(1)
+            targetAgent.setTargetPoint(np.array([point[0], point[1], point[2]]))
+            self.__crazyServer.timeHelper.sleep(1)
 
             while True:
-                if (agent.getState() == "HOVERING"):
-                    break
-            rospy.sleep(2)
+                # Update the agents
+                for agent in self.__agents:
+                    agent.update(self.__agents)
+                self.__crazyServer.timeHelper.sleep(1 / 100)
+
+                if (targetAgent.getState() == "HOVERING"):
+                    break                
+
+            self.__crazyServer.timeHelper.sleep(2)
 
             # Last point
             if i == len(points) - 1:
-                logging.info(f"Ending mission goToAgent with success. Target was '{agent.getName()}'")
+                logging.info(f"Ending mission goToAgent with success. Target was '{targetAgent.getName()}'")
                 retValue = True
         
         return retValue

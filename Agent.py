@@ -1,17 +1,11 @@
 import logging
-from turtle import speed
 import numpy as np
 import Settings
 import time
-import rospy
 
-from sim_cf.crazyflie import Crazyflie
-
-from crazyflie_driver.msg import GenericLogData
-from crazyflie_driver.msg import Hover
-from crazyflie_driver.msg import FullState
-from std_msgs.msg import Empty
-from geometry_msgs.msg import Twist
+# Remove the word 'Sim' in order to run IRL !!!
+from pycrazyswarm.crazyflieSim import Crazyflie
+from pycrazyswarm.crazyswarm_py import Crazyswarm
 
 class Agent:
     """This class represents the real-world agent.
@@ -43,16 +37,6 @@ class Agent:
     # position points
     __x1: np.ndarray
     __x2: np.ndarray
-
-    # The publisher to be able to control in position
-    __pubHover: rospy.Publisher
-    __pubStop: rospy.Publisher
-    __pubFullState: rospy.Publisher
-    __pubTwist: rospy.Publisher
-
-    # Message structures
-    __hoverMsg: Hover
-    __fullStateMsg: FullState
     
     def __init__(self, cf: Crazyflie, initialPos: np.ndarray, name: str) -> None:
         """Initializes the agent class.
@@ -71,12 +55,11 @@ class Agent:
         self.__isSwarming = False
         self.__formationMatrix = np.array([0.0])
 
-        self.__targetPoint = np.array([0.0, 0.0, 0.0])
+        self.__targetPoint = np.array(initialPos)
         self.__targetHeight = 0.5
         
         self.__state = "STATIONARY"
         
-        self.__initialPos = np.array(initialPos)
         self.__pos = np.array(initialPos)
         self.__vel = np.array([0.0, 0.0, 0.0])
         self.__speed = 0.0
@@ -87,56 +70,7 @@ class Agent:
         
         self.__x1 = np.array([0.0, 0.0, 0.0])
         self.__x2 = np.array([0.0, 0.0, 0.0])
-
-        # Change the controller (1 is PID, 2 is Mellinger)
-        self.__crazyflie.setParam("stabilizer/controller", 1) 
-
-        # Subscribe to get the local position of the crazyflie with prefix cf_prefix
-        rospy.Subscriber(self.__name + "/local_position" , GenericLogData , self.__localPositionCallback)
-        rospy.Subscriber(self.__name + "/external_position" , GenericLogData , self.__externalPositionCallback)
-
-        # The publisher to be able to control in position
-        self.__pubHover = rospy.Publisher(self.__name + "/cmd_hover", Hover , queue_size=10)
-        self.__pubStop = rospy.Publisher(self.__name + "/cmd_stop", Empty , queue_size=10)
-        self.__pubFullState = rospy.Publisher(self.__name + "/cmd_full_state", FullState , queue_size=10)
-        self.__pubTwist= rospy.Publisher(self.__name + "/cmd_vel", Twist , queue_size=10)
-        rospy.sleep(0.1)
-
-        # Message structures
-        self.__hoverMsg = Hover()
-        self.__fullStateMsg = FullState()
-
-    def __localPositionCallback(self, msg):
-        self.__pos[0] = msg.values[0]
-        self.__pos[1] = msg.values[1]
-        self.__pos[2] = msg.values[2]
-
-        # Update agent info
-        self.__x1 = np.array(self.__x2)
-        self.__x2 = np.array(self.__pos)
-
-        self.__t2 = time.perf_counter()
-        # print(round(self.__t2, 6))
-        self.__vel = (self.__x2 - self.__x1) / (self.__t2 - self.__t1)
-        self.__t1 = time.perf_counter()
-        
-        self.__speed = Settings.getMagnitude(self.__vel)
-
-    def __externalPositionCallback(self, msg):
-        return
-        self.__pos[0] = msg.values[0]
-        self.__pos[1] = msg.values[1]
-        self.__pos[2] = msg.values[2]
-
-        # Update agent info
-        self.__x1 = self.__x2
-        self.__x2 = self.__pos
-        
-        self.__t2 = time.perf_counter()
-        self.__vel = (self.__x2 - self.__x1) / (self.__t2 - self.__t1)
-        self.__t1 = time.perf_counter()
-        
-        self.__speed = Settings.getMagnitude(self.__vel)  
+ 
 
     def __formationControl(self, agents: list) -> np.ndarray:
         """Calculates the formation 'force' to be applied to the agent.
@@ -214,7 +148,7 @@ class Agent:
         desiredSpeed = Settings.getMagnitude(trajectoryVel)
         desiredVerticalSpeed = trajectoryVel[2]
 
-        heightLimit = max(self.__targetHeight + 0.05, 0.55)
+        heightLimit = max(self.__targetHeight, 0.50) + 0.1
         speedLimit = self.__maxSpeed + 0.05
         
         toleranceVal = 0.05
@@ -222,7 +156,7 @@ class Agent:
         if (
                 (0.00 <=  height <= 0.15) and
                 (0.00 <= desiredSpeed <= toleranceVal) and
-                (0.00 <= desiredVerticalSpeed <= toleranceVal)
+                (-toleranceVal <= desiredVerticalSpeed <= toleranceVal)
             ):
             retValue = "STATIONARY"
         elif (
@@ -254,6 +188,21 @@ class Agent:
             logging.info(f"Values in hand heightLimit: {round(heightLimit, 3)} speedLimit: {round(speedLimit, 3)} toleranceVal: {round(toleranceVal, 3)}")
             
         return retValue
+    
+    def __updateVariables(self):
+        self.__pos[0] = self.__crazyflie.position()[0]
+        self.__pos[1] = self.__crazyflie.position()[1]
+        self.__pos[2] = self.__crazyflie.position()[2]
+
+        # Update agent info
+        self.__x1 = np.array(self.__x2)
+        self.__x2 = np.array(self.__pos)
+
+        self.__t2 = time.perf_counter()
+        self.__vel = (self.__x2 - self.__x1) / (self.__t2 - self.__t1)
+        self.__t1 = time.perf_counter()
+        
+        self.__speed = Settings.getMagnitude(self.__vel)
 
     def getName(self) -> str:
         return self.__name
@@ -312,6 +261,9 @@ class Agent:
         avoidanceVel = np.array([0.0, 0.0, 0.0])
         trajectoryVel = np.array([0.0, 0.0, 0.0])
 
+        # Update position and speed variables
+        self.__updateVariables()
+
         if self.__isFormationActive:
             formationVel = self.__formationControl(agents)
 
@@ -325,7 +277,6 @@ class Agent:
         if self.__maxSpeed < Settings.getMagnitude(trajectoryVel):
             trajectoryVel = Settings.setMagnitude(trajectoryVel, self.__maxSpeed)
         
-
         # Update the state of the agent
         newState = self.__estimateState(trajectoryVel)
         if self.__state != newState:
@@ -334,30 +285,11 @@ class Agent:
 
         controlVel = formationVel + avoidanceVel + trajectoryVel
 
-        # Prepare FullState Msg
-        self.__fullStateMsg.header.frame_id = 'world'
-        self.__fullStateMsg.header.seq += 1
-        self.__fullStateMsg.header.stamp = rospy.Time.now()
-        self.__fullStateMsg.pose.position.x = self.__pos[0] + controlVel[0]
-        self.__fullStateMsg.pose.position.y = self.__pos[1] + controlVel[1]
-        self.__fullStateMsg.pose.position.z = self.__targetHeight
-
-        # Prepare Hover Msg
-        self.__hoverMsg.header.frame_id = 'world'
-        self.__hoverMsg.header.seq += 1
-        self.__hoverMsg.header.stamp = rospy.Time.now()
-        self.__hoverMsg.vx = controlVel[0]
-        self.__hoverMsg.vy = controlVel[1]
-        self.__hoverMsg.yawrate = 0.0
-        self.__hoverMsg.zDistance = self.__targetHeight
-
         # Send the commanding message
         if self.__state == "STATIONARY":
-            pass
-        elif self.__state == "MOVING":
-            self.__pubFullState.publish(self.__fullStateMsg)
+            self.__crazyflie.cmdVelocityWorld([0.0, 0.0, 0.0], 0)
         else:
-            self.__pubHover.publish(self.__hoverMsg)
+            self.__crazyflie.cmdVelocityWorld(controlVel, 0)
 
         return retValue
 
@@ -369,8 +301,7 @@ class Agent:
         """
         retValue = True
 
-        for i in range(10):
-            self.__pubStop.publish(Empty())
+        self.__crazyflie.stop()
 
         return retValue
     
