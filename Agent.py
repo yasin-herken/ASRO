@@ -27,6 +27,8 @@ class Agent:
     __isSwarming: bool
     __isInFormation: bool
     __formationMatrix: np.ndarray
+    __swarmHeading: np.ndarray
+    __swarmDesiredHeading: np.ndarray
 
     __targetPoint: np.ndarray
     __targetHeight: float
@@ -56,6 +58,8 @@ class Agent:
         self.__isSwarming = False
         self.__isInFormation = False
         self.__formationMatrix = np.array([0.0])
+        self.__swarmHeading = np.array([0.0, 0.0, 0.0])
+        self.__swarmDesiredHeading = np.array([0.0, 1.0, 0.0])
 
         self.__targetPoint = np.array(initialPos)
         self.__targetHeight = 0.5
@@ -102,8 +106,16 @@ class Agent:
                     distanceToOtherAgent,
                     self.__formationMatrix[idx][i]
                 )
+
+                angleDiff = Settings.angleBetween(self.__swarmHeading, self.__swarmDesiredHeading)
+                print(angleDiff)
+                if (0.5 <= abs(angleDiff)):
+                    rotationMatrix = Settings.getRotationMatrix(min(angleDiff, 5.0))
+                else:
+                    rotationMatrix = Settings.getRotationMatrix(0.0)
+
             
-                retValue += (distanceToOtherAgent - distanceToDesiredPoint)
+                retValue += (distanceToOtherAgent - np.dot(rotationMatrix, distanceToDesiredPoint))
 
         return retValue
     
@@ -157,7 +169,7 @@ class Agent:
 
         if (
                 (0.00 <=  height <= 0.15) and
-                (0.00 <= desiredSpeed <= toleranceVal) and
+                (0.00 <= desiredSpeed <= speedLimit) and
                 (-toleranceVal <= desiredVerticalSpeed <= toleranceVal)
             ):
             retValue = "STATIONARY"
@@ -191,7 +203,7 @@ class Agent:
             
         return retValue
     
-    def __updateVariables(self):
+    def __updateVariables(self, agents: list):
         self.__pos[0] = self.__crazyflie.position()[0]
         self.__pos[1] = self.__crazyflie.position()[1]
         self.__pos[2] = self.__crazyflie.position()[2]
@@ -205,6 +217,18 @@ class Agent:
         self.__t1 = time.perf_counter()
         
         self.__speed = Settings.getMagnitude(self.__vel)
+
+        # Update swarm info
+        if self.__isSwarming:
+            swarmCenter = np.array([0.0, 0.0, 0.0])
+            for agent in agents:
+                swarmCenter += agent.getPos()
+            swarmCenter /= len(agents)
+
+            frontAgent = agents[0]
+            distanceToFrontAgentFromSwarmCenter = frontAgent.getPos() - swarmCenter
+            self.__swarmHeading = distanceToFrontAgentFromSwarmCenter / np.linalg.norm(distanceToFrontAgentFromSwarmCenter)
+
 
     def getName(self) -> str:
         return self.__name
@@ -245,6 +269,9 @@ class Agent:
     
     def setSwarming(self, swarming: bool) -> bool:
         self.__isSwarming = swarming
+
+    def setRotation(self, degree: float) -> bool:
+        self.__swarmDesiredHeading = np.dot(Settings.getRotationMatrix(degree), self.__swarmHeading)
         
     def isInFormation(self) -> bool:
         return self.__isInFormation
@@ -265,17 +292,16 @@ class Agent:
         formationVel = np.array([0.0, 0.0, 0.0])
         avoidanceVel = np.array([0.0, 0.0, 0.0])
         trajectoryVel = np.array([0.0, 0.0, 0.0])
-        heightLimiterVel = np.array([0.0, 0.0, 0.0])
 
-        # Update position and speed variables
-        self.__updateVariables()
+        # Update position, speed and swarm variables
+        self.__updateVariables(agents)
 
         if self.__isFormationActive:
             formationVel = self.__formationControl(agents)
             formationVel[2] = 0.0
 
             # Check if in formation
-            if Settings.getMagnitude(formationVel) <= 0.1:
+            if Settings.getMagnitude(formationVel) <= 0.01:
                 self.__isInFormation = True
             else:
                 self.__isInFormation = False
@@ -297,7 +323,7 @@ class Agent:
             self.__state = newState
         
         # ---- Final velocity ---- # 
-        controlVel = formationVel + avoidanceVel + trajectoryVel + heightLimiterVel
+        controlVel = 0.33 * formationVel + avoidanceVel + trajectoryVel
         # ------------------------ #
 
         # Send the commanding message

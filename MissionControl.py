@@ -67,7 +67,7 @@ class MissionControl:
         logging.info("Starting mission takeFormation.")
 
         # Check if formationMatrix matches the agent count
-        formationMatrix = Settings.FORMATION_TRIANGLE
+        formationMatrix = Settings.FORMATION_HEXAGON
         if (not self.__validateFormationMatrix(formationMatrix)):
             logging.info("Aborting!")
             return False
@@ -95,6 +95,12 @@ class MissionControl:
             if len(stoppedAgents) == len(self.__agents):
                 retValue = True
                 break
+
+        # Print the distances between
+        for agent1 in self.__agents:
+            for agent2 in self.__agents:
+                if agent1 is not agent2:
+                    print(f"{agent1.getName()} {agent2.getName()} -> {round(Settings.getDistance(agent1.getPos(), agent2.getPos()), 2)}")
 
         logging.info(f"Ending mission takeFormation with success. Formation was: 'TRIANGLE'")
 
@@ -166,6 +172,8 @@ class MissionControl:
         currPos = targetAgent.getPos()
         targetAgent.setTargetPoint(np.array([currPos[0], currPos[1], 0.5]))
         targetAgent.setTargetHeight(0.5)
+        targetAgent.setTrajectoryActive(True)
+        targetAgent.setFormationActive(False)
         self.__crazyServer.timeHelper.sleep(1)
 
         while True:
@@ -211,8 +219,8 @@ class MissionControl:
         currPos = targetAgent.getPos()
         targetAgent.setTargetPoint(np.array([currPos[0], currPos[1], 0.0]))
         targetAgent.setTargetHeight(0.0)
-        targetAgent.setFormationActive(False)
         targetAgent.setTrajectoryActive(True)
+        targetAgent.setFormationActive(False)
         self.__crazyServer.timeHelper.sleep(1)
 
         while True:
@@ -235,9 +243,24 @@ class MissionControl:
         retValue = False
 
         logging.info("Starting mission landAll.")
-        
+
         for agent in self.__agents:
-            retValue = self.landAgent(agent)
+            currPos = agent.getPos()
+            agent.setTargetPoint(np.array([currPos[0], currPos[1], 0.0]))
+            agent.setTargetHeight(0.0)
+            agent.setTrajectoryActive(True)
+        
+        stoppedAgents = set()
+
+        while True:
+            self.__update()
+
+            for agent in self.__agents:
+                if (agent.getState() == "STATIONARY"):
+                    stoppedAgents.add(agent.getName())
+            
+            if (len(stoppedAgents) == len(self.__agents)):
+                break
 
         logging.info(f"Ending missionLandAll with success. Total target count: {len(self.__agents)}")
 
@@ -274,6 +297,35 @@ class MissionControl:
             if i == len(points) - 1:
                 logging.info(f"Ending mission goToAgent with success. Target was '{targetAgent.getName()}'")
                 retValue = True
+        
+        return retValue
+
+    def rotateSwarm(self, angle: float):
+        """Rotates the swarm.
+
+        Returns:
+            bool: Specifies whether the operation was successfull or not.
+        """
+        retValue = False
+
+        for agent in self.__agents:
+            agent.setRotation(angle)
+
+        stoppedAgents = set()
+
+        while True:
+            self.__update()
+
+            for agent in self.__agents:
+                if (agent.isInFormation()):
+                    stoppedAgents.add(agent.getName())
+            
+            if (len(stoppedAgents) == len(self.__agents)):
+                break
+
+        logging.info(f"Ending rotateSwarm with success. Total target count: {len(self.__agents)}")
+
+        retValue = True
         
         return retValue
     

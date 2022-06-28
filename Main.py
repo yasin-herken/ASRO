@@ -121,10 +121,21 @@ def main() -> None:
         crazySwarm.timeHelper.sleep(1)
         missionControl.testFormation()
         crazySwarm.timeHelper.sleep(1)
+        missionControl.rotateSwarm(45.0)
+        crazySwarm.timeHelper.sleep(5)
+        missionControl.rotateSwarm(-45.0)
+        crazySwarm.timeHelper.sleep(5)
+        missionControl.rotateSwarm(45.0)
         missionControl.landAll()
 
     else:
         logging.info("Please specify the operation by giving an argument")
+
+    # Keep the program running
+    while True:
+        for agent in agents:
+            agent.update(agents)
+        crazySwarm.timeHelper.sleep(1 / 100)
 
             
 if __name__ == "__main__":
