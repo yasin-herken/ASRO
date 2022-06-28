@@ -48,7 +48,6 @@ def main() -> None:
     """
     # Initialization
     agents = []
-    cfIds = []
 
     logging.info("Initializing Crasyswarm server")
 
@@ -56,10 +55,6 @@ def main() -> None:
     crazySwarm = Crazyswarm(crazyflies_yaml="./crazyflies.yaml")
 
     logging.info("Creating instances of 'Agent' class.")
-    
-    # Geting the agent ids
-    for cfId in crazySwarm.allcfs.crazyfliesById:
-        cfIds.append(cfId)
 
     # Add agents
     for agent in crazySwarm.allcfs.crazyflies:
@@ -123,14 +118,13 @@ def main() -> None:
             logging.info(f"Index: {i}, agent: {agent.getName()}")
             
         missionControl.takeOffAll()
-        crazySwarm.timeHelper.sleep(5)
+        crazySwarm.timeHelper.sleep(1)
         missionControl.testFormation()
-        crazySwarm.timeHelper.sleep(5)
+        crazySwarm.timeHelper.sleep(1)
         missionControl.landAll()
 
     else:
         logging.info("Please specify the operation by giving an argument")
-    
 
             
 if __name__ == "__main__":

@@ -25,6 +25,7 @@ class Agent:
     __isAvoidanceActive: bool
     __isTrajectoryActive: bool
     __isSwarming: bool
+    __isInFormation: bool
     __formationMatrix: np.ndarray
 
     __targetPoint: np.ndarray
@@ -53,6 +54,7 @@ class Agent:
         self.__isAvoidanceActive = False
         self.__isTrajectoryActive = True
         self.__isSwarming = False
+        self.__isInFormation = False
         self.__formationMatrix = np.array([0.0])
 
         self.__targetPoint = np.array(initialPos)
@@ -148,7 +150,7 @@ class Agent:
         desiredSpeed = Settings.getMagnitude(trajectoryVel)
         desiredVerticalSpeed = trajectoryVel[2]
 
-        heightLimit = max(self.__targetHeight, 0.50) + 0.1
+        heightLimit = self.__targetHeight + 0.1
         speedLimit = self.__maxSpeed + 0.05
         
         toleranceVal = 0.05
@@ -178,7 +180,7 @@ class Agent:
             ):
             retValue = "TAKING_OFF"
         elif (
-                (0.00 <= height <= heightLimit) and
+                (0.00 <= height) and
                 (0.00 <= desiredSpeed <= speedLimit) and
                 (-speedLimit <= desiredVerticalSpeed <= -toleranceVal)
             ):
@@ -243,6 +245,9 @@ class Agent:
     
     def setSwarming(self, swarming: bool) -> bool:
         self.__isSwarming = swarming
+        
+    def isInFormation(self) -> bool:
+        return self.__isInFormation
 
     def update(self, agents: list) -> bool:
         """Depending on the settings, calculates the control values and applies them. 
@@ -260,12 +265,20 @@ class Agent:
         formationVel = np.array([0.0, 0.0, 0.0])
         avoidanceVel = np.array([0.0, 0.0, 0.0])
         trajectoryVel = np.array([0.0, 0.0, 0.0])
+        heightLimiterVel = np.array([0.0, 0.0, 0.0])
 
         # Update position and speed variables
         self.__updateVariables()
 
         if self.__isFormationActive:
             formationVel = self.__formationControl(agents)
+            formationVel[2] = 0.0
+
+            # Check if in formation
+            if Settings.getMagnitude(formationVel) <= 0.1:
+                self.__isInFormation = True
+            else:
+                self.__isInFormation = False
 
         if self.__isAvoidanceActive:
             avoidanceVel = self.__avoidanceControl()
@@ -276,14 +289,16 @@ class Agent:
         # Limit swarm control values
         if self.__maxSpeed < Settings.getMagnitude(trajectoryVel):
             trajectoryVel = Settings.setMagnitude(trajectoryVel, self.__maxSpeed)
-        
+
         # Update the state of the agent
         newState = self.__estimateState(trajectoryVel)
         if self.__state != newState:
             logging.info(f"[{self.__name}] Changing state {self.__state} -> {newState}")
             self.__state = newState
-
-        controlVel = formationVel + avoidanceVel + trajectoryVel
+        
+        # ---- Final velocity ---- # 
+        controlVel = formationVel + avoidanceVel + trajectoryVel + heightLimiterVel
+        # ------------------------ #
 
         # Send the commanding message
         if self.__state == "STATIONARY":

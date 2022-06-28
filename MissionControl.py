@@ -1,4 +1,5 @@
 import logging
+from tracemalloc import stop
 import numpy as np
 import Settings
 
@@ -23,6 +24,39 @@ class MissionControl:
 
         return
 
+    def __update(self) -> bool:
+        """Update the agents
+
+        Returns:
+            bool: Specifies whether the operation was successfull or not.
+        """
+        for agent in self.__agents:
+            agent.update(self.__agents)
+        self.__crazyServer.timeHelper.sleep(1 / 100)
+
+        return True
+
+
+    def __validateFormationMatrix(self, formationMatrix: np.ndarray) -> bool:
+        rowsCount = len(formationMatrix)
+        isValid = True
+        retValue = True
+        
+        for i in range(rowsCount):
+            columnsCount = len(formationMatrix[i])
+            if rowsCount != columnsCount:
+                isValid = False
+        
+        if (not isValid):
+            logging.info("Formatin matrix is invalid. Rows and columns count do not match")
+            retValue = False
+
+        if (len(self.__agents) != rowsCount):
+            logging.info(f"Agent count and formationMatrix does not match. Agents: {len(self.__agents)}, formationMatrix: {rowsCount}x{rowsCount}")
+            retValue = False
+
+        return retValue
+
     def testFormation(self) -> bool:
         """Takes the Agents into the specified formation.
 
@@ -33,41 +67,36 @@ class MissionControl:
         logging.info("Starting mission takeFormation.")
 
         # Check if formationMatrix matches the agent count
-        formationMatrix = Settings.FORMATION_HEXAGON
-        rowsCount = len(formationMatrix)
-        isValid = True
-        
-        for i in range(rowsCount):
-            columnsCount = len(formationMatrix[i])
-            if rowsCount != columnsCount:
-                isValid = False
-        
-        if (not isValid):
-            logging.info("Formatin matrix is invalid. Rows and columns count do not match. Aborthing!")
-            return False
-
-        if (len(self.__agents) != rowsCount):
-            logging.info(f"Agent count and formationMatrix does not match. Agents: {len(self.__agents)} formationMatrix: {rowsCount}x{rowsCount}")
+        formationMatrix = Settings.FORMATION_TRIANGLE
+        if (not self.__validateFormationMatrix(formationMatrix)):
+            logging.info("Aborting!")
             return False
 
         # Activate and give the formation parameters
         for agent in self.__agents:
             agent.setFormationMatrix(formationMatrix)
             agent.setFormationActive(True)
+            agent.setTrajectoryActive(False)
+            agent.setSwarming(True)
 
         # Wait for the formation to happen
         stoppedAgents = set()
         while True:
-            for agent in self.__agents:
+            self.__update()
 
-                if False:
-                    stoppedAgents.add(agent.getName)
-            
+            for agent in self.__agents:
+                if  (
+                        (agent.getName() not in stoppedAgents) and
+                        agent.isInFormation()
+                    ):
+                    logging.info(f"Agent {agent.getName()} is in formation")
+                    stoppedAgents.add(agent.getName())
+                
             if len(stoppedAgents) == len(self.__agents):
                 retValue = True
                 break
 
-        logging.info(f"Ending mission takeFormation with success. Formation was: 'PYRAMID'")
+        logging.info(f"Ending mission takeFormation with success. Formation was: 'TRIANGLE'")
 
         return retValue
 
@@ -140,10 +169,7 @@ class MissionControl:
         self.__crazyServer.timeHelper.sleep(1)
 
         while True:
-            # Update the agents
-            for agent in self.__agents:
-                agent.update(self.__agents)
-            self.__crazyServer.timeHelper.sleep(1 / 100)
+            self.__update()
 
             if (targetAgent.getState() == "HOVERING"):
                 retValue = True
@@ -185,13 +211,12 @@ class MissionControl:
         currPos = targetAgent.getPos()
         targetAgent.setTargetPoint(np.array([currPos[0], currPos[1], 0.0]))
         targetAgent.setTargetHeight(0.0)
+        targetAgent.setFormationActive(False)
+        targetAgent.setTrajectoryActive(True)
         self.__crazyServer.timeHelper.sleep(1)
 
         while True:
-            # Update the agents
-            for agent in self.__agents:
-                agent.update(self.__agents)
-            self.__crazyServer.timeHelper.sleep(1 / 100)
+            self.__update()
 
             if (targetAgent.getState() == "STATIONARY"):
                 retValue = True
@@ -238,10 +263,7 @@ class MissionControl:
             self.__crazyServer.timeHelper.sleep(1)
 
             while True:
-                # Update the agents
-                for agent in self.__agents:
-                    agent.update(self.__agents)
-                self.__crazyServer.timeHelper.sleep(1 / 100)
+                self.__update()
 
                 if (targetAgent.getState() == "HOVERING"):
                     break                

@@ -17,9 +17,22 @@ def setMagnitude(vector: numpy.ndarray, factor: float) -> numpy.ndarray:
 
 FORMATION_OFFSET = 1.0
 
-FORMATION_TRIANGLE = None
+FORMATION_TRIANGLE = numpy.array(
+    [
+        [0.0, 1.0, 1.0],
+        [1.0, 0.0, 1.0],
+        [1.0, 1.0, 0.0],
+    ]
+) * FORMATION_OFFSET
 
-FORMATION_SQUARE = None
+FORMATION_SQUARE = numpy.array(
+    [
+        [0.0, 1.0, numpy.sqrt(2.0), 1.0],
+        [1.0, 0.0, 1.0, numpy.sqrt(2.0)],
+        [numpy.sqrt(2.0), 1.0, 0.0, 1.0],
+        [1.0, numpy.sqrt(2.0), 1.0, 0.0],
+    ]
+)* FORMATION_OFFSET
 
 FORMATION_PYRAMID = numpy.array(
     [
