@@ -121,11 +121,12 @@ def main() -> None:
         crazySwarm.timeHelper.sleep(1)
         missionControl.testFormation()
         crazySwarm.timeHelper.sleep(1)
-        missionControl.rotateSwarm(45.0)
+        missionControl.rotateSwarm(90.0)
         crazySwarm.timeHelper.sleep(5)
-        missionControl.rotateSwarm(-45.0)
+        missionControl.rotateSwarm(-90.0)
         crazySwarm.timeHelper.sleep(5)
-        missionControl.rotateSwarm(45.0)
+        missionControl.rotateSwarm(90.0)
+        crazySwarm.timeHelper.sleep(5)
         missionControl.landAll()
 
     else:

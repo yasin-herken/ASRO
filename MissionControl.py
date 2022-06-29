@@ -172,8 +172,11 @@ class MissionControl:
         currPos = targetAgent.getPos()
         targetAgent.setTargetPoint(np.array([currPos[0], currPos[1], 0.5]))
         targetAgent.setTargetHeight(0.5)
-        targetAgent.setTrajectoryActive(True)
+
         targetAgent.setFormationActive(False)
+        targetAgent.setAvoidanceActive(True)
+        targetAgent.setTrajectoryActive(True)
+
         self.__crazyServer.timeHelper.sleep(1)
 
         while True:

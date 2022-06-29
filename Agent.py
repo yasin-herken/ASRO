@@ -7,6 +7,8 @@ import time
 from pycrazyswarm.crazyflieSim import Crazyflie
 from pycrazyswarm.crazyswarm_py import Crazyswarm
 
+from Settings import ALPHA, BETA
+
 class Agent:
     """This class represents the real-world agent.
     It does swarming and other operations to control the agent.
@@ -29,6 +31,7 @@ class Agent:
     __formationMatrix: np.ndarray
     __swarmHeading: np.ndarray
     __swarmDesiredHeading: np.ndarray
+    __swarmMinDistance: float
 
     __targetPoint: np.ndarray
     __targetHeight: float
@@ -60,6 +63,7 @@ class Agent:
         self.__formationMatrix = np.array([0.0])
         self.__swarmHeading = np.array([0.0, 0.0, 0.0])
         self.__swarmDesiredHeading = np.array([0.0, 1.0, 0.0])
+        self.__swarmMinDistance = 0.6
 
         self.__targetPoint = np.array(initialPos)
         self.__targetHeight = 0.5
@@ -108,12 +112,15 @@ class Agent:
                 )
 
                 angleDiff = Settings.angleBetween(self.__swarmHeading, self.__swarmDesiredHeading)
-                print(angleDiff)
-                if (0.5 <= abs(angleDiff)):
-                    rotationMatrix = Settings.getRotationMatrix(min(angleDiff, 5.0))
-                else:
-                    rotationMatrix = Settings.getRotationMatrix(0.0)
+                rotationMatrix = Settings.getRotationMatrix(0.0)
 
+                # 1.0 for clockwise -1.0 for counter-clockwise
+                rotDir = 1.0
+                if self.__swarmHeading[0] <= self.__swarmDesiredHeading[0]:
+                    rotDir = -1.0
+
+                if (0.5 <= abs(angleDiff)):
+                    rotationMatrix = Settings.getRotationMatrix(rotDir * min(angleDiff, 5.0))
             
                 retValue += (distanceToOtherAgent - np.dot(rotationMatrix, distanceToDesiredPoint))
 
@@ -129,7 +136,24 @@ class Agent:
         Returns:
             np.ndarray: Calculated force. (Vector3)
         """
-        pass
+        retValue = np.array([0.0, 0.0, 0.0])
+        
+        for otherAgent in agents:
+            if otherAgent is not self:
+                distanceToOtherAgentScaler = Settings.getDistance(otherAgent.getPos(), self.__pos)
+
+                # Check if othe agent is too close
+                if distanceToOtherAgentScaler < self.__swarmMinDistance:
+                    distanceToOtherAgent = otherAgent.getPos() - self.__pos
+
+                    # repellentVelocity that 'pushes' the agent away from the other agent
+                    repellentVelocity = distanceToOtherAgent / np.linalg.norm(distanceToOtherAgent)
+                    repellentForce = ALPHA * (
+                        pow(np.e, -(BETA*distanceToOtherAgentScaler) - pow(np.e, -(BETA*self.__swarmMinDistance)))
+                    )
+                    retValue += repellentVelocity * (-repellentForce)
+
+        return retValue
     
     def __trajectoryControl(self, agents: list) -> np.ndarray:
         """Calculates the trajectory 'force' to be applied to the agent.
@@ -261,6 +285,9 @@ class Agent:
     def setFormationActive(self, status: bool) -> bool:
         self.__isFormationActive = status
 
+    def setAvoidanceActive(self, status: bool) -> bool:
+        self.__isAvoidanceActive = status
+
     def setTrajectoryActive(self, status: bool) -> bool:
         self.__isTrajectoryActive = status
     
@@ -307,7 +334,7 @@ class Agent:
                 self.__isInFormation = False
 
         if self.__isAvoidanceActive:
-            avoidanceVel = self.__avoidanceControl()
+            avoidanceVel = self.__avoidanceControl(agents)
 
         if self.__isTrajectoryActive:
             trajectoryVel = self.__trajectoryControl(agents)
