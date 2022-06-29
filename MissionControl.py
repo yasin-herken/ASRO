@@ -57,7 +57,7 @@ class MissionControl:
 
         return retValue
 
-    def testFormation(self) -> bool:
+    def takeFormation(self, formationMatrix: np.ndarray) -> bool:
         """Takes the Agents into the specified formation.
 
         Returns:
@@ -67,7 +67,6 @@ class MissionControl:
         logging.info("Starting mission takeFormation.")
 
         # Check if formationMatrix matches the agent count
-        formationMatrix = Settings.FORMATION_HEXAGON
         if (not self.__validateFormationMatrix(formationMatrix)):
             logging.info("Aborting!")
             return False
@@ -274,7 +273,7 @@ class MissionControl:
 
         Args:
             agent (Agent): Agent to be moved.
-            point (np.ndarray): Point to be moved to.
+            points (np.ndarray): Points to be moved to.
 
         Returns:
             bool: Specifies whether the mission was successfull or not.
@@ -300,6 +299,51 @@ class MissionControl:
             if i == len(points) - 1:
                 logging.info(f"Ending mission goToAgent with success. Target was '{targetAgent.getName()}'")
                 retValue = True
+        
+        return retValue
+
+    def goToSwarm(self, points: np.ndarray) -> bool:
+        """Moves the swarm of agents to the specified point.
+
+        Args:
+            points (np.ndarray): Points to be moved to.
+
+        Returns:
+            bool: Specifies whether the mission was successfull or not.
+        """
+        retValue = False
+
+        logging.info(f"Starting mission goToAgent.")
+
+        # Itarete over the points
+        for i, point in enumerate(points):
+            # Set target points and activate trajectory
+            for agent in self.__agents:
+                agent.setTargetPoint(np.array([point[0], point[1], point[2]]))
+                agent.setTrajectoryActive(True)
+            self.__crazyServer.timeHelper.sleep(1)
+
+            stoppedAgents = set()
+            while True:
+                self.__update()
+
+                for agent in self.__agents:
+                    if (agent.getState() == "HOVERING"):
+                        stoppedAgents.add(agent.getName())
+
+                if (len(stoppedAgents) == len(self.__agents)):
+                    break               
+
+            self.__crazyServer.timeHelper.sleep(2)
+
+            # Last point
+            if i == len(points) - 1:
+                logging.info(f"Ending mission goToSwarm with success. Total target count: {len(self.__agents)}'")
+                retValue = True
+        
+        # Set target points and activate trajectory
+        for agent in self.__agents:
+            agent.setTrajectoryActive(False)
         
         return retValue
 

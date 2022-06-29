@@ -7,6 +7,7 @@ import numpy as np
 
 from pycrazyswarm import Crazyswarm
 
+import Settings
 from Agent import Agent
 from MissionControl import MissionControl
 from threading import Thread
@@ -87,10 +88,21 @@ def main() -> None:
         agent.update(agents)
     crazySwarm.timeHelper.sleep(1 / 100)
 
-    if "trajectory_test" in sys.argv:
+    if "help" in sys.argv:
+        print("Available parameters")
+        print("---------------------")
+        print("agent_trajectory_test")
+        print("takeoff_land_test")
+        print("formation_test")
+        print("rotation_test")
+        print("swarm_trajectory_test")
+        print("---------------------")
+        os._exit(0)
+
+    elif "agent_trajectory_test" in sys.argv:
         missionControl.takeOffAgent(agents[0])
         missionControl.goToAgent(
-            agent=agents[0],
+            targetAgent=agents[0],
             points=np.array(
                 [
                     [0.5, 0.0, 0.5],
@@ -119,15 +131,44 @@ def main() -> None:
             
         missionControl.takeOffAll()
         crazySwarm.timeHelper.sleep(1)
-        missionControl.testFormation()
-        crazySwarm.timeHelper.sleep(1)
-        missionControl.rotateSwarm(90.0)
-        crazySwarm.timeHelper.sleep(5)
-        missionControl.rotateSwarm(-90.0)
-        crazySwarm.timeHelper.sleep(5)
-        missionControl.rotateSwarm(90.0)
-        crazySwarm.timeHelper.sleep(5)
+        missionControl.takeFormation(Settings.FORMATION_HEXAGON)
+        crazySwarm.timeHelper.sleep(3)
         missionControl.landAll()
+        crazySwarm.timeHelper.sleep(1)
+
+    elif "rotation_test" in sys.argv:
+        missionControl.takeOffAll()
+        crazySwarm.timeHelper.sleep(1)
+        missionControl.takeFormation(Settings.FORMATION_HEXAGON)
+        crazySwarm.timeHelper.sleep(5)
+        missionControl.rotateSwarm(90.0)
+        crazySwarm.timeHelper.sleep(3)
+        missionControl.rotateSwarm(-90.0)
+        crazySwarm.timeHelper.sleep(3)
+        missionControl.rotateSwarm(-90.0)
+        crazySwarm.timeHelper.sleep(3)
+        missionControl.rotateSwarm(90.0)
+        crazySwarm.timeHelper.sleep(3)
+        missionControl.landAll()
+        crazySwarm.timeHelper.sleep(1)
+
+    elif "swarm_trajectory_test" in sys.argv:
+        missionControl.takeOffAll()
+        crazySwarm.timeHelper.sleep(1)
+        missionControl.takeFormation(Settings.FORMATION_HEXAGON)
+        crazySwarm.timeHelper.sleep(5)
+        missionControl.goToSwarm(
+            points=np.array(
+                [
+                    [0.0, 3.0, 0.5],
+                    [0.0, 0.0, 0.5],
+                    [0.0, -3.0, 0.5],
+                ]
+            )
+        )
+        crazySwarm.timeHelper.sleep(3)
+        missionControl.landAll()
+        crazySwarm.timeHelper.sleep(1)
 
     else:
         logging.info("Please specify the operation by giving an argument")

@@ -33,8 +33,8 @@ def angleBetween(vec1, vec2) -> float:
     inRadian = numpy.arccos(numpy.clip(numpy.dot(vec1, vec2), -1.0, 1.0))
     return numpy.degrees(inRadian)
 
-ALPHA = 3.14
-BETA = 0.78
+ALPHA = 0.15 # Overall force multiplier (more ALPHA means more aggressive behaviour)
+BETA = 1.21 # Logarithmic multipler (more BETA means less tolerance)
 
 FORMATION_OFFSET = 1.0
 

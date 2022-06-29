@@ -63,7 +63,7 @@ class Agent:
         self.__formationMatrix = np.array([0.0])
         self.__swarmHeading = np.array([0.0, 0.0, 0.0])
         self.__swarmDesiredHeading = np.array([0.0, 1.0, 0.0])
-        self.__swarmMinDistance = 0.6
+        self.__swarmMinDistance = 0.55
 
         self.__targetPoint = np.array(initialPos)
         self.__targetHeight = 0.5
