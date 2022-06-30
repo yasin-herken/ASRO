@@ -1,7 +1,7 @@
 import logging
-from tracemalloc import stop
 import numpy as np
 import Settings
+import time
 
 from typing import List
 from Agent import Agent
@@ -12,6 +12,9 @@ class MissionControl:
     """
     __agents: List[Agent]
     __crazyServer: Crazyswarm
+
+    counter1 = time.perf_counter()
+    counter2 = time.perf_counter()
     
     def __init__(self, agents: List[Agent], crazyServer: Crazyswarm):
         """Initialize the MissionControl.
@@ -31,8 +34,15 @@ class MissionControl:
             bool: Specifies whether the operation was successfull or not.
         """
         for agent in self.__agents:
+            self.counter2 = time.perf_counter()
+
+            t1 = time.perf_counter()
             agent.update(self.__agents)
-        self.__crazyServer.timeHelper.sleep(1 / 100)
+            t2 = time.perf_counter()
+
+            if 1.0 <= (self.counter2 - self.counter1):
+                print(f"{agent.getName()} took {round(t2 - t1, 4)} seconds")
+                self.counter1 = time.perf_counter()
 
         return True
 
@@ -173,10 +183,8 @@ class MissionControl:
         targetAgent.setTargetHeight(0.5)
 
         targetAgent.setFormationActive(False)
-        targetAgent.setAvoidanceActive(True)
+        targetAgent.setAvoidanceActive(False)
         targetAgent.setTrajectoryActive(True)
-
-        self.__crazyServer.timeHelper.sleep(1)
 
         while True:
             self.__update()
@@ -268,6 +276,10 @@ class MissionControl:
 
         return retValue
 
+    def hoverAgent(self) -> bool:
+        while True:
+            self.__update()
+
     def goToAgent(self, targetAgent: Agent, points: np.ndarray) -> bool:
         """Moves the target agent to the specified point.
 
@@ -285,15 +297,12 @@ class MissionControl:
         # Itarete over the points
         for i, point in enumerate(points):
             targetAgent.setTargetPoint(np.array([point[0], point[1], point[2]]))
-            self.__crazyServer.timeHelper.sleep(1)
 
             while True:
                 self.__update()
 
                 if (targetAgent.getState() == "HOVERING"):
                     break                
-
-            self.__crazyServer.timeHelper.sleep(2)
 
             # Last point
             if i == len(points) - 1:

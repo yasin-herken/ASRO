@@ -4,7 +4,7 @@ import Settings
 import time
 
 # Remove the word 'Sim' in order to run IRL !!!
-from pycrazyswarm.crazyflieSim import Crazyflie
+from pycrazyswarm.crazyflie import Crazyflie
 from pycrazyswarm.crazyswarm_py import Crazyswarm
 
 from Settings import ALPHA, BETA
@@ -44,7 +44,7 @@ class Agent:
     __x1: np.ndarray
     __x2: np.ndarray
     
-    def __init__(self, cf: Crazyflie, initialPos: np.ndarray, name: str) -> None:
+    def __init__(self, cf: Crazyflie, name: str) -> None:
         """Initializes the agent class.
 
         Args:
@@ -63,17 +63,17 @@ class Agent:
         self.__formationMatrix = np.array([0.0])
         self.__swarmHeading = np.array([0.0, 0.0, 0.0])
         self.__swarmDesiredHeading = np.array([0.0, 1.0, 0.0])
-        self.__swarmMinDistance = 0.55
+        self.__swarmMinDistance = 0.15
 
-        self.__targetPoint = np.array(initialPos)
+        self.__targetPoint = np.array([0.0, 0.0, 0.0])
         self.__targetHeight = 0.5
         
         self.__state = "STATIONARY"
         
-        self.__pos = np.array(initialPos)
+        self.__pos = np.array([0.0, 0.0, 0.0])
         self.__vel = np.array([0.0, 0.0, 0.0])
         self.__speed = 0.0
-        self.__maxSpeed = 0.2
+        self.__maxSpeed = 0.5
 
         self.__t1 = time.perf_counter()
         self.__t2 = time.perf_counter()
@@ -181,7 +181,6 @@ class Agent:
     
     def __estimateState(self, trajectoryVel) -> bool:
         retValue = "UNKOWN"
-
         height = self.__pos[2]
         desiredSpeed = Settings.getMagnitude(trajectoryVel)
         desiredVerticalSpeed = trajectoryVel[2]
@@ -192,36 +191,24 @@ class Agent:
         toleranceVal = 0.05
 
         if (
-                (0.00 <=  height <= 0.15) and
+                (height <= 0.15) and
                 (0.00 <= desiredSpeed <= speedLimit) and
                 (-toleranceVal <= desiredVerticalSpeed <= toleranceVal)
             ):
             retValue = "STATIONARY"
         elif (
-                (0.00 <=  height <= heightLimit) and
+                (height <= heightLimit) and
                 (0.00 <= desiredSpeed <= toleranceVal) and
                 (-toleranceVal <= desiredVerticalSpeed <= toleranceVal)
             ):
             retValue = "HOVERING"
         elif (
-                (0.00 <=  height <= heightLimit) and
+                (height <= heightLimit) and
                 (0.00 <= desiredSpeed <= speedLimit) and
                 (-toleranceVal <= desiredVerticalSpeed <= toleranceVal)
             ):
             retValue = "MOVING"
-        elif (
-                (0.00 <=  height <= heightLimit) and
-                (0.00 <= desiredSpeed <= speedLimit) and
-                (0.00 <= desiredVerticalSpeed <= speedLimit)
-            ):
-            retValue = "TAKING_OFF"
-        elif (
-                (0.00 <= height) and
-                (0.00 <= desiredSpeed <= speedLimit) and
-                (-speedLimit <= desiredVerticalSpeed <= -toleranceVal)
-            ):
-            retValue = "LANDING"
-        else:
+        elif False:
             logging.info(f"Unhandled state height: {round(height, 3)}, desiredSpeed: {round(desiredSpeed,3 )}, desiredVerticalSpeed: {round(desiredVerticalSpeed, 3)}")
             logging.info(f"Values in hand heightLimit: {round(heightLimit, 3)} speedLimit: {round(speedLimit, 3)} toleranceVal: {round(toleranceVal, 3)}")
             
@@ -348,18 +335,22 @@ class Agent:
         if self.__state != newState:
             logging.info(f"[{self.__name}] Changing state {self.__state} -> {newState}")
             self.__state = newState
-        
+    
+
         # ---- Final velocity ---- # 
         controlVel = 0.33 * formationVel + avoidanceVel + trajectoryVel
         # ------------------------ #
 
         # Send the commanding message
         if self.__state == "STATIONARY":
-            self.__crazyflie.cmdVelocityWorld([0.0, 0.0, 0.0], 0)
+            self.__crazyflie.cmdStop()
         else:
             self.__crazyflie.cmdVelocityWorld(controlVel, 0)
 
         return retValue
+
+    def takeOff(self, height):
+        self.__crazyflie.takeoff(height, 2.0)
 
     def kill(self) -> bool:
         """Stops all the agent motors.
@@ -369,7 +360,7 @@ class Agent:
         """
         retValue = True
 
-        self.__crazyflie.stop()
+        self.__crazyflie.cmdStop()
 
         return retValue
     

@@ -50,6 +50,9 @@ def main() -> None:
     # Initialization
     agents = []
 
+    # Fix the issue where rospy disables the logging
+    os.environ['ROS_PYTHON_LOG_CONFIG_FILE'] = "`rospack find rosgraph`/conf/python_logging.yaml"
+
     logging.info("Initializing Crasyswarm server")
 
     # Start the Crazyswarm server
@@ -62,13 +65,18 @@ def main() -> None:
         agents.append(
             Agent(
                 cf=agent,
-                initialPos=agent.initialPosition,
                 name=f"cf{agent.id}"
             )
         )
         logging.info(f"Created: cf{agent.id}")
 
     logging.info(f"Created all agents.")
+
+    # Update initial position
+    for agent in agents:
+            agent.update(agents)
+    crazySwarm.timeHelper.sleep(1 / 100)
+
     logging.info("Creating an instance of 'MissionControl'.")
 
     # Creating mission control    
@@ -82,11 +90,6 @@ def main() -> None:
     watchdogThread.start()
 
     logging.info("All ready! Listening... Press 'q' to exit.")
-
-    # Update the agents
-    for agent in agents:
-        agent.update(agents)
-    crazySwarm.timeHelper.sleep(1 / 100)
 
     if "help" in sys.argv:
         print("Available parameters")
@@ -121,9 +124,8 @@ def main() -> None:
     elif "takeoff_land_test" in sys.argv:
         for i in range(3):
             missionControl.takeOffAll()
-            crazySwarm.timeHelper.sleep(1)
             missionControl.landAll()
-            crazySwarm.timeHelper.sleep(1)
+            crazySwarm.timeHelper.sleep(3.0)
 
     elif "formation_test" in sys.argv:
         for i, agent in enumerate(agents):
@@ -162,22 +164,20 @@ def main() -> None:
                 [
                     [0.0, 3.0, 0.5],
                     [0.0, 0.0, 0.5],
-                    [0.0, -3.0, 0.5],
+                    [0.0, -3.0, 0.5]
                 ]
             )
         )
         crazySwarm.timeHelper.sleep(3)
         missionControl.landAll()
         crazySwarm.timeHelper.sleep(1)
+    
+    elif "agent_hover_test" in sys.argv:
+        missionControl.takeOffAll()
+        missionControl.hoverAgent()
 
     else:
         logging.info("Please specify the operation by giving an argument")
-
-    # Keep the program running
-    while True:
-        for agent in agents:
-            agent.update(agents)
-        crazySwarm.timeHelper.sleep(1 / 100)
 
             
 if __name__ == "__main__":
