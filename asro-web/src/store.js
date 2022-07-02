@@ -5,7 +5,7 @@ import { composeWithDevTools } from "redux-devtools-extension";
 import { AgentReducer } from "./reducers/AgentReducer";
 
 const reducer = combineReducers({
-    agent: AgentReducer
+    asro: AgentReducer
 });
 
 const middleware = [thunk];

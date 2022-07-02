@@ -1,13 +1,17 @@
 import logging
+from turtle import speed
 import numpy as np
 import Settings
 import time
+import rospy
 
-# Remove the word 'Sim' in order to run IRL !!!
-from pycrazyswarm.crazyflie import Crazyflie
-from pycrazyswarm.crazyswarm_py import Crazyswarm
+from sim_cf.crazyflie import Crazyflie
 
-from Settings import ALPHA, BETA
+from crazyflie_driver.msg import GenericLogData
+from crazyflie_driver.msg import Hover
+from crazyflie_driver.msg import FullState
+from std_msgs.msg import Empty
+from geometry_msgs.msg import Twist
 
 class Agent:
     """This class represents the real-world agent.
@@ -27,11 +31,7 @@ class Agent:
     __isAvoidanceActive: bool
     __isTrajectoryActive: bool
     __isSwarming: bool
-    __isInFormation: bool
     __formationMatrix: np.ndarray
-    __swarmHeading: np.ndarray
-    __swarmDesiredHeading: np.ndarray
-    __swarmMinDistance: float
 
     __targetPoint: np.ndarray
     __targetHeight: float
@@ -43,8 +43,18 @@ class Agent:
     # position points
     __x1: np.ndarray
     __x2: np.ndarray
+
+    # The publisher to be able to control in position
+    __pubHover: rospy.Publisher
+    __pubStop: rospy.Publisher
+    __pubFullState: rospy.Publisher
+    __pubTwist: rospy.Publisher
+
+    # Message structures
+    __hoverMsg: Hover
+    __fullStateMsg: FullState
     
-    def __init__(self, cf: Crazyflie, name: str) -> None:
+    def __init__(self, cf: Crazyflie, initialPos: np.ndarray, name: str) -> None:
         """Initializes the agent class.
 
         Args:
@@ -59,28 +69,74 @@ class Agent:
         self.__isAvoidanceActive = False
         self.__isTrajectoryActive = True
         self.__isSwarming = False
-        self.__isInFormation = False
         self.__formationMatrix = np.array([0.0])
-        self.__swarmHeading = np.array([0.0, 0.0, 0.0])
-        self.__swarmDesiredHeading = np.array([0.0, 1.0, 0.0])
-        self.__swarmMinDistance = 0.15
 
         self.__targetPoint = np.array([0.0, 0.0, 0.0])
         self.__targetHeight = 0.5
         
         self.__state = "STATIONARY"
         
-        self.__pos = np.array([0.0, 0.0, 0.0])
+        self.__initialPos = np.array(initialPos)
+        self.__pos = np.array(initialPos)
         self.__vel = np.array([0.0, 0.0, 0.0])
         self.__speed = 0.0
-        self.__maxSpeed = 0.5
+        self.__maxSpeed = 0.2
 
         self.__t1 = time.perf_counter()
         self.__t2 = time.perf_counter()
         
         self.__x1 = np.array([0.0, 0.0, 0.0])
         self.__x2 = np.array([0.0, 0.0, 0.0])
- 
+
+        # Change the controller (1 is PID, 2 is Mellinger)
+        self.__crazyflie.setParam("stabilizer/controller", 1) 
+
+        # Subscribe to get the local position of the crazyflie with prefix cf_prefix
+        rospy.Subscriber(self.__name + "/local_position" , GenericLogData , self.__localPositionCallback)
+        rospy.Subscriber(self.__name + "/external_position" , GenericLogData , self.__externalPositionCallback)
+
+        # The publisher to be able to control in position
+        self.__pubHover = rospy.Publisher(self.__name + "/cmd_hover", Hover , queue_size=10)
+        self.__pubStop = rospy.Publisher(self.__name + "/cmd_stop", Empty , queue_size=10)
+        self.__pubFullState = rospy.Publisher(self.__name + "/cmd_full_state", FullState , queue_size=10)
+        self.__pubTwist= rospy.Publisher(self.__name + "/cmd_vel", Twist , queue_size=10)
+        rospy.sleep(0.1)
+
+        # Message structures
+        self.__hoverMsg = Hover()
+        self.__fullStateMsg = FullState()
+
+    def __localPositionCallback(self, msg):
+        self.__pos[0] = msg.values[0]
+        self.__pos[1] = msg.values[1]
+        self.__pos[2] = msg.values[2]
+
+        # Update agent info
+        self.__x1 = np.array(self.__x2)
+        self.__x2 = np.array(self.__pos)
+
+        self.__t2 = time.perf_counter()
+        # print(round(self.__t2, 6))
+        self.__vel = (self.__x2 - self.__x1) / (self.__t2 - self.__t1)
+        self.__t1 = time.perf_counter()
+        
+        self.__speed = Settings.getMagnitude(self.__vel)
+
+    def __externalPositionCallback(self, msg):
+        return
+        self.__pos[0] = msg.values[0]
+        self.__pos[1] = msg.values[1]
+        self.__pos[2] = msg.values[2]
+
+        # Update agent info
+        self.__x1 = self.__x2
+        self.__x2 = self.__pos
+        
+        self.__t2 = time.perf_counter()
+        self.__vel = (self.__x2 - self.__x1) / (self.__t2 - self.__t1)
+        self.__t1 = time.perf_counter()
+        
+        self.__speed = Settings.getMagnitude(self.__vel)  
 
     def __formationControl(self, agents: list) -> np.ndarray:
         """Calculates the formation 'force' to be applied to the agent.
@@ -110,19 +166,8 @@ class Agent:
                     distanceToOtherAgent,
                     self.__formationMatrix[idx][i]
                 )
-
-                angleDiff = Settings.angleBetween(self.__swarmHeading, self.__swarmDesiredHeading)
-                rotationMatrix = Settings.getRotationMatrix(0.0)
-
-                # 1.0 for clockwise -1.0 for counter-clockwise
-                rotDir = 1.0
-                if self.__swarmHeading[0] <= self.__swarmDesiredHeading[0]:
-                    rotDir = -1.0
-
-                if (0.5 <= abs(angleDiff)):
-                    rotationMatrix = Settings.getRotationMatrix(rotDir * min(angleDiff, 5.0))
             
-                retValue += (distanceToOtherAgent - np.dot(rotationMatrix, distanceToDesiredPoint))
+                retValue += (distanceToOtherAgent - distanceToDesiredPoint)
 
         return retValue
     
@@ -136,24 +181,7 @@ class Agent:
         Returns:
             np.ndarray: Calculated force. (Vector3)
         """
-        retValue = np.array([0.0, 0.0, 0.0])
-        
-        for otherAgent in agents:
-            if otherAgent is not self:
-                distanceToOtherAgentScaler = Settings.getDistance(otherAgent.getPos(), self.__pos)
-
-                # Check if othe agent is too close
-                if distanceToOtherAgentScaler < self.__swarmMinDistance:
-                    distanceToOtherAgent = otherAgent.getPos() - self.__pos
-
-                    # repellentVelocity that 'pushes' the agent away from the other agent
-                    repellentVelocity = distanceToOtherAgent / np.linalg.norm(distanceToOtherAgent)
-                    repellentForce = ALPHA * (
-                        pow(np.e, -(BETA*distanceToOtherAgentScaler) - pow(np.e, -(BETA*self.__swarmMinDistance)))
-                    )
-                    retValue += repellentVelocity * (-repellentForce)
-
-        return retValue
+        pass
     
     def __trajectoryControl(self, agents: list) -> np.ndarray:
         """Calculates the trajectory 'force' to be applied to the agent.
@@ -181,65 +209,51 @@ class Agent:
     
     def __estimateState(self, trajectoryVel) -> bool:
         retValue = "UNKOWN"
+
         height = self.__pos[2]
         desiredSpeed = Settings.getMagnitude(trajectoryVel)
         desiredVerticalSpeed = trajectoryVel[2]
 
-        heightLimit = self.__targetHeight + 0.1
+        heightLimit = max(self.__targetHeight + 0.05, 0.55)
         speedLimit = self.__maxSpeed + 0.05
         
         toleranceVal = 0.05
 
         if (
-                (height <= 0.15) and
-                (0.00 <= desiredSpeed <= speedLimit) and
-                (-toleranceVal <= desiredVerticalSpeed <= toleranceVal)
+                (0.00 <=  height <= 0.15) and
+                (0.00 <= desiredSpeed <= toleranceVal) and
+                (0.00 <= desiredVerticalSpeed <= toleranceVal)
             ):
             retValue = "STATIONARY"
         elif (
-                (height <= heightLimit) and
+                (0.00 <=  height <= heightLimit) and
                 (0.00 <= desiredSpeed <= toleranceVal) and
                 (-toleranceVal <= desiredVerticalSpeed <= toleranceVal)
             ):
             retValue = "HOVERING"
         elif (
-                (height <= heightLimit) and
+                (0.00 <=  height <= heightLimit) and
                 (0.00 <= desiredSpeed <= speedLimit) and
                 (-toleranceVal <= desiredVerticalSpeed <= toleranceVal)
             ):
             retValue = "MOVING"
-        elif False:
+        elif (
+                (0.00 <=  height <= heightLimit) and
+                (0.00 <= desiredSpeed <= speedLimit) and
+                (0.00 <= desiredVerticalSpeed <= speedLimit)
+            ):
+            retValue = "TAKING_OFF"
+        elif (
+                (0.00 <= height <= heightLimit) and
+                (0.00 <= desiredSpeed <= speedLimit) and
+                (-speedLimit <= desiredVerticalSpeed <= -toleranceVal)
+            ):
+            retValue = "LANDING"
+        else:
             logging.info(f"Unhandled state height: {round(height, 3)}, desiredSpeed: {round(desiredSpeed,3 )}, desiredVerticalSpeed: {round(desiredVerticalSpeed, 3)}")
             logging.info(f"Values in hand heightLimit: {round(heightLimit, 3)} speedLimit: {round(speedLimit, 3)} toleranceVal: {round(toleranceVal, 3)}")
             
         return retValue
-    
-    def __updateVariables(self, agents: list):
-        self.__pos[0] = self.__crazyflie.position()[0]
-        self.__pos[1] = self.__crazyflie.position()[1]
-        self.__pos[2] = self.__crazyflie.position()[2]
-
-        # Update agent info
-        self.__x1 = np.array(self.__x2)
-        self.__x2 = np.array(self.__pos)
-
-        self.__t2 = time.perf_counter()
-        self.__vel = (self.__x2 - self.__x1) / (self.__t2 - self.__t1)
-        self.__t1 = time.perf_counter()
-        
-        self.__speed = Settings.getMagnitude(self.__vel)
-
-        # Update swarm info
-        if self.__isSwarming:
-            swarmCenter = np.array([0.0, 0.0, 0.0])
-            for agent in agents:
-                swarmCenter += agent.getPos()
-            swarmCenter /= len(agents)
-
-            frontAgent = agents[0]
-            distanceToFrontAgentFromSwarmCenter = frontAgent.getPos() - swarmCenter
-            self.__swarmHeading = distanceToFrontAgentFromSwarmCenter / np.linalg.norm(distanceToFrontAgentFromSwarmCenter)
-
 
     def getName(self) -> str:
         return self.__name
@@ -272,9 +286,6 @@ class Agent:
     def setFormationActive(self, status: bool) -> bool:
         self.__isFormationActive = status
 
-    def setAvoidanceActive(self, status: bool) -> bool:
-        self.__isAvoidanceActive = status
-
     def setTrajectoryActive(self, status: bool) -> bool:
         self.__isTrajectoryActive = status
     
@@ -283,12 +294,6 @@ class Agent:
     
     def setSwarming(self, swarming: bool) -> bool:
         self.__isSwarming = swarming
-
-    def setRotation(self, degree: float) -> bool:
-        self.__swarmDesiredHeading = np.dot(Settings.getRotationMatrix(degree), self.__swarmHeading)
-        
-    def isInFormation(self) -> bool:
-        return self.__isInFormation
 
     def update(self, agents: list) -> bool:
         """Depending on the settings, calculates the control values and applies them. 
@@ -307,21 +312,11 @@ class Agent:
         avoidanceVel = np.array([0.0, 0.0, 0.0])
         trajectoryVel = np.array([0.0, 0.0, 0.0])
 
-        # Update position, speed and swarm variables
-        self.__updateVariables(agents)
-
         if self.__isFormationActive:
             formationVel = self.__formationControl(agents)
-            formationVel[2] = 0.0
-
-            # Check if in formation
-            if Settings.getMagnitude(formationVel) <= 0.01:
-                self.__isInFormation = True
-            else:
-                self.__isInFormation = False
 
         if self.__isAvoidanceActive:
-            avoidanceVel = self.__avoidanceControl(agents)
+            avoidanceVel = self.__avoidanceControl()
 
         if self.__isTrajectoryActive:
             trajectoryVel = self.__trajectoryControl(agents)
@@ -329,28 +324,42 @@ class Agent:
         # Limit swarm control values
         if self.__maxSpeed < Settings.getMagnitude(trajectoryVel):
             trajectoryVel = Settings.setMagnitude(trajectoryVel, self.__maxSpeed)
+        
 
         # Update the state of the agent
         newState = self.__estimateState(trajectoryVel)
         if self.__state != newState:
             logging.info(f"[{self.__name}] Changing state {self.__state} -> {newState}")
             self.__state = newState
-    
 
-        # ---- Final velocity ---- # 
-        controlVel = 0.33 * formationVel + avoidanceVel + trajectoryVel
-        # ------------------------ #
+        controlVel = formationVel + avoidanceVel + trajectoryVel
+
+        # Prepare FullState Msg
+        self.__fullStateMsg.header.frame_id = 'world'
+        self.__fullStateMsg.header.seq += 1
+        self.__fullStateMsg.header.stamp = rospy.Time.now()
+        self.__fullStateMsg.pose.position.x = self.__pos[0] + controlVel[0]
+        self.__fullStateMsg.pose.position.y = self.__pos[1] + controlVel[1]
+        self.__fullStateMsg.pose.position.z = self.__targetHeight
+
+        # Prepare Hover Msg
+        self.__hoverMsg.header.frame_id = 'world'
+        self.__hoverMsg.header.seq += 1
+        self.__hoverMsg.header.stamp = rospy.Time.now()
+        self.__hoverMsg.vx = controlVel[0]
+        self.__hoverMsg.vy = controlVel[1]
+        self.__hoverMsg.yawrate = 0.0
+        self.__hoverMsg.zDistance = self.__targetHeight
 
         # Send the commanding message
         if self.__state == "STATIONARY":
-            self.__crazyflie.cmdStop()
+            pass
+        elif self.__state == "MOVING":
+            self.__pubFullState.publish(self.__fullStateMsg)
         else:
-            self.__crazyflie.cmdVelocityWorld(controlVel, 0)
+            self.__pubHover.publish(self.__hoverMsg)
 
         return retValue
-
-    def takeOff(self, height):
-        self.__crazyflie.takeoff(height, 2.0)
 
     def kill(self) -> bool:
         """Stops all the agent motors.
@@ -360,7 +369,8 @@ class Agent:
         """
         retValue = True
 
-        self.__crazyflie.cmdStop()
+        for i in range(10):
+            self.__pubStop.publish(Empty())
 
         return retValue
     

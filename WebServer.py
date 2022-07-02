@@ -1,9 +1,8 @@
 import redis
 import json
+import random
 from flask import Flask, request, Response
 from flask_cors import CORS, cross_origin
-from yaml import parse
-
 
 app = Flask(__name__)
 app.config['CORS_HEADERS'] = 'Content-Type'
@@ -86,9 +85,9 @@ def mission_land_all():
 @cross_origin()
 def get_pose():    
     result = {
-        "posX": 34.64,
-        "posY": 0.3,
-        "posZ": 1.5,
+        "posX": round(random.uniform(-15.0, 15.0), 2),
+        "posY": round(random.uniform(-15.0, 15.0), 2),
+        "posZ": round(random.uniform(-15.0, 15.0), 2),
         "state": "MOVING"
     }
         

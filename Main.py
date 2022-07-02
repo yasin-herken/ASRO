@@ -1,124 +1,187 @@
 import os
 import sys
-import redis
-import datetime
-import Settings
-import json
+from typing import List
+import logging
+import select
 import numpy as np
 
-from Agent import Agent
-from MissionControl import MissionControl
 from pycrazyswarm import Crazyswarm
 
+import Settings
+from Agent import Agent
+from MissionControl import MissionControl
+from threading import Thread
 
-def _watchDog(server: Crazyswarm) -> None:
-    """Runs on a thread. Checks the Redis 'emergency' channel.
+def getChar(block = False):
+    if block or select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
+        return sys.stdin.read(1)
+
+def _watchDog(agents: List[Agent]) -> None:
+    """Runs on a thread. Checks the Redis 'emergency' channel and the input 'q'.
     Calls the function emergencyExit() if the need arises.
-
-    Args:
-        server (Crazyswarm): To be used when calling emergencyExit().
     """
-    pass
+    try:
+        while True:
+            key = getChar()
 
-def emergencyExit(server: Crazyswarm) -> None:
-    """Kills the Crazyswarm server and turns off all the agents.
+            if key == "q":
+                emergencyExit(agents)
 
-    Args:
-        server (Crazyswarm): Server to be killed.
+    except KeyboardInterrupt as e:
+        logging.info("Keyboard interrupt detected.")
+    except Exception as e:
+        logging.info(f"An exception occured.\n {e.with_traceback()}")
+
+def emergencyExit(agents: List[Agent]) -> None:
+    """Kills the ROS server and turns off all the agents.
     """
-    pass
+    logging.info("Emergency! Exiting the program.")
+    for agent in agents:
+        agent.kill()
+    os._exit(-3)
 
 def main() -> None:
-    """Entry point for the ASRO software. Initializes the Crazyswarm server.
+    """Entry point for the ASRO software. Initializes the ROS server.
     Creates Agents and the Redis server which will be used by the WebApplication.
     
     Checks the Redis 'control' channel for any new mission requests.
     If a new request exists, hands over the control to MissionControl.
     """
     # Initialization
-    cfIds = []
     agents = []
-    names = []
-    addresses = []
-    statuses = []
-    
+
+    # Fix the issue where rospy disables the logging
+    os.environ['ROS_PYTHON_LOG_CONFIG_FILE'] = "`rospack find rosgraph`/conf/python_logging.yaml"
+
+    logging.info("Initializing Crasyswarm server")
+
+    # Start the Crazyswarm server
     crazySwarm = Crazyswarm(crazyflies_yaml="./crazyflies.yaml")
 
-    # Geting the agent ids
-    for id in crazySwarm.allcfs.crazyfliesById:
-        cfIds.append(id)
-    
-    # Creating the agents
-    i = 0
+    logging.info("Creating instances of 'Agent' class.")
+
+    # Add agents
     for agent in crazySwarm.allcfs.crazyflies:
         agents.append(
             Agent(
                 cf=agent,
-                name=f"Agent {cfIds[i]}",
-                address=f"radio:/{cfIds[i]}/125/2M"
+                name=f"cf{agent.id}"
             )
         )
-        names.append(f"Agent {cfIds[i]}")
-        addresses.append(f"radio:/{cfIds[i]}/125/2M")
-        i+=1
-    
-    # Initializing redis
-    redisClient = redis.Redis()
-    redisClient.set("agents", json.dumps({"names": names, "addresses": addresses}))
-    redisSub = redisClient.pubsub()
-    redisSub.subscribe(["requests"])
-    
+        logging.info(f"Created: cf{agent.id}")
+
+    logging.info(f"Created all agents.")
+
+    # Update initial position
+    for agent in agents:
+            agent.update(agents)
+    crazySwarm.timeHelper.sleep(1 / 100)
+
+    logging.info("Creating an instance of 'MissionControl'.")
+
     # Creating mission control    
     missionControl = MissionControl(
-        crazySwarm=crazySwarm,
         agents=agents,
-        redisClient=redisClient
+        crazyServer=crazySwarm
     )
     
-    i = 0
-    
-    while True:
-        # Read incoming messages from redis
-        msg = redisSub.get_message()
-        mission = ""
-        target = ""
-        
-        # Parse the message
-        if msg:
-            if msg['type'] == 'message':
-                mission = json.loads(msg['data']).get("mission", None)
-                print(f"[{datetime.datetime.now()}] New mission: {mission}")
-                target = json.loads(msg['data']).get("target", None)
-                print(f"[{datetime.datetime.now()}] New target: {mission}")
-        # Launch a mission if a message exists
-        if mission == "mission_takeoff_all":
-            # missionControl.takeOffAll()
-            if i == 0:
-                missionControl.goTo(np.array([1.0, -1.0, 1.1]), 0.7)
-                i += 1
-            elif i == 1:
-                missionControl.goTo(np.array([-1.0, -1.0, 1.1]), 0.7)
-                i += 1
-            elif i == 2:
-                missionControl.goTo(np.array([-1.0, 1.0, 1.1]), 0.7)
-                i += 1
-            elif i == 3:
-                missionControl.goTo(np.array([1.0, 1.0, 1.1]), 0.7)
-                i += 1
-            elif i == 4:
-                missionControl.goTo(np.array([0.0, 0.0, 1.1]), 0.7)
-                i += 1
-        elif mission == "mission_land_all":
+    # Start the watchdog
+    watchdogThread = Thread(target=_watchDog, args=[agents])
+    watchdogThread.start()
+
+    logging.info("All ready! Listening... Press 'q' to exit.")
+
+    if "help" in sys.argv:
+        print("Available parameters")
+        print("---------------------")
+        print("agent_trajectory_test")
+        print("takeoff_land_test")
+        print("formation_test")
+        print("rotation_test")
+        print("swarm_trajectory_test")
+        print("---------------------")
+        os._exit(0)
+
+    elif "agent_trajectory_test" in sys.argv:
+        missionControl.takeOffAgent(agents[0])
+        missionControl.goToAgent(
+            targetAgent=agents[0],
+            points=np.array(
+                [
+                    [0.5, 0.0, 0.5],
+                    [0.0, 0.0, 0.5],
+                    [-0.5, 0.0, 0.5],
+                    [0.0, 0.0, 0.5],
+                    [0.0, 0.5, 0.5],
+                    [0.0, 0.0, 0.5],
+                    [0.0, -0.5, 0.5],
+                    [0.0, 0.0, 0.5]
+                ]
+            )
+        )
+        missionControl.landAgent(agents[0])
+
+    elif "takeoff_land_test" in sys.argv:
+        for i in range(3):
+            missionControl.takeOffAll()
             missionControl.landAll()
-        elif mission =="mission_takeoff":
-            if target:
-                missionControl.takeOffAgent(target=target)
-        elif mission =="mission_land":
-            if target:
-                missionControl.landAgent(target=target)
-        if mission=="mission_one":
-            missionControl.missionOne()
-        
+            crazySwarm.timeHelper.sleep(3.0)
+
+    elif "formation_test" in sys.argv:
+        for i, agent in enumerate(agents):
+            logging.info(f"Index: {i}, agent: {agent.getName()}")
+            
+        missionControl.takeOffAll()
+        crazySwarm.timeHelper.sleep(1)
+        missionControl.takeFormation(Settings.FORMATION_HEXAGON)
+        crazySwarm.timeHelper.sleep(3)
+        missionControl.landAll()
+        crazySwarm.timeHelper.sleep(1)
+
+    elif "rotation_test" in sys.argv:
+        missionControl.takeOffAll()
+        crazySwarm.timeHelper.sleep(1)
+        missionControl.takeFormation(Settings.FORMATION_HEXAGON)
+        crazySwarm.timeHelper.sleep(5)
+        missionControl.rotateSwarm(90.0)
+        crazySwarm.timeHelper.sleep(3)
+        missionControl.rotateSwarm(-90.0)
+        crazySwarm.timeHelper.sleep(3)
+        missionControl.rotateSwarm(-90.0)
+        crazySwarm.timeHelper.sleep(3)
+        missionControl.rotateSwarm(90.0)
+        crazySwarm.timeHelper.sleep(3)
+        missionControl.landAll()
+        crazySwarm.timeHelper.sleep(1)
+
+    elif "swarm_trajectory_test" in sys.argv:
+        missionControl.takeOffAll()
+        crazySwarm.timeHelper.sleep(1)
+        missionControl.takeFormation(Settings.FORMATION_HEXAGON)
+        crazySwarm.timeHelper.sleep(5)
+        missionControl.goToSwarm(
+            points=np.array(
+                [
+                    [0.0, 3.0, 0.5],
+                    [0.0, 0.0, 0.5],
+                    [0.0, -3.0, 0.5]
+                ]
+            )
+        )
+        crazySwarm.timeHelper.sleep(3)
+        missionControl.landAll()
+        crazySwarm.timeHelper.sleep(1)
+    
+    elif "agent_hover_test" in sys.argv:
+        missionControl.takeOffAll()
+        missionControl.hoverAgent()
+
+    else:
+        logging.info("Please specify the operation by giving an argument")
+
+            
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%d/%m/%Y %H:%M:%S')
     main()
-    sys.exit(0)
+    logging.info("All went according to the plan, good bye!")
+    os._exit(0)

@@ -17,7 +17,7 @@ import {useSelector} from "react-redux";
 import {useDispatch} from "react-redux";
 
 function Dashboard() {
-    const agent = useSelector((state) => state.agent);
+    const asroState = useSelector((state) => state.asro);
     const dispatch = useDispatch();
     
     function UpdateBorder() {
@@ -33,12 +33,12 @@ function Dashboard() {
     
     useEffect(() => {
         setInterval(() => {
-            if (agent.selectedAgentName !== "") {
+            if (asroState.selectedAgent.name !== "") {
                 dispatch(getAgentPose());
             }
 
-        }, 250);
-      }, [agent.selectedAgentName, dispatch]);
+        }, 1000);
+      }, [asroState.selectedAgent.name, dispatch]);
 
     return (
         <div className='Dashboard'>
@@ -87,7 +87,7 @@ function Dashboard() {
                 </div>
                 <div className='Dashboard-Indicators'>
                     <h2 className='Dashboard-Indicators-Name'>
-                    {(agent.selectedAgentName === "" ? "Please Select an Agent" : agent.selectedAgentName)}
+                    {(asroState.selectedAgent.name === "" ? "Please Select an Agent" : asroState.selectedAgent.name)}
                     </h2>
                     <div className='Dashboard-Indicators-Container'>
                         <img src={Module1} width='20%' alt='Module1'/>
@@ -98,16 +98,16 @@ function Dashboard() {
                     <div className='Dashboard-Indicators-Info'>
                         <InfoTuple
                             param="x"
-                            value={(agent.selectedAgentX === null ? "N/A" : agent.selectedAgentX)}/>
+                            value={(asroState.selectedAgent.coords.x === null ? "N/A" : asroState.selectedAgent.coords.x)}/>
                         <InfoTuple
                             param="y"
-                            value={(agent.selectedAgentY === null ? "N/A" : agent.selectedAgentY)}/>
+                            value={(asroState.selectedAgent.coords.y === null ? "N/A" : asroState.selectedAgent.coords.y)}/>
                         <InfoTuple
                             param="z"
-                            value={(agent.selectedAgentZ === null ? "N/A" : agent.selectedAgentZ)}/>
+                            value={(asroState.selectedAgent.coords.z === null ? "N/A" : asroState.selectedAgent.coords.z)}/>
                         <InfoTuple 
                             param="state"
-                            value={(agent.selectedAgentState === null ? "N/A" : agent.selectedAgentState)}/>
+                            value={(asroState.selectedAgent.state === null ? "N/A" : asroState.selectedAgent.state)}/>
                     </div>
                 </div>
             </div>

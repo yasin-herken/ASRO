@@ -6,7 +6,7 @@ import "./Agents.css"
 import Agent from "./Agent/Agent";
 
 function Agents() {
-    const agents = useSelector((state) => state.agent.agents);
+    const agents = useSelector((state) => state.asro.agents);
 
     return (
         <div className='Agents'>

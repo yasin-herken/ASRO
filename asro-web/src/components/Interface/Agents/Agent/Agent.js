@@ -12,7 +12,12 @@ function Agent({name, address, status, state}) {
     const dispatch = useDispatch();
 
     function OnClick(event) {
-        dispatch(selectAgent());
+        dispatch(selectAgent({
+            "name": name,
+            "address": address,
+            "status": status,
+            "state": state
+        }));
     }
     
     return (
