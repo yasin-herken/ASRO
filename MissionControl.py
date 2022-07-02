@@ -34,15 +34,8 @@ class MissionControl:
             bool: Specifies whether the operation was successfull or not.
         """
         for agent in self.__agents:
-            self.counter2 = time.perf_counter()
-
-            t1 = time.perf_counter()
             agent.update(self.__agents)
-            t2 = time.perf_counter()
-
-            if 1.0 <= (self.counter2 - self.counter1):
-                print(f"{agent.getName()} took {round(t2 - t1, 4)} seconds")
-                self.counter1 = time.perf_counter()
+        self.__crazyServer.timeHelper.sleep(1 / 100)
 
         return True
 

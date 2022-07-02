@@ -92,14 +92,14 @@ def main() -> None:
     logging.info("All ready! Listening... Press 'q' to exit.")
 
     if "help" in sys.argv:
-        print("Available parameters")
+        print("\nAvailable parameters")
         print("---------------------")
         print("agent_trajectory_test")
         print("takeoff_land_test")
         print("formation_test")
         print("rotation_test")
         print("swarm_trajectory_test")
-        print("---------------------")
+        print("---------------------\n")
         os._exit(0)
 
     elif "agent_trajectory_test" in sys.argv:
@@ -132,33 +132,21 @@ def main() -> None:
             logging.info(f"Index: {i}, agent: {agent.getName()}")
             
         missionControl.takeOffAll()
-        crazySwarm.timeHelper.sleep(1)
         missionControl.takeFormation(Settings.FORMATION_HEXAGON)
-        crazySwarm.timeHelper.sleep(3)
         missionControl.landAll()
-        crazySwarm.timeHelper.sleep(1)
 
     elif "rotation_test" in sys.argv:
         missionControl.takeOffAll()
-        crazySwarm.timeHelper.sleep(1)
         missionControl.takeFormation(Settings.FORMATION_HEXAGON)
-        crazySwarm.timeHelper.sleep(5)
         missionControl.rotateSwarm(90.0)
-        crazySwarm.timeHelper.sleep(3)
         missionControl.rotateSwarm(-90.0)
-        crazySwarm.timeHelper.sleep(3)
         missionControl.rotateSwarm(-90.0)
-        crazySwarm.timeHelper.sleep(3)
         missionControl.rotateSwarm(90.0)
-        crazySwarm.timeHelper.sleep(3)
         missionControl.landAll()
-        crazySwarm.timeHelper.sleep(1)
 
     elif "swarm_trajectory_test" in sys.argv:
         missionControl.takeOffAll()
-        crazySwarm.timeHelper.sleep(1)
         missionControl.takeFormation(Settings.FORMATION_HEXAGON)
-        crazySwarm.timeHelper.sleep(5)
         missionControl.goToSwarm(
             points=np.array(
                 [
@@ -168,9 +156,7 @@ def main() -> None:
                 ]
             )
         )
-        crazySwarm.timeHelper.sleep(3)
         missionControl.landAll()
-        crazySwarm.timeHelper.sleep(1)
     
     elif "agent_hover_test" in sys.argv:
         missionControl.takeOffAll()
