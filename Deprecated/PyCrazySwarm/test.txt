@@ -1,9 +1,0 @@
-if self.__speed <= 0.01:
-            self.__validtyCount += 1
-            if 600 <= self.__validtyCount:
-                self.__isMoving = False
-                self.__validtyCount = 0
-            else:
-                self.__isMoving = True
-        else:
-            self.__isMoving = True
