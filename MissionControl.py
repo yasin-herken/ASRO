@@ -33,8 +33,7 @@ class MissionControl:
         Returns:
             bool: Specifies whether the operation was successfull or not.
         """
-        for agent in self.__agents:
-            agent.update(self.__agents)
+        
         self.__crazyServer.timeHelper.sleep(1 / 100)
 
         return True
@@ -118,75 +117,26 @@ class MissionControl:
 
         return retValue
 
-    def missionTwo(self) -> bool:
-        """_summary_
+    def takeOffAgent(self, agent: Agent) -> bool:
+        """Takes off the agent.
 
         Returns:
             bool: Specifies whether the mission was successfull or not.
         """
-        retValue = False
+        logging.info("Starting mission takeOffAgent.")
         
-        return retValue
-
-    def missionThree(self) -> bool:
-        """_summary_
-
-        Returns:
-            bool: Specifies whether the mission was successfull or not.
-        """
-        retValue = False
-        
-        return retValue
-
-    def missionFour(self) -> bool:
-        """_summary_
-
-        Returns:
-            bool: Specifies whether the mission was successfull or not.
-        """
-        retValue = False
-        
-        return retValue
-
-    def missionFive(self) -> bool:
-        """_summary_
-
-        Returns:
-            bool: Specifies whether the mission was successfull or not.
-        """
-        retValue = False
-        
-        return retValue
-
-    def takeOffAgent(self, targetAgent: Agent) -> bool:
-        """Takes off the target agent.
-
-        Args:
-            agent (Agent): Agent to be taken off.
-
-        Returns:
-            bool: Specifies whether the mission was successfull or not.
-        """
         retValue = False
 
-        logging.info(f"Starting mission takeOffAgent. Target is '{targetAgent.getName()}'")
-        
-        currPos = targetAgent.getPos()
-        targetAgent.setTargetPoint(np.array([currPos[0], currPos[1], 0.5]))
-        targetAgent.setTargetHeight(0.5)
-
-        targetAgent.setFormationActive(False)
-        targetAgent.setAvoidanceActive(False)
-        targetAgent.setTrajectoryActive(True)
+        agent.takeOff(0.5)
 
         while True:
             self.__update()
 
-            if (targetAgent.getState() == "HOVERING"):
+            if agent.getState() == "HOVERING":
                 retValue = True
                 break
 
-        logging.info(f"Ending mission takeOffAgent with success. Target was '{targetAgent.getName()}'")
+        logging.info(f"Ending mission takeOffAgent with success. Current height: {round(agent.getPos()[2], 2)}")
 
         return retValue
     
@@ -201,39 +151,43 @@ class MissionControl:
         retValue = False
 
         for agent in self.__agents:
-            retValue = self.takeOffAgent(agent)
+            retValue = agent.takeOff(0.5)
+
+        stoppedAgents = set()
+        while True:
+            self.__update()
+
+            for agent in self.__agents:
+                if agent.getState() == "HOVERING":
+                    stoppedAgents.add(agent.getName())
+            
+            if (len(stoppedAgents) == len(self.__agents)):
+                break
 
         logging.info(f"Ending mission takeOffAll with success. Total target count: {len(self.__agents)}")
 
         return retValue
-    
-    def landAgent(self, targetAgent: Agent) -> bool:
-        """Lands the target agent.
 
-        Args:
-            agent (Agent): Agent to be landing.
+    def landAgent(self, agent: Agent) -> bool:
+        """Lands off the agent.
+
         Returns:
             bool: Specifies whether the mission was successfull or not.
         """
+        logging.info("Starting mission landAgent.")
+        
         retValue = False
 
-        logging.info(f"Starting mission landAgent. Target is '{targetAgent.getName()}'")
-
-        currPos = targetAgent.getPos()
-        targetAgent.setTargetPoint(np.array([currPos[0], currPos[1], 0.0]))
-        targetAgent.setTargetHeight(0.0)
-        targetAgent.setTrajectoryActive(True)
-        targetAgent.setFormationActive(False)
-        self.__crazyServer.timeHelper.sleep(1)
+        agent.land()
 
         while True:
             self.__update()
 
-            if (targetAgent.getState() == "STATIONARY"):
+            if agent.getState() == "STATIONARY":
                 retValue = True
                 break
-            
-        logging.info(f"Ending mission landAgent with success. Target was '{targetAgent.getName()}'")
+
+        logging.info(f"Ending mission landAgent with success. Current height: {round(agent.getPos()[2], 2)}")
 
         return retValue
 
@@ -248,13 +202,9 @@ class MissionControl:
         logging.info("Starting mission landAll.")
 
         for agent in self.__agents:
-            currPos = agent.getPos()
-            agent.setTargetPoint(np.array([currPos[0], currPos[1], 0.0]))
-            agent.setTargetHeight(0.0)
-            agent.setTrajectoryActive(True)
+            retValue = agent.land()
         
         stoppedAgents = set()
-
         while True:
             self.__update()
 
@@ -268,10 +218,6 @@ class MissionControl:
         logging.info(f"Ending missionLandAll with success. Total target count: {len(self.__agents)}")
 
         return retValue
-
-    def hoverAgent(self) -> bool:
-        while True:
-            self.__update()
 
     def goToAgent(self, targetAgent: Agent, points: np.ndarray) -> bool:
         """Moves the target agent to the specified point.

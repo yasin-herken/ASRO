@@ -48,6 +48,7 @@ def main() -> None:
     If a new request exists, hands over the control to MissionControl.
     """
     # Initialization
+    agents: List[Agent]
     agents = []
 
     # Fix the issue where rospy disables the logging
@@ -61,21 +62,24 @@ def main() -> None:
     logging.info("Creating instances of 'Agent' class.")
 
     # Add agents
+    i = 0
     for agent in crazySwarm.allcfs.crazyflies:
         agents.append(
             Agent(
                 cf=agent,
-                name=f"cf{agent.id}"
+                name=f"cf{agent.id}",
+                idx=i
             )
         )
+        i += 1
         logging.info(f"Created: cf{agent.id}")
+        crazySwarm.timeHelper.sleep(1.0)
+    
+    # Give the other agents' info to every agent
+    for agent in agents:
+        agent.setOtherAgents(agents)
 
     logging.info(f"Created all agents.")
-
-    # Update initial position
-    for agent in agents:
-            agent.update(agents)
-    crazySwarm.timeHelper.sleep(1 / 100)
 
     logging.info("Creating an instance of 'MissionControl'.")
 
@@ -86,7 +90,7 @@ def main() -> None:
     )
     
     # Start the watchdog
-    watchdogThread = Thread(target=_watchDog, args=[agents])
+    watchdogThread = Thread(target=_watchDog, args=[agents], daemon=True)
     watchdogThread.start()
 
     logging.info("All ready! Listening... Press 'q' to exit.")
@@ -157,10 +161,6 @@ def main() -> None:
             )
         )
         missionControl.landAll()
-    
-    elif "agent_hover_test" in sys.argv:
-        missionControl.takeOffAll()
-        missionControl.hoverAgent()
 
     else:
         logging.info("Please specify the operation by giving an argument")
