@@ -5,38 +5,23 @@ import time
 
 from typing import List
 from Agent import Agent
-from pycrazyswarm import Crazyswarm
 
 class MissionControl:
     """Handles the agent operations depending on the mission on hand.
     """
     __agents: List[Agent]
-    __crazyServer: Crazyswarm
 
     counter1 = time.perf_counter()
     counter2 = time.perf_counter()
     
-    def __init__(self, agents: List[Agent], crazyServer: Crazyswarm):
+    def __init__(self, agents: List[Agent]):
         """Initialize the MissionControl.
 
         Args:
             agents (List[Agent]): Agents to be operated.
         """
         self.__agents = agents
-        self.__crazyServer = crazyServer
-
         return
-
-    def __update(self) -> bool:
-        """Update the agents
-
-        Returns:
-            bool: Specifies whether the operation was successfull or not.
-        """
-        
-        self.__crazyServer.timeHelper.sleep(1 / 100)
-
-        return True
 
 
     def __validateFormationMatrix(self, formationMatrix: np.ndarray) -> bool:
@@ -83,7 +68,6 @@ class MissionControl:
         # Wait for the formation to happen
         stoppedAgents = set()
         while True:
-            self.__update()
 
             for agent in self.__agents:
                 if  (
@@ -130,8 +114,6 @@ class MissionControl:
         agent.takeOff(0.5)
 
         while True:
-            self.__update()
-
             if agent.getState() == "HOVERING":
                 retValue = True
                 break
@@ -155,8 +137,6 @@ class MissionControl:
 
         stoppedAgents = set()
         while True:
-            self.__update()
-
             for agent in self.__agents:
                 if agent.getState() == "HOVERING":
                     stoppedAgents.add(agent.getName())
@@ -181,8 +161,6 @@ class MissionControl:
         agent.land()
 
         while True:
-            self.__update()
-
             if agent.getState() == "STATIONARY":
                 retValue = True
                 break
@@ -206,8 +184,6 @@ class MissionControl:
         
         stoppedAgents = set()
         while True:
-            self.__update()
-
             for agent in self.__agents:
                 if (agent.getState() == "STATIONARY"):
                     stoppedAgents.add(agent.getName())
@@ -238,8 +214,6 @@ class MissionControl:
             targetAgent.setTargetPoint(np.array([point[0], point[1], point[2]]))
 
             while True:
-                self.__update()
-
                 if (targetAgent.getState() == "HOVERING"):
                     break                
 
@@ -269,21 +243,16 @@ class MissionControl:
             for agent in self.__agents:
                 agent.setTargetPoint(np.array([point[0], point[1], point[2]]))
                 agent.setTrajectoryActive(True)
-            self.__crazyServer.timeHelper.sleep(1)
 
             stoppedAgents = set()
             while True:
-                self.__update()
-
                 for agent in self.__agents:
                     if (agent.getState() == "HOVERING"):
                         stoppedAgents.add(agent.getName())
 
                 if (len(stoppedAgents) == len(self.__agents)):
                     break               
-
-            self.__crazyServer.timeHelper.sleep(2)
-
+                
             # Last point
             if i == len(points) - 1:
                 logging.info(f"Ending mission goToSwarm with success. Total target count: {len(self.__agents)}'")

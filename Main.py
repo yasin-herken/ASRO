@@ -4,13 +4,15 @@ from typing import List
 import logging
 import select
 import numpy as np
-
-from pycrazyswarm import Crazyswarm
-
+import time
 import Settings
 from Agent import Agent
 from MissionControl import MissionControl
 from threading import Thread
+
+import cflib.crtp
+from cflib.crazyflie import Crazyflie
+from cflib.utils import uri_helper
 
 def getChar(block = False):
     if block or select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
@@ -51,29 +53,36 @@ def main() -> None:
     agents: List[Agent]
     agents = []
 
+    # Agent URIs
+    URI = uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E7')
+
     # Fix the issue where rospy disables the logging
     os.environ['ROS_PYTHON_LOG_CONFIG_FILE'] = "`rospack find rosgraph`/conf/python_logging.yaml"
 
     logging.info("Initializing Crasyswarm server")
 
     # Start the Crazyswarm server
-    crazySwarm = Crazyswarm(crazyflies_yaml="./crazyflies.yaml")
+    cflib.crtp.init_drivers()
 
     logging.info("Creating instances of 'Agent' class.")
 
     # Add agents
-    i = 0
-    for agent in crazySwarm.allcfs.crazyflies:
-        agents.append(
-            Agent(
-                cf=agent,
-                name=f"cf{agent.id}",
-                idx=i
-            )
+    agents.append(
+        Agent(
+            uri=URI,
+            name=f"cf{0xe7}",
+            idx=0
         )
-        i += 1
-        logging.info(f"Created: cf{agent.id}")
-        crazySwarm.timeHelper.sleep(1.0)
+    )
+
+    # Wait for agents to be ready
+    for agent in agents:
+        while agent.isReady() != True:
+            pass
+    
+    time.sleep(3.0)
+
+    logging.info(f"Created: cf{0xe7}")
     
     # Give the other agents' info to every agent
     for agent in agents:
@@ -85,8 +94,7 @@ def main() -> None:
 
     # Creating mission control    
     missionControl = MissionControl(
-        agents=agents,
-        crazyServer=crazySwarm
+        agents=agents
     )
     
     # Start the watchdog
@@ -129,7 +137,6 @@ def main() -> None:
         for i in range(3):
             missionControl.takeOffAll()
             missionControl.landAll()
-            crazySwarm.timeHelper.sleep(3.0)
 
     elif "formation_test" in sys.argv:
         for i, agent in enumerate(agents):

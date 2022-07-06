@@ -1,20 +1,27 @@
+import sys
 import logging
 import numpy as np
 import Settings
 import time
-from threading import Thread, Lock
-
-# Remove the word 'Sim' in order to run IRL !!!
-from pycrazyswarm.crazyflie import Crazyflie
-from pycrazyswarm.crazyswarm_py import Crazyswarm
+from threading import Thread, Lock, Event
 
 from Settings import ALPHA, BETA
+
+from cflib.crazyflie import Crazyflie
+from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
+from cflib.crazyflie.log import LogConfig
+from cflib.positioning.motion_commander import MotionCommander
 
 class Agent:
     """This class represents the real-world agent.
     It does swarming and other operations to control the agent.
     """
-    __crazyflie: Crazyflie
+    __scf: SyncCrazyflie
+    __deckAttachedEvent: Event
+    __mc: MotionCommander
+    __isReady: bool
+
+    __uri: str
     __name: str
     __index: int
     __state: str
@@ -55,18 +62,29 @@ class Agent:
     __tp1: float
     __tp2: float
     __fps: int
+
+    # Callbacks
+    def param_deck_flow(self, _, value_str):
+        value = int(value_str)
+
+        if value:
+            self.__deckAttachedEvent.set()
+            logging.info('Deck is attached!')
+            self.setIsReady(True)
+        else:
+            logging.info('Deck is NOT attached!')
     
-    def __init__(self, cf: Crazyflie, name: str, idx: int) -> None:
+    def __init__(self, uri: str, name: str, idx: int) -> None:
         """Initializes the agent class.
 
         Args:
-            cf (crazyflie): Crazyflie handler to command the realworld agent.
             name (str): Name of the agent.
             address (str): Address of the agent.
         """
-        self.__crazyflie = cf
+        self.__uri = uri
         self.__name = name
         self.__index = idx
+        self.__isReady = False
         
         self.__isFormationActive = False
         self.__isAvoidanceActive = False
@@ -86,7 +104,7 @@ class Agent:
         self.__pos = np.array([0.0, 0.0, 0.0])
         self.__vel = np.array([0.0, 0.0, 0.0])
         self.__speed = 0.0
-        self.__maxSpeed = 0.5
+        self.__maxSpeed = 0.7
 
         self.__t1 = time.perf_counter()
         self.__t2 = time.perf_counter()
@@ -206,7 +224,7 @@ class Agent:
         desiredSpeed = Settings.getMagnitude(trajectoryVel)
         desiredVerticalSpeed = trajectoryVel[2]
 
-        toleranceVal = 0.025
+        toleranceVal = 0.05
 
         heightLimit = self.getTargetHeight() + 0.1
         speedLimit = self.getMaxSpeed() + toleranceVal
@@ -232,8 +250,14 @@ class Agent:
 
         return retValue
     
-    def __updateVariables(self):
-        self.setPos(self.__crazyflie.position())
+    def __updateVariables(self, timestamp, data, logconf):
+        self.setPos(np.array(
+            [
+                data['stateEstimate.x'],
+                data['stateEstimate.y'],
+                data['stateEstimate.z']
+            ]
+        ))
 
         # Update agent info
         self.__x1 = np.array(self.__x2)
@@ -332,6 +356,13 @@ class Agent:
         self.__lock.release()
         
         return otherAgents
+
+    def isReady(self) -> bool:
+        self.__lock.acquire()
+        ready = self.__isReady
+        self.__lock.release()
+        
+        return ready
     
     def isFormationActive(self) -> bool:
         self.__lock.acquire()
@@ -367,7 +398,14 @@ class Agent:
         self.__lock.release()
         
         return isSwarming
-    
+
+    def setIsReady(self, status: bool) -> bool:
+        self.__lock.acquire()
+        self.__isReady = status
+        self.__lock.release()
+
+        return True
+
     def setIsInFormation(self, status: bool) -> bool:
         self.__lock.acquire()
         self.__isInFormation = status
@@ -505,61 +543,85 @@ class Agent:
             bool: Whether the update was succesfull or not.
 		"""
         retValue = False
-        
-        while self.__thread.is_alive():
-            self.__tp2 = time.perf_counter()
 
-            if False and 1.0 <= self.__tp2 - self.__tp1:
-                logging.info(f"[{self.getName()} Updated {self.__fps} times in a second]")
-                self.__tp1 = time.perf_counter()
-                self.__fps = 0
+        self.__deckAttachedEvent = Event()
 
-            # Calculate control values
-            controlVel = np.array([0.0, 0.0, 0.0])
-            formationVel = np.array([0.0, 0.0, 0.0])
-            avoidanceVel = np.array([0.0, 0.0, 0.0])
-            trajectoryVel = np.array([0.0, 0.0, 0.0])
+        with SyncCrazyflie(self.__uri, cf=Crazyflie(rw_cache='./cache')) as scf:
 
-            # Update position, speed and swarm variables
-            self.__updateVariables()
+            logconf = LogConfig(name='Position', period_in_ms=10)
+            logconf.add_variable('stateEstimate.x', 'float')
+            logconf.add_variable('stateEstimate.y', 'float')
+            logconf.add_variable('stateEstimate.z', 'float')
 
-            if self.isFormationActive():
-                formationVel = self.__formationControl()
-                formationVel[2] = 0.0
+            scf.cf.param.add_update_callback(group='deck', name='bcFlow2', cb=self.param_deck_flow)
+            scf.cf.log.add_config(logconf)
 
-                # Check if in formation
-                if Settings.getMagnitude(formationVel) <= 0.01:
-                    self.setIsInFomration(True)
-                else:
-                    self.setIsInFormation(False)
+            logconf.data_received_cb.add_callback(cb=self.__updateVariables)
 
-            if self.isAvoidanceActive():
-                avoidanceVel = self.__avoidanceControl()
+            if not self.__deckAttachedEvent.wait(timeout=5):
+                logging.info('No flow deck detected!')
+                sys.exit(-4)
+            
+            logconf.start()
 
-            if self.isTrajectoryActive():
-                trajectoryVel = self.__trajectoryControl()
+            with MotionCommander(scf, default_height=0.01) as mc:
+                while True:
 
-            # Limit swarm control values
-            if self.getMaxSpeed() < Settings.getMagnitude(trajectoryVel):
-                trajectoryVel = Settings.setMagnitude(trajectoryVel, self.getMaxSpeed())
+                    # Calculate control values
+                    controlVel = np.array([0.0, 0.0, 0.0])
+                    formationVel = np.array([0.0, 0.0, 0.0])
+                    avoidanceVel = np.array([0.0, 0.0, 0.0])
+                    trajectoryVel = np.array([0.0, 0.0, 0.0])
 
-            # Update the state of the agent
-            newState = self.__estimateState(trajectoryVel)
-            if self.getState() != newState:
-                self.setState(newState)
-        
-            # ---- Final velocity ---- # 
-            controlVel = 0.33 * formationVel + avoidanceVel + trajectoryVel
-            # ------------------------ #
+                    if self.isFormationActive():
+                        formationVel = self.__formationControl()
+                        formationVel[2] = 0.0
 
-            # Send the commanding message
-            if self.getState() == "STATIONARY":
-                self.__crazyflie.cmdStop()
-            else:
-                self.__crazyflie.cmdVelocityWorld(controlVel, 0)
+                        # Check if in formation
+                        if Settings.getMagnitude(formationVel) <= 0.01:
+                            self.setIsInFomration(True)
+                        else:
+                            self.setIsInFormation(False)
 
-            time.sleep(1 / 50)
-            self.__fps += 1
+                    if self.isAvoidanceActive():
+                        avoidanceVel = self.__avoidanceControl()
+
+                    if self.isTrajectoryActive():
+                        trajectoryVel = self.__trajectoryControl()
+
+                    # Limit swarm control values
+                    if self.getMaxSpeed() < Settings.getMagnitude(trajectoryVel):
+                        trajectoryVel = Settings.setMagnitude(trajectoryVel, self.getMaxSpeed())
+
+                    # Update the state of the agent
+                    newState = self.__estimateState(trajectoryVel)
+                    if self.getState() != newState:
+                        self.setState(newState)
+                
+                    # ---- Final velocity ---- #
+                    if self.getState() == "STATIONARY":
+                        print("stop")
+                        scf.cf.commander.send_stop_setpoint()
+                    else:
+                        controlVel = 0.33 * formationVel + avoidanceVel + trajectoryVel
+                        scf.cf.commander.send_velocity_world_setpoint(
+                            controlVel[0],
+                            controlVel[1],
+                            controlVel[2],
+                            0.0
+                        )
+                    # ------------------------ #
+                        
+                    self.__tp2 = time.perf_counter()
+
+                    if True and 1.0 <= self.__tp2 - self.__tp1:
+                        logging.info(controlVel)
+                        # logging.info(f"[{self.getName()} Updated {self.__fps} times in a second]")
+                        self.__tp1 = time.perf_counter()
+                        self.__fps = 0
+
+                    time.sleep(1 / 50)
+                    self.__fps += 1
 
         return retValue
     
