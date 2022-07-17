@@ -30,8 +30,8 @@ There are some requirements to fullfill in order to install the ASRO Software. Y
 
 ## Mission-Control
 * Python >= 3.8
-* Redis >= x.x
 
 ## CrazyFlie Server
 * ROS == Noetic or Melodic
 * CrazySwarm == LATEST
+* cflib == LATEST
