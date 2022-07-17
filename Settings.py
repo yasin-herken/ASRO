@@ -75,3 +75,5 @@ FORMATION_HEXAGON = numpy.array(
         [1.0, numpy.sqrt(3), 2.0, numpy.sqrt(3), 1.0, 0.0],
     ]
 ) * FORMATION_OFFSET
+
+
