@@ -3,42 +3,50 @@ import sys
 from typing import List
 import logging
 import select
+
+from threading import Thread
 import numpy as np
 
 from pycrazyswarm import Crazyswarm
 
-import Settings
 from Agent import Agent
 from MissionControl import MissionControl
-from threading import Thread
 
-def getChar(block = False):
-    if block or select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
-        return sys.stdin.read(1)
+def get_char():
+    """Reads a char from the stdin.
 
-def _watchDog(agents: List[Agent]) -> None:
+    Returns:
+        str: Read char.
+    """
+    ret_value = ""
+    if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
+        ret_value = sys.stdin.read(1)
+    return ret_value
+
+def watch_dog(agents: List[Agent]) -> None:
     """Runs on a thread. Checks the Redis 'emergency' channel and the input 'q'.
     Calls the function emergencyExit() if the need arises.
+
+    Args:
+        agents (List[Agent]): _description_
     """
     try:
         while True:
-            key = getChar()
+            key = get_char()
 
             if key == "q":
-                emergencyExit(agents)
+                emergency_exit(agents)
 
-    except KeyboardInterrupt as e:
+    except KeyboardInterrupt:
         logging.info("Keyboard interrupt detected.")
-    except Exception as e:
-        logging.info(f"An exception occured.\n {e.with_traceback()}")
 
-def emergencyExit(agents: List[Agent]) -> None:
+def emergency_exit(agents: List[Agent]) -> None:
     """Kills the ROS server and turns off all the agents.
     """
     logging.info("Emergency! Exiting the program.")
     for agent in agents:
         agent.kill()
-    os._exit(-3)
+    sys.exit(-3)
 
 def main() -> None:
     """Entry point for the ASRO software. Initializes the ROS server.
@@ -57,13 +65,13 @@ def main() -> None:
     logging.info("Initializing Crasyswarm server")
 
     # Start the Crazyswarm server
-    crazySwarm = Crazyswarm(crazyflies_yaml="./crazyflies.yaml")
+    crazy_swarm = Crazyswarm(crazyflies_yaml="./crazyflies.yaml")
 
     logging.info("Creating instances of 'Agent' class.")
 
     # Add agents
     i = 0
-    for agent in crazySwarm.allcfs.crazyflies:
+    for agent in crazy_swarm.allcfs.crazyflies:
         agents.append(
             Agent(
                 cf=agent,
@@ -73,25 +81,25 @@ def main() -> None:
         )
         i += 1
         logging.info(f"Created: cf{agent.id}")
-        crazySwarm.timeHelper.sleep(1.0)
+        crazy_swarm.timeHelper.sleep(1.0)
     
     # Give the other agents' info to every agent
     for agent in agents:
         agent.setOtherAgents(agents)
 
-    logging.info(f"Created all agents.")
+    logging.info("Created all agents.")
 
     logging.info("Creating an instance of 'MissionControl'.")
 
     # Creating mission control    
-    missionControl = MissionControl(
+    mission_control = MissionControl(
         agents=agents,
-        crazyServer=crazySwarm
+        crazyServer=crazy_swarm
     )
     
     # Start the watchdog
-    watchdogThread = Thread(target=_watchDog, args=[agents], daemon=True)
-    watchdogThread.start()
+    watchdog_thread = Thread(target=watch_dog, args=[agents], daemon=True)
+    watchdog_thread.start()
 
     logging.info("All ready! Listening... Press 'q' to exit.")
 
@@ -104,11 +112,11 @@ def main() -> None:
         print("rotation_test")
         print("swarm_trajectory_test")
         print("---------------------\n")
-        os._exit(0)
+        sys.exit(0)
 
     elif "agent_trajectory_test" in sys.argv:
-        missionControl.takeOffAgent(agents[0])
-        missionControl.goToAgent(
+        mission_control.takeOffAgent(agents[0])
+        mission_control.goToAgent(
             targetAgent=agents[0],
             points=np.array(
                 [
@@ -123,35 +131,35 @@ def main() -> None:
                 ]
             )
         )
-        missionControl.landAgent(agents[0])
+        mission_control.landAgent(agents[0])
 
     elif "takeoff_land_test" in sys.argv:
         for i in range(3):
-            missionControl.takeOffAll()
-            missionControl.landAll()
-            crazySwarm.timeHelper.sleep(3.0)
+            mission_control.takeOffAll()
+            mission_control.landAll()
+            crazy_swarm.timeHelper.sleep(3.0)
 
     elif "formation_test" in sys.argv:
         for i, agent in enumerate(agents):
             logging.info(f"Index: {i}, agent: {agent.getName()}")
             
-        missionControl.takeOffAll()
-        missionControl.takeFormation()
-        missionControl.landAll()
+        mission_control.takeOffAll()
+        mission_control.takeFormation()
+        mission_control.landAll()
 
     elif "rotation_test" in sys.argv:
-        missionControl.takeOffAll()
-        missionControl.takeFormation()
-        missionControl.rotateSwarm(90.0)
-        missionControl.rotateSwarm(-90.0)
-        missionControl.rotateSwarm(-90.0)
-        missionControl.rotateSwarm(90.0)
-        missionControl.landAll()
+        mission_control.takeOffAll()
+        mission_control.takeFormation()
+        mission_control.rotateSwarm(90.0)
+        mission_control.rotateSwarm(-90.0)
+        mission_control.rotateSwarm(-90.0)
+        mission_control.rotateSwarm(90.0)
+        mission_control.landAll()
 
     elif "swarm_trajectory_test" in sys.argv:
-        missionControl.takeOffAll()
-        missionControl.takeFormation()
-        missionControl.goToSwarm(
+        mission_control.takeOffAll()
+        mission_control.takeFormation()
+        mission_control.goToSwarm(
             points=np.array(
                 [
                     [3.0, 0.0],
@@ -161,19 +169,19 @@ def main() -> None:
                 ]
             )
         )
-        missionControl.landAll()
+        mission_control.landAll()
 
     elif "mission_one" in sys.argv:
-        missionControl.takeOffAll()
-        missionControl.takeFormation()
-        missionControl.goToSwarm(np.array([[-2.0, -2.0]]))
-        missionControl.rotateSwarm(-90.0)
-        missionControl.goToSwarm(np.array([[-2.0, 2.0]]))
-        missionControl.rotateSwarm(-90.0)
-        missionControl.goToSwarm(np.array([[2.0, 2.0]]))
-        missionControl.rotateSwarm(-90.0)
-        missionControl.goToSwarm(np.array([[2.0, -2.0]]))
-        missionControl.landAll()
+        mission_control.takeOffAll()
+        mission_control.takeFormation()
+        mission_control.goToSwarm(np.array([[-2.0, -2.0]]))
+        mission_control.rotateSwarm(-90.0)
+        mission_control.goToSwarm(np.array([[-2.0, 2.0]]))
+        mission_control.rotateSwarm(-90.0)
+        mission_control.goToSwarm(np.array([[2.0, 2.0]]))
+        mission_control.rotateSwarm(-90.0)
+        mission_control.goToSwarm(np.array([[2.0, -2.0]]))
+        mission_control.landAll()
 
     else:
         logging.info("Please specify the operation by giving an argument")
@@ -183,4 +191,4 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%d/%m/%Y %H:%M:%S')
     main()
     logging.info("All went according to the plan, good bye!")
-    os._exit(0)
+    sys.exit(0)
