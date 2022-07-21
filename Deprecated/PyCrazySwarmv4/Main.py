@@ -107,7 +107,7 @@ def main() -> None:
         os._exit(0)
 
     elif "agent_trajectory_test" in sys.argv:
-        missionControl.takeOffAgent(agents[0])
+        missionControl.takeOffAgent(agents[0], 0.5, 2.0)
         missionControl.goToAgent(
             targetAgent=agents[0],
             points=np.array(
@@ -121,36 +121,37 @@ def main() -> None:
                     [0.0, -0.5, 0.5],
                     [0.0, 0.0, 0.5]
                 ]
-            )
+            ),
+            duration=5.0
         )
-        missionControl.landAgent(agents[0])
+        missionControl.landAgent(agents[0], 2.0)
 
     elif "takeoff_land_test" in sys.argv:
         for i in range(3):
-            missionControl.takeOffAll()
-            missionControl.landAll()
+            missionControl.takeOffAll(0.5, 2.0)
+            missionControl.landAll(2.0)
             crazySwarm.timeHelper.sleep(3.0)
 
     elif "formation_test" in sys.argv:
         for i, agent in enumerate(agents):
             logging.info(f"Index: {i}, agent: {agent.getName()}")
             
-        missionControl.takeOffAll()
-        missionControl.takeFormation(Settings.pyramid())
-        missionControl.landAll()
+        missionControl.takeOffAll(0.5, 2.0)
+        missionControl.takeFormation(Settings.pyramid(), 10.0)
+        missionControl.landAll(2.0)
 
     elif "rotation_test" in sys.argv:
-        missionControl.takeOffAll()
-        missionControl.takeFormation(Settings.pyramid())
-        missionControl.rotateSwarm(90.0)
-        missionControl.rotateSwarm(-90.0)
-        missionControl.rotateSwarm(-90.0)
-        missionControl.rotateSwarm(90.0)
-        missionControl.landAll()
+        missionControl.takeOffAll(0.5, 2.0)
+        missionControl.takeFormation(Settings.pyramid(), 5.0)
+        missionControl.rotateSwarm(90.0, 2.0)
+        missionControl.rotateSwarm(-90.0, 2.0)
+        missionControl.rotateSwarm(-90.0, 2.0)
+        missionControl.rotateSwarm(90.0, 2.0)
+        missionControl.landAll(2.0)
 
     elif "swarm_trajectory_test" in sys.argv:
-        missionControl.takeOffAll()
-        missionControl.takeFormation(Settings.pyramid())
+        missionControl.takeOffAll(0.5, 2.0)
+        missionControl.takeFormation(Settings.pyramid(), 2.0)
         missionControl.goToSwarm(
             points=np.array(
                 [
@@ -158,9 +159,10 @@ def main() -> None:
                     [0.0, 0.0, 0.5],
                     [0.0, -3.0, 0.5]
                 ]
-            )
+            ),
+            duration=5.0
         )
-        missionControl.landAll()
+        missionControl.landAll(2.0)
 
     else:
         logging.info("Please specify the operation by giving an argument")

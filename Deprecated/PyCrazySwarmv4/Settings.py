@@ -39,7 +39,7 @@ def vec3(x = 0.0, y = 0.0, z = 0.0) -> numpy.ndarray:
 ALPHA = 0.15 # Overall force multiplier (more ALPHA means more aggressive behaviour)
 BETA = 1.21 # Logarithmic multipler (more BETA means less tolerance)
 
-FORMATION_OFFSET = 2.0
+FORMATION_OFFSET = 1.0
 
 # 2D - This is wrong do not use this!
 FORMATION_TRIANGLE = numpy.array(
@@ -100,7 +100,7 @@ def pyramid() -> numpy.ndarray:
     ret_value = numpy.array(
         [
             [vec3(), zero_one, zero_two, zero_three, zero_four],
-            [-zero_one, vec3(), one_two, one_three, one_four],
+            [-vec3(), vec3(), one_two, one_three, one_four],
             [-zero_two, -one_two, vec3(), two_three, two_four],
             [-zero_three, -one_three, -two_three, vec3(), two_four],
             [-zero_four, -one_four, -two_four, -three_four, vec3()],

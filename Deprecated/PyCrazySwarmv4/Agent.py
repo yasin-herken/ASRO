@@ -1,4 +1,5 @@
 import logging
+from typing import Set
 import numpy as np
 import Settings
 import time
@@ -17,7 +18,6 @@ class Agent:
     __crazyflie: Crazyflie
     __name: str
     __index: int
-    __state: str
     
     __pos: np.ndarray
     __vel: np.ndarray
@@ -70,18 +70,16 @@ class Agent:
         
         self.__isFormationActive = False
         self.__isAvoidanceActive = False
-        self.__isTrajectoryActive = True
+        self.__isTrajectoryActive = False
         self.__isSwarming = False
         self.__isInFormation = False
         self.__formationMatrix = np.array([0.0])
         self.__swarmHeading = np.array([0.0, 0.0, 0.0])
-        self.__swarmDesiredHeading = np.array([0.0, 1.0, 0.0])
+        self.__swarmDesiredHeading = np.array([0.0, 0.0, 0.0])
         self.__swarmMinDistance = 0.15
 
         self.__targetPoint = np.array([0.0, 0.0, 0.0])
         self.__targetHeight = 0.0
-        
-        self.__state = "STATIONARY"
         
         self.__pos = np.array([0.0, 0.0, 0.0])
         self.__vel = np.array([0.0, 0.0, 0.0])
@@ -196,37 +194,6 @@ class Agent:
         
         return retValue
     
-    def __estimateState(self, trajectoryVel) -> bool:
-        retValue = self.getState()
-
-        height = self.getPos()[2]
-        desiredSpeed = Settings.getMagnitude(trajectoryVel)
-        desiredVerticalSpeed = trajectoryVel[2]
-
-        toleranceVal = 0.025
-
-        heightLimit = self.getTargetHeight() + 0.1
-        speedLimit = self.getMaxSpeed() + toleranceVal
-
-        if (
-                (height <= 0.15) and
-                (0.00 <= desiredSpeed <= speedLimit) and
-                (-toleranceVal <= desiredVerticalSpeed <= toleranceVal)
-            ):
-            retValue = "STATIONARY"
-        elif (
-                (0.00 <= desiredSpeed <= toleranceVal) and
-                (-toleranceVal <= desiredVerticalSpeed <= toleranceVal)
-            ):
-            retValue = "HOVERING"
-        elif (
-                (0.00 <= desiredSpeed <= speedLimit) and
-                (-toleranceVal <= desiredVerticalSpeed <= toleranceVal)
-            ):
-            retValue = "MOVING"
-
-        return retValue
-    
     def __updateVariables(self):
         self.setPos(self.__crazyflie.position())
 
@@ -257,13 +224,6 @@ class Agent:
         self.__lock.release()
 
         return name
-    
-    def getState(self) -> str:
-        self.__lock.acquire()
-        state = self.__state
-        self.__lock.release()
-        
-        return state
     
     def getPos(self) -> np.ndarray:
         self.__lock.acquire()
@@ -373,7 +333,6 @@ class Agent:
     def setTargetPoint(self, target: np.ndarray) -> bool:
         self.__lock.acquire()
         self.__targetPoint = np.array(target)
-        self.__state = "MOVING"
         self.__lock.release()
 
         logging.info(f"[{self.getName()}] Target point set to x:{round(target[0], 2)} y:{round(target[1], 2)} z:{round(target[2], 2)}")
@@ -439,7 +398,7 @@ class Agent:
         self.__isSwarming = swarming
         self.__lock.release()
 
-        logging.info(f"[{self.getName()}] Formation active set to: {swarming}")
+        logging.info(f"[{self.getName()}] Swarming set to: {swarming}")
 
         return True
 
@@ -456,16 +415,6 @@ class Agent:
         self.__lock.release()
 
         logging.info(f"[{self.getName()}] Rotation set to: {round(degree, 2)}")
-
-        return True
-
-    def setState(self, newState: str) -> bool:
-        self.__lock.acquire()
-        oldState = self.__state
-        self.__state = newState
-        self.__lock.release()
-
-        logging.info(f"[{self.getName()}] Changing state {oldState} -> {newState}")
 
         return True
 
@@ -519,13 +468,7 @@ class Agent:
             self.__updateVariables()
 
             if self.isFormationActive():
-                formationVel = 0.1 * self.__formationControl()
-                
-                # Check if in formation
-                if Settings.getMagnitude(formationVel) <= 0.05:
-                    self.setIsInFormation(True)
-                else:
-                    self.setIsInFormation(False)
+                formationVel = 0.35 * self.__formationControl()
 
             if self.isAvoidanceActive():
                 avoidanceVel = self.__avoidanceControl()
@@ -536,23 +479,15 @@ class Agent:
             # Limit swarm control values
             if self.getMaxSpeed() < Settings.getMagnitude(trajectoryVel):
                 trajectoryVel = Settings.setMagnitude(trajectoryVel, self.getMaxSpeed())
-
-            # Update the state of the agent
-            newState = self.__estimateState(trajectoryVel)
-            if self.getState() != newState:
-                self.setState(newState)
         
             # ---- Final velocity ---- # 
-            controlVel = 0.33 * formationVel + avoidanceVel + trajectoryVel
+            controlVel = formationVel + avoidanceVel + trajectoryVel
             # ------------------------ #
 
             # Send the commanding message
-            if self.getState() == "STATIONARY":
-                self.__crazyflie.cmdStop()
-            else:
-                self.__crazyflie.cmdVelocityWorld(controlVel, 0)
+            self.__crazyflie.cmdVelocityWorld(controlVel, 0)
 
-            time.sleep(1 / 50)
+            time.sleep(1 / 30)
             self.__fps += 1
 
         return retValue
@@ -560,7 +495,6 @@ class Agent:
     def takeOff(self, targetHeight: float) -> bool:
         """Takes off the agent.
         """
-        self.setState("TAKING_OFF")
         self.setTargetHeight(targetHeight)
         self.setTargetPoint(
             np.array([
@@ -573,7 +507,6 @@ class Agent:
     def land(self) -> bool:
         """Lands the agent.
         """
-        self.setState("LANDING")
         self.setTargetHeight(0.0)
         self.setTargetPoint(
             np.array([
