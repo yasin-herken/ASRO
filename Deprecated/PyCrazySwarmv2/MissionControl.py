@@ -103,7 +103,7 @@ class MissionControl:
                 if agent1 is not agent2:
                     print(f"{agent1.getName()} {agent2.getName()} -> {round(Settings.getDistance(agent1.getPos(), agent2.getPos()), 2)}")
 
-        logging.info(f"Ending mission takeFormation with success. Formation was: 'TRIANGLE'")
+        logging.info(f"Ending mission takeFormation with success. Formation was: 'HEXAGON'")
 
         return retValue
 
@@ -202,6 +202,7 @@ class MissionControl:
         logging.info("Starting mission landAll.")
 
         for agent in self.__agents:
+            agent.setTrajectoryActive(True)
             retValue = agent.land()
         
         stoppedAgents = set()
@@ -303,12 +304,15 @@ class MissionControl:
         """
         retValue = False
 
+        logging.info(f"Starting mission rotateSwarm.")
+
         for agent in self.__agents:
             agent.setRotation(angle)
 
         stoppedAgents = set()
 
         while True:
+            print("a")
             self.__update()
 
             for agent in self.__agents:

@@ -136,7 +136,7 @@ class Agent:
 
                 # 1.0 for clockwise -1.0 for counter-clockwise
                 rotDir = 1.0
-                if self.getSwarmHeading[0] <= self.__swarmDesiredHeading[0]:
+                if self.getSwarmHeading()[0] <= self.__swarmDesiredHeading[0]:
                     rotDir = -1.0
 
                 if (0.5 <= abs(angleDiff)):
@@ -457,7 +457,7 @@ class Agent:
 
     def setRotation(self, degree: float) -> bool:
         self.__lock.acquire()
-        self.__swarmDesiredHeading = np.dot(Settings.getRotationMatrix(degree), self.getSwarmHeading())
+        self.__swarmDesiredHeading = np.dot(Settings.getRotationMatrix(degree), self.__swarmHeading)
         self.__lock.release()
 
         logging.info(f"[{self.getName()}] Rotation set to: {round(degree, 2)}")
@@ -529,7 +529,7 @@ class Agent:
 
                 # Check if in formation
                 if Settings.getMagnitude(formationVel) <= 0.01:
-                    self.setIsInFomration(True)
+                    self.setIsInFormation(True)
                 else:
                     self.setIsInFormation(False)
 
