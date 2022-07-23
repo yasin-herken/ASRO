@@ -142,16 +142,16 @@ def main() -> None:
 
     elif "rotation_test" in sys.argv:
         missionControl.takeOffAll(0.5, 2.0)
-        missionControl.takeFormation(Settings.pyramid(), 5.0)
-        missionControl.rotateSwarm(90.0, 2.0)
-        missionControl.rotateSwarm(-90.0, 2.0)
-        missionControl.rotateSwarm(-90.0, 2.0)
-        missionControl.rotateSwarm(90.0, 2.0)
+        missionControl.takeFormation(Settings.pyramid(), 15.0)
+        missionControl.rotateSwarm(90.0, 15.0)
+        missionControl.rotateSwarm(-90.0, 15.0)
+        missionControl.rotateSwarm(-90.0, 15.0)
+        missionControl.rotateSwarm(90.0, 15.0)
         missionControl.landAll(2.0)
 
     elif "swarm_trajectory_test" in sys.argv:
         missionControl.takeOffAll(0.5, 2.0)
-        missionControl.takeFormation(Settings.pyramid(), 2.0)
+        missionControl.takeFormation(Settings.pyramid(), 5.0)
         missionControl.goToSwarm(
             points=np.array(
                 [

@@ -30,11 +30,17 @@ def getRotationMatrix(degree) -> numpy.ndarray:
     )
 
 def angleBetween(vec1, vec2) -> float:
+    vec1[2] = 0.0
+    vec2[2] = 0.0
+    
     inRadian = numpy.arccos(numpy.clip(numpy.dot(vec1, vec2), -1.0, 1.0))
     return numpy.degrees(inRadian)
 
-def vec3(x = 0.0, y = 0.0, z = 0.0) -> numpy.ndarray:
+def vec3(x = 0.00, y = 0.00, z = 0.00) -> numpy.ndarray:
     return numpy.array([x, y, z])
+
+FORMATION_CONST = 0.10
+TRAJECTORY_CONST = 0.3
 
 ALPHA = 0.15 # Overall force multiplier (more ALPHA means more aggressive behaviour)
 BETA = 1.21 # Logarithmic multipler (more BETA means less tolerance)
@@ -83,27 +89,67 @@ FORMATION_HEXAGON = numpy.array(
 # 3D - Better, stronger and harder
 def pyramid() -> numpy.ndarray:
     
-    zero_one = vec3(0.0, 1.0, 0.0) * FORMATION_OFFSET
-    zero_two = vec3(1.0, 1.0, 0.0) * FORMATION_OFFSET
-    zero_three = vec3(1.0, 0.0, 0.0) * FORMATION_OFFSET
-    zero_four = vec3(0.5, 0.5, 0.5) * FORMATION_OFFSET
+    zero_one = vec3(0.00, 1.00, 0.00) * FORMATION_OFFSET
+    zero_two = vec3(1.00, 1.00, 0.00) * FORMATION_OFFSET
+    zero_three = vec3(1.00, 0.00, 0.00) * FORMATION_OFFSET
+    zero_four = vec3(0.50, 0.50, 0.50) * FORMATION_OFFSET
 
-    one_two = vec3(1.0, 0.0, 0.0) * FORMATION_OFFSET
-    one_three = vec3(1.0, -1.0, 0.0) * FORMATION_OFFSET
-    one_four = vec3(0.5, -0.5, 0.5) * FORMATION_OFFSET
+    one_two = vec3(1.00, 0.00, 0.00) * FORMATION_OFFSET
+    one_three = vec3(1.00, -1.00, 0.00) * FORMATION_OFFSET
+    one_four = vec3(0.50, -0.50, 0.50) * FORMATION_OFFSET
 
-    two_three = vec3(0.0, -1.0, 0.0) * FORMATION_OFFSET
-    two_four = vec3(-0.5, -0.5, 0.5) * FORMATION_OFFSET
+    two_three = vec3(0.00, -1.00, 0.00) * FORMATION_OFFSET
+    two_four = vec3(-0.50, -0.50, 0.50) * FORMATION_OFFSET
 
-    three_four = vec3(-0.5, 0.5, 0.5) * FORMATION_OFFSET
+    three_four = vec3(-0.50, 0.50, 0.50) * FORMATION_OFFSET
 
     ret_value = numpy.array(
         [
             [vec3(), zero_one, zero_two, zero_three, zero_four],
-            [-vec3(), vec3(), one_two, one_three, one_four],
+            [-zero_one, vec3(), one_two, one_three, one_four],
             [-zero_two, -one_two, vec3(), two_three, two_four],
-            [-zero_three, -one_three, -two_three, vec3(), two_four],
+            [-zero_three, -one_three, -two_three, vec3(), three_four],
             [-zero_four, -one_four, -two_four, -three_four, vec3()],
         ]
     )
+
     return ret_value
+
+def triangle() -> numpy.ndarray:
+    zero_one = vec3(1.00, 0.00, 0.00)
+    zero_two = vec3(0.50, 1.00, 0.00)
+    
+    one_two = vec3(-0.5, 1.0, 0.0)
+
+    ret_value = numpy.array(
+        [
+            [vec3(), zero_one, zero_two],
+            [-zero_one, vec3(), one_two],
+            [-zero_two, -one_two, vec3()]
+        ]
+    )
+
+    return ret_value
+
+if __name__ == "__main__":
+    def optimize():
+        # Find the optimal positions (index) for agents in a formation
+        distanceMatrix = np.empty((0, len(self.__agents)), float)
+        for agent in self.__agents:
+            row = []
+
+            for i in range(len(self.__agents)):
+                agent.setIndex(i)
+                dist =Settings.getMagnitude(agent.formationControl())
+                row.append(dist)
+            
+            distanceMatrix = np.append(distanceMatrix, np.array([row]), axis=0)
+
+        algo = hungarian.Hungarian()
+        algo.calculate(distanceMatrix)
+        idealIdxs = sorted(algo.get_results(), key=lambda x: x[0], reverse=False)
+
+        for idx, agent in enumerate(self.__agents):
+            agent.setIndex(idealIdxs[idx][1])
+
+            logging.info(f"[{agent.getName()}] Idx changed to: {idealIdxs[idx][1]}, was: {idx}")
