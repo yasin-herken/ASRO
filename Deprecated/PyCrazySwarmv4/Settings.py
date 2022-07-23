@@ -1,4 +1,5 @@
 import numpy
+import vg
 
 def getMagnitude(vector: numpy.ndarray) -> numpy.float64:
     return numpy.linalg.norm(vector)
@@ -29,12 +30,21 @@ def getRotationMatrix(degree) -> numpy.ndarray:
         ]
     )
 
+def unitVector(vector):
+    """ Returns the unit vector of the vector.  """
+    return vector / numpy.linalg.norm(vector)
+
 def angleBetween(vec1, vec2) -> float:
+    vec1 = unitVector(vec1)
+    vec2 = unitVector(vec2)
+
     vec1[2] = 0.0
     vec2[2] = 0.0
-    
-    inRadian = numpy.arccos(numpy.clip(numpy.dot(vec1, vec2), -1.0, 1.0))
-    return numpy.degrees(inRadian)
+
+    # inRadian = numpy.arccos(numpy.clip(numpy.dot(vec1, vec2), -1.0, 1.0))
+    angle = vg.angle(vec1, vec2, units='deg')
+
+    return angle
 
 def vec3(x = 0.00, y = 0.00, z = 0.00) -> numpy.ndarray:
     return numpy.array([x, y, z])

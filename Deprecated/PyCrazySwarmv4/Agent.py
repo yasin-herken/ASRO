@@ -133,11 +133,19 @@ class Agent:
 
                 angleDiff = Settings.angleBetween(self.getSwarmHeading(), self.__swarmDesiredHeading)
 
-                if (0.5 <= abs(angleDiff)):
-                    print(round(angleDiff, 2))
-                    # 1.0 for clockwise -1.0 for counter-clockwise
+                # Determine rotation direction 1.0 for counter-clockwise -1.0 for counterwise                
+                if (0.5 <= angleDiff):
                     rotDir = 1.0
-                    if self.getSwarmHeading()[0] <= self.__swarmDesiredHeading[0]:
+
+                    x1 = self.getSwarmHeading()[0]
+                    y1 = self.getSwarmHeading()[1]
+
+                    x2 = self.__swarmDesiredHeading[0]
+                    y2 = self.__swarmDesiredHeading[1]
+
+                    tempVal = x1 * y2 - x2 * y1
+
+                    if tempVal <= 0.0:
                         rotDir = -1.0
 
                     self.__rotationAngle += rotDir * 0.1
