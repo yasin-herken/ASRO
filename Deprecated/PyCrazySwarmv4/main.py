@@ -1,3 +1,4 @@
+"Control whole project here and decide which mission is run"
 import os
 import sys
 from typing import List
@@ -7,9 +8,9 @@ import select
 from threading import Thread
 import numpy as np
 
-import Settings
-from Agent import Agent
-from MissionControl import MissionControl
+import settings
+from agent import Agent
+from mission_control import MissionControl
 from pycrazyswarm import Crazyswarm
 
 def get_char(block = False) -> str:
@@ -53,7 +54,6 @@ def emergency_exit(agents: List[Agent]) -> None:
 def main() -> None:
     """Entry point for the ASRO software. Initializes the ROS server.
     Creates Agents and the Redis server which will be used by the WebApplication.
-    
     Checks the Redis 'control' channel for any new mission requests.
     If a new request exists, hands over the control to MissionControl.
     """
@@ -61,11 +61,9 @@ def main() -> None:
     agent_count = 5
 
     created_agents: List[Agent]
-    activa_agents: List[Agent]
+    activated_agents: List[Agent]
     created_agents = []
-    activa_agents = []
-    
-
+    activated_agents = []
     # Fix the issue where rospy disables the logging
     os.environ['ROS_PYTHON_LOG_CONFIG_FILE'] = "`rospack find rosgraph`/conf/python_logging.yaml"
 
@@ -80,39 +78,33 @@ def main() -> None:
     for idx, agent in enumerate(crazy_swarm.allcfs.crazyflies):
         created_agents.append(
             Agent(
-                cf=agent,
-                name=f"cf{agent.id}",
+                crazyflie=agent,
+                name=f"crazyflie{agent.id}",
                 idx=idx
             )
         )
 
-        logging.info(f"Created: cf{agent.id}")
+        logging.info(f"Created: crazyflie{agent.id}")
         crazy_swarm.timeHelper.sleep(1.0)
 
     # List of all active agents    
     for i in range(agent_count):
-        activa_agents.append(created_agents[i])
-    
+        activated_agents.append(created_agents[i])
     # Give the all agents' info to every other agent
     for agent in created_agents:
-        agent.setOtherAgents(activa_agents)
+        agent.set_other_agents(activated_agents)
 
     logging.info(f"Created all agents.")
-
-    # Log all agents' initialPos for debug
-    for agent in activa_agents:
-        logging.info(f"[{agent.getName()}] Initial position: {agent.getInitialPos().round(2)}")
 
     logging.info("Creating an instance of 'MissionControl'.")
 
     # Creating mission control    
     mission_control = MissionControl(
-        agents=activa_agents,
-        crazyServer=crazy_swarm
+        agents=activated_agents,
+        crazy_server=crazy_swarm
     )
-    
     # Start the watchdog
-    watchdog_thread = Thread(target=watch_dog, args=[activa_agents], daemon=True)
+    watchdog_thread = Thread(target=watch_dog, args=[activated_agents], daemon=True)
     watchdog_thread.start()
 
     logging.info("All ready! Listening... Press 'q' to exit.")
@@ -129,9 +121,9 @@ def main() -> None:
         sys.exit(0)
 
     elif "agent_trajectory_test" in sys.argv:
-        mission_control.takeOffAgent(activa_agents[0], 0.5, 2.0)
-        mission_control.goToAgent(
-            targetAgent=activa_agents[0],
+        mission_control.take_off_agent(activated_agents[0], 0.5, 2.0)
+        mission_control.goto_agent(
+            targetAgent=activated_agents[0],
             points=np.array(
                 [
                     [0.5, 0.0, 0.5],
@@ -146,58 +138,55 @@ def main() -> None:
             ),
             duration=5.0
         )
-        mission_control.landAgent(activa_agents[0], 5.0)
+        mission_control.land_agent(activated_agents[0], 5.0)
 
     elif "takeoff_land_test" in sys.argv:
         for i in range(3):
-            mission_control.takeOffAll(0.5, 2.0)
-            mission_control.landAll(2.0)
+            mission_control.take_off_all(0.5, 2.0)
+            mission_control.land_all(2.0)
             crazy_swarm.timeHelper.sleep(3.0)
 
     elif "formation_test" in sys.argv:
-        for i, agent in enumerate(activa_agents):
-            logging.info(f"Index: {i}, agent: {agent.getName()}")
-            
-        mission_control.takeOffAll(0.5, 2.0)
-        mission_control.takeFormation(Settings.v(), 10.0)
-        mission_control.landAll(5.0)
+        for i, agent in enumerate(activated_agents):
+            logging.info(f"Index: {i}, agent: {agent.get_name()}")
+        mission_control.take_off_all(0.5, 2.0)
+        mission_control.take_formation(settings.v_shape(), 10.0)
+        mission_control.land_all(5.0)
 
     elif "rotation_test" in sys.argv:
-        mission_control.takeOffAll(0.5, 2.0)
-        mission_control.takeFormation(Settings.pyramid(), 15.0)
-        mission_control.rotateSwarm(90.0, 15.0)
-        mission_control.rotateSwarm(-90.0, 15.0)
-        mission_control.rotateSwarm(-90.0, 15.0)
-        mission_control.rotateSwarm(90.0, 15.0)
-        mission_control.landAll(5.0)
+        mission_control.take_off_all(0.5, 2.0)
+        mission_control.take_formation(settings.pyramid(), 15.0)
+        mission_control.rotate_swarm(90.0, 15.0)
+        mission_control.rotate_swarm(-90.0, 15.0)
+        mission_control.rotate_swarm(-90.0, 15.0)
+        mission_control.rotate_swarm(90.0, 15.0)
+        mission_control.land_all(5.0)
 
     elif "swarm_trajectory_test" in sys.argv:
-        mission_control.takeOffAll(0.5, 3.0)
-        mission_control.takeFormation(Settings.pyramid(), 15.0)
-        mission_control.goToSwarm(np.array([[-3.0, -3.0, 0.5]]), 10.0)
-        mission_control.goToSwarm(np.array([[-3.0, 3.0, 0.5]]), 10.0)
-        mission_control.rotateSwarm(-90.0, 6.0)
-        mission_control.goToSwarm(np.array([[3.0, 3.0, 0.5]]), 10.0)
-        mission_control.rotateSwarm(-90.0, 6.0)
-        mission_control.goToSwarm(np.array([[3.0, -3.0, 0.5]]), 10.0)
-        mission_control.landAll(5.0)
-    
+        mission_control.take_off_all(0.5, 3.0)
+        mission_control.take_formation(settings.pyramid(), 15.0)
+        mission_control.goto_swarm(np.array([[-3.0, -3.0, 0.5]]), 10.0)
+        mission_control.goto_swarm(np.array([[-3.0, 3.0, 0.5]]), 10.0)
+        mission_control.rotate_swarm(-90.0, 6.0)
+        mission_control.goto_swarm(np.array([[3.0, 3.0, 0.5]]), 10.0)
+        mission_control.rotate_swarm(-90.0, 6.0)
+        mission_control.goto_swarm(np.array([[3.0, -3.0, 0.5]]), 10.0)
+        mission_control.land_all(5.0)
     elif "mission_one" in sys.argv:
-        mission_control.takeOffAll(0.5, 3.0)
-        mission_control.takeFormation(Settings.pyramid(), 15.0)
-        mission_control.goToSwarm(np.array([[0.0, 3.0, 0.5]]), 15.0)
-        mission_control.landAll(5.0)
-    
+        mission_control.take_off_all(0.5, 3.0)
+        mission_control.take_formation(settings.pyramid(), 15.0)
+        mission_control.goto_swarm(np.array([[0.0, 3.0, 0.5]]), 15.0)
+        mission_control.land_all(5.0)
     elif "mission_two" in sys.argv:
-        mission_control.takeOffAll(0.5, 3.0)
-        mission_control.takeFormation(Settings.pyramid(), 15.0)
-        mission_control.goToSwarm(np.array([[0.0, 3.0, 0.5]]), 15.0)
-        inactive_agents = list(set(created_agents) - set(activa_agents))
-        mission_control.swapSwarmAgents(activa_agents[-2:], inactive_agents, [10.0, 10.0, 10.0, 10.0])
-        mission_control.goToSwarm(np.array([[-3.0, 3.0, 0.5]]), 15.0)
-        mission_control.rotateSwarm(90.0, 6.0)
-        mission_control.goToSwarm(np.array([[-3.0, -3.0, 0.5]]), 15.0)
-        mission_control.landAll(5.0)
+        mission_control.take_off_all(0.5, 3.0)
+        mission_control.take_formation(settings.pyramid(), 15.0)
+        mission_control.goto_swarm(np.array([[0.0, 3.0, 0.5]]), 15.0)
+        inactive_agents = list(set(created_agents) - set(activated_agents))
+        mission_control.swap_swarm_agents(activated_agents[-2:], inactive_agents, [10.0, 10.0, 10.0, 10.0])
+        mission_control.goto_swarm(np.array([[-3.0, 3.0, 0.5]]), 15.0)
+        mission_control.rotate_swarm(90.0, 6.0)
+        mission_control.goto_swarm(np.array([[-3.0, -3.0, 0.5]]), 15.0)
+        mission_control.land_all(5.0)
 
     else:
         logging.info("Please specify the operation by giving an argument")

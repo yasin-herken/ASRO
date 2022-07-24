@@ -116,6 +116,7 @@ def calculate_matrix(matrix:numpy.ndarray,matrix_length:float):
             if i!=j:
                 twod_list[i][j] = matrix[j] - matrix[i]
     return numpy.array(twod_list)
+
 def nine_pyramid()->numpy.ndarray:
     "return formation matrix for the nine_pyramid shape with nine agents"
     ret_value = numpy.array([
@@ -211,4 +212,3 @@ def crescent()->numpy.ndarray:
     return calculate_matrix(ret_value,matrix_length=matrix_length)
 if __name__=="__main__":
     print(triangle())
-    

@@ -3,8 +3,8 @@ import logging
 import time
 from typing import List
 import numpy as np
-import Settings
-from Agent import Agent
+import settings
+from agent import Agent
 from pycrazyswarm import Crazyswarm
 
 class MissionControl:
@@ -91,7 +91,7 @@ class MissionControl:
         for agent1 in self.__agents:
             for agent2 in self.__agents:
                 if agent1 is not agent2:
-                    print(f"{agent1.getName()} {agent2.getName()} -> {round(Settings.getDistance(agent1.get_pos(), agent2.get_pos()), 2)}")
+                    print(f"{agent1.get_name()} {agent2.get_name()} -> {round(settings.get_distance(agent1.get_pos(), agent2.get_pos()), 2)}")
         logging.info(f"Ending mission take_formation with success.")
 
         return ret_value
@@ -335,7 +335,7 @@ class MissionControl:
         """
         ret_value = False
 
-        logging.info(f"Starting mission goto_agent. Target is '{target_agent.getName()}'")
+        logging.info(f"Starting mission goto_agent. Target is '{target_agent.get_name()}'")
 
         # Itarete over the points
         for i, point in enumerate(points):
@@ -351,7 +351,7 @@ class MissionControl:
 
             # Last point
             if i == len(points) - 1:
-                logging.info(f"Ending mission goto_agent with success. Target was '{target_agent.getName()}'")
+                logging.info(f"Ending mission goto_agent with success. Target was '{target_agent.get_name()}'")
                 ret_value = True
 
             target_agent.set_trajectory_active(False)
