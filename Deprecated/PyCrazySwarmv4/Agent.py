@@ -32,9 +32,11 @@ class Agent:
     __isSwarming: bool
     __isInFormation: bool
     __formationMatrix: np.ndarray
+    __rotationAngle: float
     __swarmHeading: np.ndarray
     __swarmDesiredHeading: np.ndarray
     __swarmMinDistance: float
+    __angleOffset: float
 
     __targetPoint: np.ndarray
     __targetHeight: float
@@ -74,9 +76,11 @@ class Agent:
         self.__isSwarming = False
         self.__isInFormation = False
         self.__formationMatrix = np.array([0.0])
+        self.__rotationAngle = 0.0
         self.__swarmHeading = np.array([0.0, 0.0, 0.0])
-        self.__swarmDesiredHeading = np.array([0.0, 0.0, 0.0])
+        self.__swarmDesiredHeading = np.array([0.0, 1.0, 0.0])
         self.__swarmMinDistance = 0.15
+        self.__angleOffset = 0.0
 
         self.__targetPoint = np.array([0.0, 0.0, 0.0])
         self.__targetHeight = 0.0
@@ -107,7 +111,7 @@ class Agent:
         except:
             logging.info(f"[{self.getName()}] Failed to start the daemon update thread")
 
-    def __formationControl(self) -> np.ndarray:
+    def formationControl(self) -> np.ndarray:
         """Calculates the formation 'force' to be applied to the agent.
         This calculation moves the agent into formation.
         
@@ -125,23 +129,34 @@ class Agent:
                 distanceToOtherAgent = agent.getPos() - self.getPos()
 
                 distanceToDesiredPoint = self.getFormationMatrix()[self.__index][i]
+                # print(f"[{self.getName()}] {distanceToDesiredPoint.round(4)}")
 
                 angleDiff = Settings.angleBetween(self.getSwarmHeading(), self.__swarmDesiredHeading)
-                rotationMatrix = Settings.getRotationMatrix(0.0)
 
-                # 1.0 for clockwise -1.0 for counter-clockwise
-                rotDir = 1.0
-                if self.getSwarmHeading()[0] <= self.__swarmDesiredHeading[0]:
-                    rotDir = -1.0
+                # Determine rotation direction 1.0 for counter-clockwise -1.0 for counterwise                
+                if (0.5 <= angleDiff):
+                    rotDir = 1.0
 
-                if (0.5 <= abs(angleDiff)):
-                    rotationMatrix = Settings.getRotationMatrix(rotDir * min(angleDiff, 5.0))
-            
+                    x1 = self.getSwarmHeading()[0]
+                    y1 = self.getSwarmHeading()[1]
+
+                    x2 = self.__swarmDesiredHeading[0]
+                    y2 = self.__swarmDesiredHeading[1]
+
+                    tempVal = x1 * y2 - x2 * y1
+
+                    if tempVal <= 0.0:
+                        rotDir = -1.0
+
+                    self.__rotationAngle += rotDir * 0.1
+
+                rotationMatrix = Settings.getRotationMatrix(self.__rotationAngle)
+
                 retValue += (distanceToOtherAgent - np.dot(rotationMatrix, distanceToDesiredPoint))
 
-        return retValue
+        return retValue * Settings.FORMATION_CONST
     
-    def __avoidanceControl(self) -> np.ndarray:
+    def avoidanceControl(self) -> np.ndarray:
         """Calculates the avoidance 'force' to be applied to the agent.
         This calculation keeps the agent away from the obstacles.
 
@@ -170,7 +185,7 @@ class Agent:
 
         return retValue
     
-    def __trajectoryControl(self) -> np.ndarray:
+    def trajectoryControl(self) -> np.ndarray:
         """Calculates the trajectory 'force' to be applied to the agent.
         This calculation moves the agent towards the target point.
 
@@ -193,7 +208,7 @@ class Agent:
 
         retValue = self.getTargetPoint() - swarmCenter
         
-        return retValue
+        return retValue * Settings.TRAJECTORY_CONST
     
     def __updateVariables(self):
         self.setPos(self.__crazyflie.position())
@@ -217,7 +232,20 @@ class Agent:
 
             frontAgent = self.getOtherAgents()[0]
             distanceToFrontAgentFromSwarmCenter = frontAgent.getPos() - swarmCenter
-            self.setSwarmHeading(distanceToFrontAgentFromSwarmCenter / np.linalg.norm(distanceToFrontAgentFromSwarmCenter))
+
+            heading = distanceToFrontAgentFromSwarmCenter / np.linalg.norm(distanceToFrontAgentFromSwarmCenter)
+
+            # Angle offset
+            heading = np.dot(Settings.getRotationMatrix(self.getAngleOffset()), heading)
+
+            self.setSwarmHeading(heading)
+
+    def getIndex(self) -> int:
+        self.__lock.acquire()
+        index = self.__index
+        self.__lock.release()
+
+        return index
 
     def getName(self) -> str:
         self.__lock.acquire()
@@ -289,6 +317,13 @@ class Agent:
         
         return otherAgents
     
+    def getAngleOffset(self) -> float:
+        self.__lock.acquire()
+        angleOffset = self.__angleOffset
+        self.__lock.release()
+        
+        return angleOffset
+    
     def isFormationActive(self) -> bool:
         self.__lock.acquire()
         isActive = self.__isFormationActive
@@ -324,6 +359,14 @@ class Agent:
         
         return isSwarming
     
+    def setIndex(self, index) -> int:
+        self.__lock.acquire()
+        old = self.__index
+        self.__index = index
+        self.__lock.release()
+
+        return True
+
     def setIsInFormation(self, status: bool) -> bool:
         self.__lock.acquire()
         self.__isInFormation = status
@@ -410,6 +453,13 @@ class Agent:
 
         return True
 
+    def setAngleOffset(self, angleOffset: float) -> bool:
+        self.__lock.acquire()
+        self.__angleOffset = angleOffset
+        self.__lock.release()
+        
+        return True
+
     def setRotation(self, degree: float) -> bool:
         self.__lock.acquire()
         self.__swarmDesiredHeading = np.dot(Settings.getRotationMatrix(degree), self.__swarmHeading)
@@ -469,26 +519,27 @@ class Agent:
             self.__updateVariables()
 
             if self.isFormationActive():
-                formationVel = 0.35 * self.__formationControl()
+                formationVel = self.formationControl()
 
             if self.isAvoidanceActive():
-                avoidanceVel = self.__avoidanceControl()
+                avoidanceVel = self.avoidanceControl()
 
             if self.isTrajectoryActive():
-                trajectoryVel = self.__trajectoryControl()
+                trajectoryVel = self.trajectoryControl()
 
-            # Limit swarm control values
-            if self.getMaxSpeed() < Settings.getMagnitude(trajectoryVel):
-                trajectoryVel = Settings.setMagnitude(trajectoryVel, self.getMaxSpeed())
+                # Limit swarm control values
+                if self.getMaxSpeed() < Settings.getMagnitude(trajectoryVel):
+                    trajectoryVel = Settings.setMagnitude(trajectoryVel, self.getMaxSpeed())
         
             # ---- Final velocity ---- # 
             controlVel = formationVel + avoidanceVel + trajectoryVel
             # ------------------------ #
 
             # Send the commanding message
+            # print(f"[{self.getName()}] {formationVel.round(4)}")
             self.__crazyflie.cmdVelocityWorld(controlVel, 0)
 
-            time.sleep(1 / 30)
+            time.sleep(1 / 100)
             self.__fps += 1
 
         return retValue

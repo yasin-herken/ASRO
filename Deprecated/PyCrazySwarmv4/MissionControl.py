@@ -1,4 +1,6 @@
+import enum
 import logging
+import hungarian
 import numpy as np
 import Settings
 import time
@@ -76,6 +78,12 @@ class MissionControl:
         # Activate and give the formation parameters
         for agent in self.__agents:
             agent.setFormationMatrix(formationMatrix)
+
+        
+
+        # Activate the formationControl and swarming
+        for agent in self.__agents:
+            agent.setTrajectoryActive(False)
             agent.setFormationActive(True)
             agent.setSwarming(True)
 
@@ -86,12 +94,13 @@ class MissionControl:
         while t2 - t1 <= duration:
             self.__update()
             t2 = time.perf_counter()
-
+    
         # Print the distances between
         for agent1 in self.__agents:
             for agent2 in self.__agents:
                 if agent1 is not agent2:
                     print(f"{agent1.getName()} {agent2.getName()} -> {round(Settings.getDistance(agent1.getPos(), agent2.getPos()), 2)}")
+
 
         logging.info(f"Ending mission takeFormation with success.")
 
