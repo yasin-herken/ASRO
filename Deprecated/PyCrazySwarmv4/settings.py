@@ -1,10 +1,16 @@
+"""
+    Global variable and function is decleared
+"""
 import numpy
+
 import vg
 
-def getMagnitude(vector: numpy.ndarray) -> numpy.float64:
+def get_magnitude(vector: numpy.ndarray) -> numpy.float64:
+    "return magnitude of matrix"
     return numpy.linalg.norm(vector)
 
-def setMagnitude(vector: numpy.ndarray, factor: float) -> numpy.ndarray:
+def set_magnitude(vector: numpy.ndarray, factor: float) -> numpy.ndarray:
+    "set magnitude of matrix"
     magnitude = numpy.linalg.norm(vector)
 
     if magnitude == 0.0:
@@ -16,10 +22,12 @@ def setMagnitude(vector: numpy.ndarray, factor: float) -> numpy.ndarray:
 
     return numpy.array([newX, newY, newZ])
 
-def getDistance(vector1: numpy.ndarray, vector2: numpy.ndarray):
+def get_distance(vector1: numpy.ndarray, vector2: numpy.ndarray):
+    "scaler distance between two vectors"
     return numpy.linalg.norm(vector1 - vector2)
 
-def getRotationMatrix(degree) -> numpy.ndarray:
+def get_rotation_matrix(degree) -> numpy.ndarray:
+    "return rotation matrix after taking degree of rotation"
     radian = degree * (numpy.pi / 180.0)
 
     return numpy.array(
@@ -30,13 +38,14 @@ def getRotationMatrix(degree) -> numpy.ndarray:
         ]
     )
 
-def unitVector(vector):
+def unit_vector(vector):
     """ Returns the unit vector of the vector.  """
     return vector / numpy.linalg.norm(vector)
 
-def angleBetween(vec1, vec2) -> float:
-    vec1 = unitVector(vec1)
-    vec2 = unitVector(vec2)
+def angle_between(vec1, vec2) -> float:
+    "return angle between two vectors"
+    vec1 = unit_vector(vec1)
+    vec2 = unit_vector(vec2)
 
     vec1[2] = 0.0
     vec2[2] = 0.0
@@ -46,8 +55,9 @@ def angleBetween(vec1, vec2) -> float:
 
     return angle
 
-def vec3(x = 0.00, y = 0.00, z = 0.00) -> numpy.ndarray:
-    return numpy.array([x, y, z])
+def vec3(x_val = 0.00, y_val = 0.00, z_val = 0.00) -> numpy.ndarray:
+    "return 3d vector"
+    return numpy.array([x_val, y_val, z_val])
 
 FORMATION_OFFSET = 0.5
 
@@ -93,64 +103,22 @@ FORMATION_HEXAGON = numpy.array(
     ]
 ) * FORMATION_OFFSET
 
-# 3D - Better, stronger and harder
-def pyramid() -> numpy.ndarray:
-    
-    zero_one = vec3(0.00, 1.00, 0.00) * FORMATION_OFFSET
-    zero_two = vec3(1.00, 1.00, 0.00) * FORMATION_OFFSET
-    zero_three = vec3(1.00, 0.00, 0.00) * FORMATION_OFFSET
-    zero_four = vec3(0.50, 0.50, 0.50) * FORMATION_OFFSET
-
-    one_two = vec3(1.00, 0.00, 0.00) * FORMATION_OFFSET
-    one_three = vec3(1.00, -1.00, 0.00) * FORMATION_OFFSET
-    one_four = vec3(0.50, -0.50, 0.50) * FORMATION_OFFSET
-
-    two_three = vec3(0.00, -1.00, 0.00) * FORMATION_OFFSET
-    two_four = vec3(-0.50, -0.50, 0.50) * FORMATION_OFFSET
-
-    three_four = vec3(-0.50, 0.50, 0.50) * FORMATION_OFFSET
-
-    ret_value = numpy.array(
-        [
-            [vec3(), zero_one, zero_two, zero_three, zero_four],
-            [-zero_one, vec3(), one_two, one_three, one_four],
-            [-zero_two, -one_two, vec3(), two_three, two_four],
-            [-zero_three, -one_three, -two_three, vec3(), three_four],
-            [-zero_four, -one_four, -two_four, -three_four, vec3()],
-        ]
-    )
-
-    return ret_value
-
-def triangle() -> numpy.ndarray:
-    zero_one = vec3(1.00, 0.00, 0.00)
-    zero_two = vec3(0.50, 1.00, 0.00)
-    
-    one_two = vec3(-0.5, 1.0, 0.0)
-
-    ret_value = numpy.array(
-        [
-            [vec3(), zero_one, zero_two],
-            [-zero_one, vec3(), one_two],
-            [-zero_two, -one_two, vec3()]
-        ]
-    )
-
-    return ret_value
-def calculate_Matrix(matrix:numpy.ndarray,matrixLength:float):
-    twod_list = []                                                   
-    for i in range (matrixLength):                               
-        new = []                 
-        for j in range (matrixLength):    
-            new.append([0.0,0.0,0.0])      
-        twod_list.append(new)  
-    for i in range(len(twod_list)):
-        for j in range(len(twod_list[i])):
-            if(i!=j):
+def calculate_matrix(matrix:numpy.ndarray,matrix_length:float):
+    "Calculation of formation matrix after getting final position of each agents"
+    twod_list = []
+    for i in range(matrix_length):
+        new = []
+        for j in range(matrix_length):
+            new.append([0.0,0.0,0.0])
+        twod_list.append(new)
+    for i in range(matrix_length):
+        for j in range(matrix_length):
+            if i!=j:
                 twod_list[i][j] = matrix[j] - matrix[i]
     return numpy.array(twod_list)
 def nine_pyramid()->numpy.ndarray:
-    retValue = numpy.array([
+    "return formation matrix for the nine_pyramid shape with nine agents"
+    ret_value = numpy.array([
         [-0.5,-0.5,0.0],
         [0.5,-0.5,0.0],
         [0.5,0.5,0.0],
@@ -161,10 +129,11 @@ def nine_pyramid()->numpy.ndarray:
         [-0.5,0.5,1.0],
         [0.5+0.5*numpy.sqrt(3),0.0,0.5]
     ])* FORMATION_OFFSET
-    matrixLength = int(retValue.size/3)
-    return calculate_Matrix(retValue,matrixLength=matrixLength)
+    matrix_length = int(ret_value.size/3)
+    return calculate_matrix(ret_value,matrix_length=matrix_length)
 def cube()->numpy.ndarray:
-    retValue = numpy.array([
+    "return formation matrix for the cube shape with 8 agents"
+    ret_value = numpy.array([
         [-0.5,-0.5,0.0],
         [0.5,-0.5,0.0],
         [0.5,0.5,0.0],
@@ -174,10 +143,11 @@ def cube()->numpy.ndarray:
         [0.5,0.5,1.0],
         [-0.5,0.5,1.0]
     ])* FORMATION_OFFSET
-    matrixLength = int(retValue.size/3)
-    return calculate_Matrix(retValue,matrixLength=matrixLength)
+    matrix_length = int(ret_value.size/3)
+    return calculate_matrix(ret_value,matrix_length=matrix_length)
 def triangle_prism():
-    retValue = numpy.array([
+    "return formation matrix for the triangle prism shape with 6 agents"
+    ret_value = numpy.array([
         [-0.5,0.0,0.0],
         [0.5,0.0,0.0],
         [0,0.5*numpy.sqrt(3),0.0],
@@ -185,52 +155,60 @@ def triangle_prism():
         [0.5,0.0,1.0],
         [0,0.5*numpy.sqrt(3),1.0]
     ])
-    matrixLength = int(retValue.size/3)
-    return calculate_Matrix(retValue,matrixLength=matrixLength)
+    matrix_length = int(ret_value.size/3)
+    return calculate_matrix(ret_value,matrix_length=matrix_length)
 def square_pyramid():
-    retValue = numpy.array([
+    "return formation matrix for the square pyramid shape with 4 agents"
+    ret_value = numpy.array([
         [-0.5,-0.5,0.0],
         [0.5,-0.5,0.0],
         [0.5,0.5,0.0],
         [-0.5,0.5,0.0],
         [0.0,0.0,0.5*numpy.sqrt(3)]
     ])* FORMATION_OFFSET
-    matrixLength = int(retValue.size/3)
-    return calculate_Matrix(retValue,matrixLength=matrixLength)
+    matrix_length = int(ret_value.size/3)
+    return calculate_matrix(ret_value,matrix_length=matrix_length)
 def square():
-    retValue = numpy.array([
+    "return formation matrix for the square(2d) shape with 4 agents"
+    ret_value = numpy.array([
         [-0.5,-0.5,0.0],
         [0.5,-0.5,0.0],
         [0.5,0.5,0.0],
         [-0.5,0.5,0.0],
     ])* FORMATION_OFFSET
-    matrixLength = int(retValue.size/3)
-    return calculate_Matrix(retValue,matrixLength=matrixLength)
-def v():
-    retValue = numpy.array([
+    matrix_length = int(ret_value.size/3)
+    return calculate_matrix(ret_value,matrix_length=matrix_length)
+def v_shape():
+    "return formation matrix for the V shape with 5 agents"
+    ret_value = numpy.array([
         [-1.0,0.0,0.0],
         [-0.5,1.0,0.0],
         [0.0,2.0,0.0],
         [0.5,1.0,0.0],
         [1.0,0.0,0.0]
     ])*FORMATION_OFFSET
-    matrixLength = int(retValue.size/3)
-    return calculate_Matrix(retValue,matrixLength=matrixLength)
+    matrix_length = int(ret_value.size/3)
+    return calculate_matrix(ret_value,matrix_length=matrix_length)
 def triangle()->numpy.ndarray:
-    retValue = numpy.array([
+    "return formation matrix for the triangle(2d) shape with 3 agents"
+    ret_value = numpy.array([
         [-0.5,0.0,0.0],
         [0.5,0.0,0.0],
         [0.0,0.5*numpy.sqrt(3),0.0]
     ])*FORMATION_OFFSET
-    matrixLength = int(retValue.size/3)
-    return calculate_Matrix(retValue,matrixLength=matrixLength)
+    matrix_length = int(ret_value.size/3)
+    return calculate_matrix(ret_value,matrix_length=matrix_length)
 def crescent()->numpy.ndarray:
-    retValue = numpy.array([
+    "return formation matrix for the crescent shape with 5 agents"
+    ret_value = numpy.array([
         [-0.5,0.0,0.0],
         [-numpy.sqrt(2)/4,numpy.sqrt(2)/4,0.0],
         [0.0,0.5,0.0],
         [numpy.sqrt(2)/4,numpy.sqrt(2)/4,0.0],
         [0.5,0.0,0.0]
     ])*FORMATION_OFFSET
-    matrixLength = int(retValue.size/3)
-    return calculate_Matrix(retValue,matrixLength=matrixLength)
+    matrix_length = int(ret_value.size/3)
+    return calculate_matrix(ret_value,matrix_length=matrix_length)
+if __name__=="__main__":
+    print(triangle())
+    

@@ -1,10 +1,9 @@
+"Control mission for each agents"
 import logging
-import hungarian
+import time
+from typing import List
 import numpy as np
 import Settings
-import time
-
-from typing import List
 from Agent import Agent
 from pycrazyswarm import Crazyswarm
 
@@ -12,21 +11,18 @@ class MissionControl:
     """Handles the agent operations depending on the mission on hand.
     """
     __agents: List[Agent]
-    __crazyServer: Crazyswarm
+    __crazy_server: Crazyswarm
 
     counter1 = time.perf_counter()
     counter2 = time.perf_counter()
-    
-    def __init__(self, agents: List[Agent], crazyServer: Crazyswarm):
+    def __init__(self, agents: List[Agent], crazy_server: Crazyswarm):
         """Initialize the MissionControl.
 
         Args:
             agents (List[Agent]): Agents to be operated.
         """
         self.__agents = agents
-        self.__crazyServer = crazyServer
-
-        return
+        self.__crazy_server = crazy_server
 
     def __update(self) -> bool:
         """Update the agents
@@ -35,7 +31,7 @@ class MissionControl:
             bool: Specifies whether the operation was successfull or not.
         """
         
-        self.__crazyServer.timeHelper.sleep(1 / 100)
+        self.__crazy_server.timeHelper.sleep(1 / 100)
 
         return True
 
@@ -407,7 +403,7 @@ class MissionControl:
                 self.__update()
                 t2 = time.perf_counter()
 
-            self.__crazyServer.timeHelper.sleep(2)
+            self.__crazy_server.timeHelper.sleep(2)
 
             # Last point
             if i == len(points) - 1:
