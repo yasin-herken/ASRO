@@ -543,14 +543,12 @@ class Agent:
                 self.setState(newState)
         
             # ---- Final velocity ---- # 
-            controlVel = 0.33 * formationVel + avoidanceVel + trajectoryVel
+            controlVel = Settings.FORMATION_CONTROL_GAİN * formationVel + avoidanceVel + trajectoryVel
             # ------------------------ #
 
             # Send the commanding message
-            if self.getState() == "STATIONARY":
-                self.__crazyflie.cmdStop()
-            else:
-                self.__crazyflie.cmdVelocityWorld(controlVel, 0)
+            
+            self.__crazyflie.cmdVelocityWorld(controlVel, 0)
 
             time.sleep(1 / 50)
             self.__fps += 1

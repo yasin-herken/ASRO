@@ -41,6 +41,9 @@ BETA = 1.21 # Logarithmic multipler (more BETA means less tolerance)
 
 FORMATION_OFFSET = 1.0
 
+FORMATION_CONTROL_GAIN = 0.15
+FORMATION_TRAJECTORY_GAIN = 2.0
+
 # 2D - This is wrong do not use this!
 FORMATION_TRIANGLE = numpy.array(
     [
