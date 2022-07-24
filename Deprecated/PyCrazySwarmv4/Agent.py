@@ -1,5 +1,4 @@
 import logging
-from typing import Set
 import numpy as np
 import Settings
 import time
@@ -7,9 +6,6 @@ from threading import Thread, Lock
 
 # Remove the word 'Sim' in order to run IRL !!!
 from pycrazyswarm.crazyflie import Crazyflie
-from pycrazyswarm.crazyswarm_py import Crazyswarm
-
-from Settings import ALPHA, BETA
 
 class Agent:
     """This class represents the real-world agent.
@@ -40,6 +36,13 @@ class Agent:
 
     __targetPoint: np.ndarray
     __targetHeight: float
+
+    # Constants
+    __formationConst: float
+    __trajectoryConst: float
+
+    __alpha:float # Overall force multiplier (more ALPHA means more aggressive behaviour)
+    __beta: float # Logarithmic multipler (more BETA means less tolerance)
     
     # time points
     __t1: float
@@ -77,9 +80,9 @@ class Agent:
         self.__isInFormation = False
         self.__formationMatrix = np.array([0.0])
         self.__rotationAngle = 0.0
-        self.__swarmHeading = np.array([0.0, 0.0, 0.0])
+        self.__swarmHeading = np.array([0.01, 0.01, 0.0])
         self.__swarmDesiredHeading = np.array([0.0, 1.0, 0.0])
-        self.__swarmMinDistance = 0.15
+        self.__swarmMinDistance = 0.50
         self.__angleOffset = 0.0
 
         self.__targetPoint = np.array([0.0, 0.0, 0.0])
@@ -89,6 +92,11 @@ class Agent:
         self.__vel = np.array([0.0, 0.0, 0.0])
         self.__speed = 0.0
         self.__maxSpeed = 0.5
+
+        self.__formationConst = 0.15
+        self.__trajectoryConst = 0.20
+        self.__alpha = 0.15
+        self.__beta = 1.21
 
         self.__t1 = time.perf_counter()
         self.__t2 = time.perf_counter()
@@ -154,7 +162,7 @@ class Agent:
 
                 retValue += (distanceToOtherAgent - np.dot(rotationMatrix, distanceToDesiredPoint))
 
-        return retValue * Settings.FORMATION_CONST
+        return retValue * self.__formationConst
     
     def avoidanceControl(self) -> np.ndarray:
         """Calculates the avoidance 'force' to be applied to the agent.
@@ -178,8 +186,8 @@ class Agent:
 
                     # repellentVelocity that 'pushes' the agent away from the other agent
                     repellentVelocity = distanceToOtherAgent / np.linalg.norm(distanceToOtherAgent)
-                    repellentForce = ALPHA * (
-                        pow(np.e, -(BETA*distanceToOtherAgentScaler) - pow(np.e, -(BETA*self.__swarmMinDistance)))
+                    repellentForce = self.__alpha * (
+                        pow(np.e, -(self.__beta * distanceToOtherAgentScaler) - pow(np.e, -(self.__beta * self.__swarmMinDistance)))
                     )
                     retValue += repellentVelocity * (-repellentForce)
 
@@ -207,7 +215,7 @@ class Agent:
 
         retValue = self.getTargetPoint() - swarmCenter
         
-        return retValue * Settings.TRAJECTORY_CONST
+        return retValue * self.__trajectoryConst
     
     def __updateVariables(self):
         self.setPos(self.__crazyflie.position())
@@ -302,6 +310,13 @@ class Agent:
         
         return maxSpeed
     
+    def getFormationConst(self) -> float:
+        self.__lock.acquire()
+        formationConst = self.__formationConst
+        self.__lock.release()
+        
+        return formationConst
+    
     def getSwarmHeading(self) -> np.ndarray:
         self.__lock.acquire()
         heading = np.array(self.__swarmHeading)
@@ -371,6 +386,13 @@ class Agent:
         self.__isInFormation = status
         self.__lock.release()
 
+        return True
+
+    def setFormationConst(self, formationConst: float) -> bool:
+        self.__lock.acquire()
+        self.__formationConst = formationConst
+        self.__lock.release()
+        
         return True
 
     def setTargetPoint(self, target: np.ndarray) -> bool:
@@ -522,6 +544,8 @@ class Agent:
 
             if self.isAvoidanceActive():
                 avoidanceVel = self.avoidanceControl()
+                if 0.0 < Settings.getMagnitude(avoidanceVel):
+                    logging.info(f"[{self.getName()}] Possible crash avoidance active!")
 
             if self.isTrajectoryActive():
                 trajectoryVel = self.trajectoryControl()
@@ -538,7 +562,7 @@ class Agent:
             # print(f"[{self.getName()}] {formationVel.round(4)}")
             self.__crazyflie.cmdVelocityWorld(controlVel, 0)
 
-            time.sleep(1 / 100)
+            time.sleep(1 / 50)
             self.__fps += 1
 
         return retValue

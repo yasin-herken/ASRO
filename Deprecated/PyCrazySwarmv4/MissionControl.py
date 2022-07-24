@@ -79,11 +79,10 @@ class MissionControl:
         for agent in self.__agents:
             agent.setFormationMatrix(formationMatrix)
 
-        
-
         # Activate the formationControl and swarming
         for agent in self.__agents:
             agent.setTrajectoryActive(False)
+            agent.setAvoidanceActive(True)
             agent.setFormationActive(True)
             agent.setSwarming(True)
 
@@ -94,7 +93,10 @@ class MissionControl:
         while t2 - t1 <= duration:
             self.__update()
             t2 = time.perf_counter()
-    
+
+        for agent in self.__agents:
+            agent.setFormationConst(1.25)
+
         # Print the distances between
         for agent1 in self.__agents:
             for agent2 in self.__agents:
@@ -103,16 +105,6 @@ class MissionControl:
 
 
         logging.info(f"Ending mission takeFormation with success.")
-
-        return retValue
-
-    def missionOne(self) -> bool:
-        """_summary_
-
-        Returns:
-            bool: Specifies whether the mission was successfull or not.
-        """
-        retValue = False
 
         return retValue
 
@@ -210,6 +202,7 @@ class MissionControl:
         for agent in self.__agents:
             retValue = agent.land()
             agent.setTrajectoryActive(True)
+            agent.setFormationActive(False)
             agent.setSwarming(False)
         
         t1 = time.perf_counter()
@@ -313,6 +306,8 @@ class MissionControl:
 
         for agent in self.__agents:
             agent.setRotation(angle)
+            agent.setTrajectoryActive(False)
+            agent.setFormationConst(0.15)
             agent.setFormationActive(True)
 
         t1 = time.perf_counter()
@@ -322,13 +317,13 @@ class MissionControl:
             self.__update()
             t2 = time.perf_counter()
 
+        for agent in self.__agents:
+            agent.setFormationConst(1.25)
+
         logging.info(f"Ending rotateSwarm with success. Total target count: {len(self.__agents)}")
 
         retValue = True
         
-        for agent in self.__agents:
-            agent.setFormationActive(False)
-
         return retValue
     
     def killSwitch(self) -> bool:

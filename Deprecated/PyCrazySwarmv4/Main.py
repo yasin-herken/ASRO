@@ -124,7 +124,7 @@ def main() -> None:
             ),
             duration=5.0
         )
-        missionControl.landAgent(agents[0], 2.0)
+        missionControl.landAgent(agents[0], 5.0)
 
     elif "takeoff_land_test" in sys.argv:
         for i in range(3):
@@ -138,7 +138,7 @@ def main() -> None:
             
         missionControl.takeOffAll(0.5, 2.0)
         missionControl.takeFormation(Settings.pyramid(), 10.0)
-        missionControl.landAll(2.0)
+        missionControl.landAll(5.0)
 
     elif "rotation_test" in sys.argv:
         missionControl.takeOffAll(0.5, 2.0)
@@ -147,21 +147,45 @@ def main() -> None:
         missionControl.rotateSwarm(-90.0, 15.0)
         missionControl.rotateSwarm(-90.0, 15.0)
         missionControl.rotateSwarm(90.0, 15.0)
-        missionControl.landAll(2.0)
+        missionControl.landAll(5.0)
 
     elif "swarm_trajectory_test" in sys.argv:
-        missionControl.takeOffAll(0.5, 2.0)
-        missionControl.takeFormation(Settings.pyramid(), 5.0)
+        missionControl.takeOffAll(0.5, 3.0)
+        missionControl.takeFormation(Settings.pyramid(), 15.0)
         missionControl.goToSwarm(np.array([[-3.0, -3.0, 0.5]]), 10.0)
         missionControl.goToSwarm(np.array([[-3.0, 3.0, 0.5]]), 10.0)
-        missionControl.rotateSwarm(-90.0, 5.0)
+        missionControl.rotateSwarm(-90.0, 6.0)
         missionControl.goToSwarm(np.array([[3.0, 3.0, 0.5]]), 10.0)
-        missionControl.rotateSwarm(-90.0, 5.0)
+        missionControl.rotateSwarm(-90.0, 6.0)
         missionControl.goToSwarm(np.array([[3.0, -3.0, 0.5]]), 10.0)
-        missionControl.landAll(2.0)
+        missionControl.landAll(5.0)
+    
+    elif "mission_one" in sys.argv:
+        missionControl.takeOffAll(0.5, 3.0)
+        missionControl.takeFormation(Settings.pyramid(), 15.0)
+        missionControl.goToSwarm(np.array([[0.0, 3.0, 0.5]]), 15.0)
+        missionControl.landAll(5.0)
+    
+    elif "mission_two" in sys.argv:
+        missionControl.takeOffAll(0.5, 3.0)
+        missionControl.takeFormation(Settings.pyramid(), 15.0)
+        missionControl.goToSwarm(np.array([[0.0, 3.0, 0.5]]), 15.0)
+        missionControl.landAll(5.0)
+
 
     else:
         logging.info("Please specify the operation by giving an argument")
+
+        print("\nAvailable parameters")
+        print("---------------------")
+        print("agent_trajectory_test")
+        print("takeoff_land_test")
+        print("formation_test")
+        print("rotation_test")
+        print("swarm_trajectory_test")
+        print("---------------------\n")
+
+        os._exit(0)
 
             
 if __name__ == "__main__":

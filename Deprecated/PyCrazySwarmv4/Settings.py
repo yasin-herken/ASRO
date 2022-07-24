@@ -8,7 +8,7 @@ def setMagnitude(vector: numpy.ndarray, factor: float) -> numpy.ndarray:
     magnitude = numpy.linalg.norm(vector)
 
     if magnitude == 0.0:
-        magnitude = 0.01
+        magnitude = 0.001
 
     newX = vector[0] * factor / magnitude
     newY = vector[1] * factor / magnitude
@@ -49,13 +49,7 @@ def angleBetween(vec1, vec2) -> float:
 def vec3(x = 0.00, y = 0.00, z = 0.00) -> numpy.ndarray:
     return numpy.array([x, y, z])
 
-FORMATION_CONST = 0.10
-TRAJECTORY_CONST = 0.3
-
-ALPHA = 0.15 # Overall force multiplier (more ALPHA means more aggressive behaviour)
-BETA = 1.21 # Logarithmic multipler (more BETA means less tolerance)
-
-FORMATION_OFFSET = 1.0
+FORMATION_OFFSET = 1.5
 
 # 2D - This is wrong do not use this!
 FORMATION_TRIANGLE = numpy.array(
