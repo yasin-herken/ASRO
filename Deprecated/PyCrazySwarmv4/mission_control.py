@@ -30,318 +30,300 @@ class MissionControl:
         Returns:
             bool: Specifies whether the operation was successfull or not.
         """
-        
         self.__crazy_server.timeHelper.sleep(1 / 100)
 
         return True
 
 
-    def __validateFormationMatrix(self, formationMatrix: np.ndarray) -> bool:
-        rowsCount = len(formationMatrix)
-        isValid = True
-        retValue = True
-        
-        for i in range(rowsCount):
-            columnsCount = len(formationMatrix[i])
-            if rowsCount != columnsCount:
-                isValid = False
-        
-        if (not isValid):
+    def __validate_formation_matrix(self, formation_matrix: np.ndarray) -> bool:
+        rows_count = len(formation_matrix)
+        is_valid = True
+        ret_value = True
+        for i in range(rows_count):
+            columns_count = len(formation_matrix[i])
+            if rows_count != columns_count:
+                is_valid = False
+        if not is_valid:
             logging.info("Formatin matrix is invalid. Rows and columns count do not match")
-            retValue = False
+            ret_value = False
+        if len(self.__agents) != rows_count:
+            logging.info(f"Agent count and formation_matrix does not match. Agents: {len(self.__agents)}, formation_matrix: {rows_count}x{rows_count}")
+            ret_value = False
 
-        if (len(self.__agents) != rowsCount):
-            logging.info(f"Agent count and formationMatrix does not match. Agents: {len(self.__agents)}, formationMatrix: {rowsCount}x{rowsCount}")
-            retValue = False
+        return ret_value
 
-        return retValue
-
-    def takeFormation(self, formationMatrix: np.ndarray, duration: float) -> bool:
+    def take_formation(self, formation_matrix: np.ndarray, duration: float) -> bool:
         """Takes the Agents into the specified formation.
 
         Returns:
             bool: Specifies whether the mission was successfull or not.
         """
-        retValue = False
-        logging.info("Starting mission takeFormation.")
+        ret_value = False
+        logging.info("Starting mission take_formation.")
 
-        # Check if formationMatrix matches the agent count
-        if (not self.__validateFormationMatrix(formationMatrix)):
+        # Check if formation_matrix matches the agent count
+        if not self.__validate_formation_matrix(formation_matrix):
             logging.info("Aborting!")
             return False
 
         # Activate and give the formation parameters
         for agent in self.__agents:
-            agent.setFormationMatrix(formationMatrix)
+            agent.set_formation_matrix(formation_matrix)
 
         # Activate the formationControl and swarming
         for agent in self.__agents:
-            agent.setTrajectoryActive(False)
-            agent.setAvoidanceActive(True)
-            agent.setFormationActive(True)
-            agent.setSwarming(True)
+            agent.set_trajectory_active(False)
+            agent.set_avoidance_active(True)
+            agent.set_formation_active(True)
+            agent.set_swarming(True)
 
         # Wait for the formation to happen
-        t1 = time.perf_counter()
-        t2 = time.perf_counter()
+        t1_val = time.perf_counter()
+        t2_val = time.perf_counter()
 
-        while t2 - t1 <= duration:
+        while t2_val - t1_val <= duration:
             self.__update()
-            t2 = time.perf_counter()
-
+            t2_val = time.perf_counter()
         for agent in self.__agents:
-            agent.setFormationConst(1.25)
+            agent.set_formation_const(1.25)
 
         # Print the distances between
         for agent1 in self.__agents:
             for agent2 in self.__agents:
                 if agent1 is not agent2:
-                    print(f"{agent1.getName()} {agent2.getName()} -> {round(Settings.getDistance(agent1.getPos(), agent2.getPos()), 2)}")
+                    print(f"{agent1.getName()} {agent2.getName()} -> {round(Settings.getDistance(agent1.get_pos(), agent2.get_pos()), 2)}")
+        logging.info(f"Ending mission take_formation with success.")
 
-
-        logging.info(f"Ending mission takeFormation with success.")
-
-        return retValue
+        return ret_value
     
-    def swapSwarmAgents(self, targetAgents: List[Agent], newAgents: List[Agent], durations: List[float]) -> bool:
+    def swap_swarm_agents(self, target_agents: List[Agent], new_agents: List[Agent], durations: List[float]) -> bool:
         """_summary_
 
         Args:
-            targetAgents (List[Agent]): _description_
-            newAgents (List[Agent]): _description_
+            target_agents (List[Agent]): _description_
+            new_agents (List[Agent]): _description_
             duration (float): _description_
 
         Returns:
             bool: _description_
         """
-        retValue = False
-        logging.info("Starting mission swapSwarmAgents.")
+        ret_value = False
+        logging.info("Starting mission swap_swarm_agents.")
 
-        if len(targetAgents) != len(newAgents):
-            logging.info("Size of targetAgents and newAgents are not the same! Aborting")
+        if len(target_agents) != len(new_agents):
+            logging.info("Size of target_agents and new_agents are not the same! Aborting")
             return False
 
         if len(durations) != 4:
             logging.info("Size of durations is not 4! Aborting")
             return False
- 
         # Stop formation forces
         for agent in self.__agents:
-            agent.setFormationActive(False)
-            agent.setSwarming(False)
-            pos = agent.getPos()
-            agent.setTargetPoint(pos)
+            agent.set_formation_active(False)
+            agent.set_swarming(False)
+            pos = agent.get_pos()
+            agent.set_target_point(pos)
 
         # Prepare the targetAgenys
         poses = []
-        for agent in targetAgents:
-            poses.append(agent.getPos())
-            agent.setTrajectoryActive(True)
-        
-        # Move the targetAgents back to their spawn point
-        for agent in targetAgents:
-            curPos = agent.getPos()
-            initialPos = agent.getInitialPos()
-            initialPos[2] = curPos[2]
-            agent.setTargetPoint(initialPos)
-        
+        for agent in target_agents:
+            poses.append(agent.get_pos())
+            agent.set_trajectory_active(True)
+        # Move the target_agents back to their spawn point
+        for agent in target_agents:
+            cur_pos = agent.get_pos()
+            initial_pos = agent.getInitialPos()
+            initial_pos[2] = cur_pos[2]
+            agent.set_target_point(initial_pos)
         # Wait for agents to go
-        t1 = time.perf_counter()
-        t2 = time.perf_counter()
+        t1_val = time.perf_counter()
+        t2_val = time.perf_counter()
 
-        while t2 - t1 <= durations[0]:
+        while t2_val - t1_val <= durations[0]:
             self.__update()
-            t2 = time.perf_counter()
-        
-        # Land the targetAgents
-        for agent in targetAgents:
+            t2_val = time.perf_counter()
+        # Land the target_agents
+        for agent in target_agents:
             agent.land()
-        
-        # Wait for targetAgents to land
-        t1 = time.perf_counter()
-        t2 = time.perf_counter()
+        # Wait for target_agents to land
+        t1_val = time.perf_counter()
+        t2_val = time.perf_counter()
 
-        while t2 - t1 <= durations[1]:
+        while t2_val - t1_val <= durations[1]:
             self.__update()
-            t2 = time.perf_counter()
-        
-        # Remove targetAgents from the agents list
-        for agent in targetAgents:
+            t2_val = time.perf_counter()
+        # Remove target_agents from the agents list
+        for agent in target_agents:
             self.__agents.remove(agent)
 
-        # Take off the newAgents
-        for agent in newAgents:
-            agent.takeOff(0.50)
-            agent.setAvoidanceActive(True)
-            agent.setTrajectoryActive(True)
+        # Take off the new_agents
+        for agent in new_agents:
+            agent.take_off(0.50)
+            agent.set_avoidance_active(True)
+            agent.set_trajectory_active(True)
         
         
-        # Wait for newAgents to takeOff
-        t1 = time.perf_counter()
-        t2 = time.perf_counter()
+        # Wait for new_agents to take_off
+        t1_val = time.perf_counter()
+        t2_val = time.perf_counter()
 
-        while t2 - t1 <= durations[2]:
+        while t2_val - t1_val <= durations[2]:
             self.__update()
-            t2 = time.perf_counter()
-        
-        # Move newAgents to their positions in the swarm
-        for idx, agent in enumerate(newAgents):
-            agent.setTargetPoint(poses[idx])
-        
-        # Wait for newAgents to move
-        t1 = time.perf_counter()
-        t2 = time.perf_counter()
+            t2_val = time.perf_counter() 
+        # Move new_agents to their positions in the swarm
+        for idx, agent in enumerate(new_agents):
+            agent.set_target_point(poses[idx])
+        # Wait for new_agents to move
+        t1_val = time.perf_counter()
+        t2_val = time.perf_counter()
 
-        while t2 - t1 <= durations[2]:
+        while t2_val - t1_val <= durations[2]:
             self.__update()
-            t2 = time.perf_counter()
+            t2_val = time.perf_counter()
 
-        # Finalize the newAgents
-        for idx, agent in enumerate(newAgents):
+        # Finalize the new_agents
+        for idx, agent in enumerate(new_agents):
             # Add them to the list
             self.__agents.append(agent)
 
-            # Give them the formationMatrix
-            agent.setFormationMatrix(targetAgents[idx].getFormationMatrix())
-        
+            # Give them the formation_matrix
+            agent.set_formation_matrix(target_agents[idx].get_formation_matrix())
+
             # Give them the rotationAngle
-            agent.setRotationAngle(targetAgents[idx].getRotationAngle())
+            agent.set_rotation_angle(target_agents[idx].get_rotation_angle())
 
             # Give them the formationConst
-            agent.setFormationConst(targetAgents[idx].getFormationConst())
+            agent.set_formation_const(target_agents[idx].get_formation_const())
 
             # Give them the swarm desiredHeding
-            agent.setSwarmDesiredHeading(targetAgents[idx].getSwarmDesiredHeading())
+            agent.set_swarm_desired_heading(target_agents[idx].get_swarm_desired_heading())
 
             # Swap the indexes
-            temp = targetAgents[idx].getIndex()
-            targetAgents[idx].setIndex(agent.getIndex())
-            agent.setIndex(temp)
-        
+            temp = target_agents[idx].get_index()
+            target_agents[idx].set_index(agent.get_index())
+            agent.set_index(temp)
+
         # Activate formation forces
         for agent in self.__agents:
-            agent.setFormationActive(True)
-            agent.setSwarming(True)
+            agent.set_formation_active(True)
+            agent.set_swarming(True)
 
-        logging.info(f"Ending mission swapSwarmAgents with success.")
+        logging.info(f"Ending mission swap_swarm_agents with success.")
 
-        retValue = True
-        
-        return retValue
+        ret_value = True
+
+        return ret_value
 
 
-    def takeOffAgent(self, agent: Agent, height: float, duration: float) -> bool:
+    def take_off_agent(self, agent: Agent, height: float, duration: float) -> bool:
         """Takes off the agent.
 
         Returns:
             bool: Specifies whether the mission was successfull or not.
         """
-        logging.info("Starting mission takeOffAgent.")
-        
-        retValue = False
+        logging.info("Starting mission take_off_agent.")
+        ret_value = False
 
-        agent.takeOff(height)
-        agent.setTrajectoryActive(True)
+        agent.take_off(height)
+        agent.set_trajectory_active(True)
 
-        t1 = time.perf_counter()
-        t2 = time.perf_counter()
+        t1_val = time.perf_counter()
+        t2_val = time.perf_counter()
 
-        while t2 - t1 <= duration:
+        while t2_val - t1_val <= duration:
             self.__update()
-            t2 = time.perf_counter()
+            t2_val = time.perf_counter()
 
 
-        logging.info(f"Ending mission takeOffAgent with success. Current height: {round(agent.getPos()[2], 2)}")
+        logging.info(f"Ending mission take_off_agent with success. Current height: {round(agent.get_pos()[2], 2)}")
 
-        agent.setTrajectoryActive(False)
+        agent.set_trajectory_active(False)
 
-        return retValue
+        return ret_value
     
-    def takeOffAll(self, height: float, duration: float) -> bool:
+    def take_off_all(self, height: float, duration: float) -> bool:
         """Takes off all the agents.
 
         Returns:
             bool: Specifies whether the mission was successfull or not.
         """
-        logging.info("Starting mission takeOffAll.")
-        
-        retValue = False
+        logging.info("Starting mission take_off_all.")
+        ret_value = False
 
         for agent in self.__agents:
-            retValue = agent.takeOff(height)
-            agent.setTrajectoryActive(True)
-    
-        t1 = time.perf_counter()
-        t2 = time.perf_counter()
+            ret_value = agent.take_off(height)
+            agent.set_trajectory_active(True)
 
-        while t2 - t1 <= duration:
+        t1_val = time.perf_counter()
+        t2_val = time.perf_counter()
+
+        while t2_val - t1_val <= duration:
             self.__update()
-            t2 = time.perf_counter()
+            t2_val = time.perf_counter()
 
 
-        logging.info(f"Ending mission takeOffAll with success. Total target count: {len(self.__agents)}")
+        logging.info(f"Ending mission take_off_all with success. Total target count: {len(self.__agents)}")
 
-        agent.setTrajectoryActive(False)
+        #agent.set_trajectory_active(False)
 
-        return retValue
+        return ret_value
 
-    def landAgent(self, agent: Agent, duration: float) -> bool:
+    def land_agent(self, agent: Agent, duration: float) -> bool:
         """Lands off the agent.
 
         Returns:
             bool: Specifies whether the mission was successfull or not.
         """
-        logging.info("Starting mission landAgent.")
+        logging.info("Starting mission land_agent.")
         
-        retValue = False
+        ret_value = False
 
         agent.land()
-        agent.setTrajectoryActive(True)
+        agent.set_trajectory_active(True)
 
-        t1 = time.perf_counter()
-        t2 = time.perf_counter()
+        t1_val = time.perf_counter()
+        t2_val = time.perf_counter()
 
-        while t2 - t1 <= duration:
+        while t2_val - t1_val <= duration:
             self.__update()
-            t2 = time.perf_counter()
+            t2_val = time.perf_counter()
 
-        logging.info(f"Ending mission landAgent with success. Current height: {round(agent.getPos()[2], 2)}")
+        logging.info(f"Ending mission land_agent with success. Current height: {round(agent.get_pos()[2], 2)}")
 
-        agent.setTrajectoryActive(False)
+        agent.set_trajectory_active(False)
 
-        return retValue
+        return ret_value
 
-    def landAll(self, duration: float):
+    def land_all(self, duration: float):
         """Lands all the agents.
 
         Returns:
             bool: Specifies whether the mission was successfull or not.
         """
-        retValue = False
+        ret_value = False
 
-        logging.info("Starting mission landAll.")
+        logging.info("Starting mission land_all.")
 
         for agent in self.__agents:
-            retValue = agent.land()
-            agent.setTrajectoryActive(True)
-            agent.setFormationActive(False)
-            agent.setSwarming(False)
-        
-        t1 = time.perf_counter()
-        t2 = time.perf_counter()
+            ret_value = agent.land()
+            agent.set_trajectory_active(True)
+            agent.set_formation_active(False)
+            agent.set_swarming(False)
+        t1_val = time.perf_counter()
+        t2_val = time.perf_counter()
 
-        while t2 - t1 <= duration:
+        while t2_val - t1_val <= duration:
             self.__update()
-            t2 = time.perf_counter()
+            t2_val = time.perf_counter()
 
 
         logging.info(f"Ending missionLandAll with success. Total target count: {len(self.__agents)}")
 
-        agent.setTrajectoryActive(False)
+        #agent.set_trajectory_active(False)
 
-        return retValue
+        return ret_value
 
-    def goToAgent(self, targetAgent: Agent, points: np.ndarray, duration: float) -> bool:
+    def goto_agent(self, target_agent: Agent, points: np.ndarray, duration: float) -> bool:
         """Moves the target agent to the specified point.
 
         Args:
@@ -351,32 +333,32 @@ class MissionControl:
         Returns:
             bool: Specifies whether the mission was successfull or not.
         """
-        retValue = False
+        ret_value = False
 
-        logging.info(f"Starting mission goToAgent. Target is '{targetAgent.getName()}'")
+        logging.info(f"Starting mission goto_agent. Target is '{target_agent.getName()}'")
 
         # Itarete over the points
         for i, point in enumerate(points):
-            targetAgent.setTargetPoint(np.array([point[0], point[1], point[2]]))
-            targetAgent.setTrajectoryActive(True)
+            target_agent.set_target_point(np.array([point[0], point[1], point[2]]))
+            target_agent.set_trajectory_active(True)
 
-            t1 = time.perf_counter()
-            t2 = time.perf_counter()
+            t1_val = time.perf_counter()
+            t2_val = time.perf_counter()
 
-            while t2 - t1 <= duration:
+            while t2_val - t1_val <= duration:
                 self.__update()
-                t2 = time.perf_counter()
+                t2_val = time.perf_counter()
 
             # Last point
             if i == len(points) - 1:
-                logging.info(f"Ending mission goToAgent with success. Target was '{targetAgent.getName()}'")
-                retValue = True
+                logging.info(f"Ending mission goto_agent with success. Target was '{target_agent.getName()}'")
+                ret_value = True
 
-            targetAgent.setTrajectoryActive(False)
-        
-        return retValue
+            target_agent.set_trajectory_active(False)
 
-    def goToSwarm(self, points: np.ndarray, duration: float) -> bool:
+        return ret_value
+
+    def goto_swarm(self, points: np.ndarray, duration: float) -> bool:
         """Moves the swarm of agents to the specified point.
 
         Args:
@@ -385,80 +367,77 @@ class MissionControl:
         Returns:
             bool: Specifies whether the mission was successfull or not.
         """
-        retValue = False
+        ret_value = False
 
-        logging.info(f"Starting mission goToAgent.")
+        logging.info(f"Starting mission goto_agent.")
 
         # Itarete over the points
         for i, point in enumerate(points):
             # Set target points and activate trajectory
             for agent in self.__agents:
-                agent.setTargetPoint(np.array([point[0], point[1], point[2]]))
-                agent.setTrajectoryActive(True)
+                agent.set_target_point(np.array([point[0], point[1], point[2]]))
+                agent.set_trajectory_active(True)
 
-            t1 = time.perf_counter()
-            t2 = time.perf_counter()
+            t1_val = time.perf_counter()
+            t2_val = time.perf_counter()
 
-            while t2 - t1 <= duration:
+            while t2_val - t1_val <= duration:
                 self.__update()
-                t2 = time.perf_counter()
+                t2_val = time.perf_counter()
 
             self.__crazy_server.timeHelper.sleep(2)
 
             # Last point
             if i == len(points) - 1:
-                logging.info(f"Ending mission goToSwarm with success. Total target count: {len(self.__agents)}'")
-                retValue = True
-        
+                logging.info(f"Ending mission goto_swarm with success. Total target count: {len(self.__agents)}'")
+                ret_value = True
             # Set target points and activate trajectory
             for agent in self.__agents:
-                agent.setTrajectoryActive(False)
-        
-        return retValue
+                agent.set_trajectory_active(False)
 
-    def rotateSwarm(self, angle: float, duration: float):
+        return ret_value
+
+    def rotate_swarm(self, angle: float, duration: float):
         """Rotates the swarm.
 
         Returns:
             bool: Specifies whether the operation was successfull or not.
         """
-        retValue = False
+        ret_value = False
 
-        logging.info(f"Starting mission rotateSwarm.")
+        logging.info(f"Starting mission rotate_swarm.")
 
         for agent in self.__agents:
             agent.setRotation(angle)
-            agent.setTrajectoryActive(False)
-            agent.setFormationConst(0.15)
-            agent.setFormationActive(True)
+            agent.set_trajectory_active(False)
+            agent.set_formation_const(0.15)
+            agent.set_formation_active(True)
 
-        t1 = time.perf_counter()
-        t2 = time.perf_counter()
+        t1_val = time.perf_counter()
+        t2_val = time.perf_counter()
 
-        while t2 - t1 <= duration:
+        while t2_val - t1_val <= duration:
             self.__update()
-            t2 = time.perf_counter()
+            t2_val = time.perf_counter()
 
         for agent in self.__agents:
-            agent.setFormationConst(1.25)
+            agent.set_formation_const(1.25)
 
-        logging.info(f"Ending rotateSwarm with success. Total target count: {len(self.__agents)}")
+        logging.info(f"Ending rotate_swarm with success. Total target count: {len(self.__agents)}")
 
-        retValue = True
-        
-        return retValue
-    
-    def killSwitch(self) -> bool:
+        ret_value = True
+
+        return ret_value
+    def kill_switch(self) -> bool:
         """Kills the agents in case of an emergency.
 
         Returns:
             bool: Specifies whether the operation was successfull or not.
         """
-        retValue = False
+        ret_value = False
 
         for agent in self.__agents:
             agent.kill()
-        retValue = True
-        
-        return retValue
+        ret_value = True
+        return ret_value
     
