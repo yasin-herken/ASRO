@@ -204,6 +204,7 @@ class Agent:
             np.ndarray: Calculated force. (Vector3)
         """
         retValue = np.array([0.0, 0.0, 0.0])
+        
         swarmCenter = np.array([0.0, 0.0, 0.0])
 
         if self.__isSwarming:

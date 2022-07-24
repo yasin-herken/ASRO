@@ -51,6 +51,9 @@ def vec3(x = 0.00, y = 0.00, z = 0.00) -> numpy.ndarray:
 
 FORMATION_OFFSET = 1.5
 
+FORMATION_CONTROL_GAIN = 0.15
+FORMATION_TRAJECTORY_GAIN = 2.0
+
 # 2D - This is wrong do not use this!
 FORMATION_TRIANGLE = numpy.array(
     [

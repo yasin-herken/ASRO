@@ -2,12 +2,12 @@ import React  from 'react';
 
 import "./NavigationBar.css";
 
-import Title from "../../static/Title.svg"
+import Title from "../../static/Title.js";
 
 function NavigatioBar() {
     return (
         <div className="NavigationBar">
-            <img src={Title} alt="YILDIZLARARASI Title" className='Title'/>
+            <Title alt="YILDIZLARARASI Title" className='Title' />
         </div>
     );
 }

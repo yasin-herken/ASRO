@@ -4,14 +4,20 @@ from typing import List
 import logging
 import select
 import numpy as np
-
 from pycrazyswarm import Crazyswarm
 
 import Settings
 from Agent import Agent
 from MissionControl import MissionControl
 from threading import Thread
-
+import cflib.crtp  # noqa
+from cflib.crazyflie import Crazyflie
+from cflib.crazyflie.log import LogConfig
+from cflib.utils import uri_helper
+import rospy
+from Publisher.pose_publisher import LoggingExample as Publish_Pose
+uri = uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E7')
+le = Publish_Pose(uri)
 def getChar(block = False):
     if block or select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
         return sys.stdin.read(1)

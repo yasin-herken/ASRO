@@ -16,8 +16,8 @@ import {
 import store from '../store';
 import axios from 'axios';
 
-// const hostAddress = "http://localhost:5000";
-const hostAddress = "http://10.211.55.12:5000";
+const hostAddress = "http://localhost:5000";
+//const hostAddress = "http://10.211.55.12:5000";
 
 export const takeOff = () => async (dispatch) => {
     // Get the selectedAgent
