@@ -82,7 +82,7 @@ class Agent:
         self.__rotationAngle = 0.0
         self.__swarmHeading = np.array([0.01, 0.01, 0.0])
         self.__swarmDesiredHeading = np.array([0.0, 1.0, 0.0])
-        self.__swarmMinDistance = 0.50
+        self.__swarmMinDistance = 0.15
         self.__angleOffset = 0.0
 
         self.__targetPoint = np.array([0.0, 0.0, 0.0])

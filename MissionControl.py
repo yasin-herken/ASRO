@@ -44,7 +44,7 @@ class MissionControl:
 
         return retValue
 
-    def takeFormation(self, formationMatrix: np.ndarray) -> bool:
+    def takeFormation(self, formationMatrix: np.ndarray,duration:float) -> bool:
         """Takes the Agents into the specified formation.
 
         Returns:

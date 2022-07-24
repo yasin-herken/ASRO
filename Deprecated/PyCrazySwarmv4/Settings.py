@@ -49,7 +49,7 @@ def angleBetween(vec1, vec2) -> float:
 def vec3(x = 0.00, y = 0.00, z = 0.00) -> numpy.ndarray:
     return numpy.array([x, y, z])
 
-FORMATION_OFFSET = 1.5
+FORMATION_OFFSET = 0.5
 
 FORMATION_CONTROL_GAIN = 0.15
 FORMATION_TRAJECTORY_GAIN = 2.0
@@ -137,26 +137,100 @@ def triangle() -> numpy.ndarray:
     )
 
     return ret_value
-
-if __name__ == "__main__":
-    def optimize():
-        # Find the optimal positions (index) for agents in a formation
-        distanceMatrix = np.empty((0, len(self.__agents)), float)
-        for agent in self.__agents:
-            row = []
-
-            for i in range(len(self.__agents)):
-                agent.setIndex(i)
-                dist =Settings.getMagnitude(agent.formationControl())
-                row.append(dist)
-            
-            distanceMatrix = np.append(distanceMatrix, np.array([row]), axis=0)
-
-        algo = hungarian.Hungarian()
-        algo.calculate(distanceMatrix)
-        idealIdxs = sorted(algo.get_results(), key=lambda x: x[0], reverse=False)
-
-        for idx, agent in enumerate(self.__agents):
-            agent.setIndex(idealIdxs[idx][1])
-
-            logging.info(f"[{agent.getName()}] Idx changed to: {idealIdxs[idx][1]}, was: {idx}")
+def calculate_Matrix(matrix:numpy.ndarray,matrixLength:float):
+    twod_list = []                                                   
+    for i in range (matrixLength):                               
+        new = []                 
+        for j in range (matrixLength):    
+            new.append([0.0,0.0,0.0])      
+        twod_list.append(new)  
+    for i in range(len(twod_list)):
+        for j in range(len(twod_list[i])):
+            if(i!=j):
+                twod_list[i][j] = matrix[j] - matrix[i]
+    return numpy.array(twod_list)
+def nine_pyramid()->numpy.ndarray:
+    retValue = numpy.array([
+        [-0.5,-0.5,0.0],
+        [0.5,-0.5,0.0],
+        [0.5,0.5,0.0],
+        [-0.5,0.5,0.0],
+        [-0.5,-0.5,1.0],
+        [0.5,-0.5,1.0],
+        [0.5,0.5,1.0],
+        [-0.5,0.5,1.0],
+        [0.5+0.5*numpy.sqrt(3),0.0,0.5]
+    ])* FORMATION_OFFSET
+    matrixLength = int(retValue.size/3)
+    return calculate_Matrix(retValue,matrixLength=matrixLength)
+def cube()->numpy.ndarray:
+    retValue = numpy.array([
+        [-0.5,-0.5,0.0],
+        [0.5,-0.5,0.0],
+        [0.5,0.5,0.0],
+        [-0.5,0.5,0.0],
+        [-0.5,-0.5,1.0],
+        [0.5,-0.5,1.0],
+        [0.5,0.5,1.0],
+        [-0.5,0.5,1.0]
+    ])* FORMATION_OFFSET
+    matrixLength = int(retValue.size/3)
+    return calculate_Matrix(retValue,matrixLength=matrixLength)
+def triangle_prism():
+    retValue = numpy.array([
+        [-0.5,0.0,0.0],
+        [0.5,0.0,0.0],
+        [0,0.5*numpy.sqrt(3),0.0],
+        [-0.5,0.0,1.0],
+        [0.5,0.0,1.0],
+        [0,0.5*numpy.sqrt(3),1.0]
+    ])
+    matrixLength = int(retValue.size/3)
+    return calculate_Matrix(retValue,matrixLength=matrixLength)
+def square_pyramid():
+    retValue = numpy.array([
+        [-0.5,-0.5,0.0],
+        [0.5,-0.5,0.0],
+        [0.5,0.5,0.0],
+        [-0.5,0.5,0.0],
+        [0.0,0.0,0.5*numpy.sqrt(3)]
+    ])* FORMATION_OFFSET
+    matrixLength = int(retValue.size/3)
+    return calculate_Matrix(retValue,matrixLength=matrixLength)
+def square():
+    retValue = numpy.array([
+        [-0.5,-0.5,0.0],
+        [0.5,-0.5,0.0],
+        [0.5,0.5,0.0],
+        [-0.5,0.5,0.0],
+    ])* FORMATION_OFFSET
+    matrixLength = int(retValue.size/3)
+    return calculate_Matrix(retValue,matrixLength=matrixLength)
+def v():
+    retValue = numpy.array([
+        [-1.0,0.0,0.0],
+        [-0.5,1.0,0.0],
+        [0.0,2.0,0.0],
+        [0.5,1.0,0.0],
+        [1.0,0.0,0.0]
+    ])*FORMATION_OFFSET
+    matrixLength = int(retValue.size/3)
+    return calculate_Matrix(retValue,matrixLength=matrixLength)
+def triangle()->numpy.ndarray:
+    retValue = numpy.array([
+        [-0.5,0.0,0.0],
+        [0.5,0.0,0.0],
+        [0.0,0.5*numpy.sqrt(3),0.0]
+    ])*FORMATION_OFFSET
+    matrixLength = int(retValue.size/3)
+    return calculate_Matrix(retValue,matrixLength=matrixLength)
+def crescent()->numpy.ndarray:
+    retValue = numpy.array([
+        [-0.5,0.0,0.0],
+        [-numpy.sqrt(2)/4,numpy.sqrt(2)/4,0.0],
+        [0.0,0.5,0.0],
+        [numpy.sqrt(2)/4,numpy.sqrt(2)/4,0.0],
+        [0.5,0.0,0.0]
+    ])*FORMATION_OFFSET
+    matrixLength = int(retValue.size/3)
+    return calculate_Matrix(retValue,matrixLength=matrixLength)

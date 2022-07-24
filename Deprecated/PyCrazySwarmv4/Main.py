@@ -10,14 +10,8 @@ import Settings
 from Agent import Agent
 from MissionControl import MissionControl
 from threading import Thread
-import cflib.crtp  # noqa
-from cflib.crazyflie import Crazyflie
-from cflib.crazyflie.log import LogConfig
-from cflib.utils import uri_helper
-import rospy
-from Publisher.pose_publisher import LoggingExample as Publish_Pose
-uri = uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E7')
-le = Publish_Pose(uri)
+from Settings import nine_pyramid
+
 def getChar(block = False):
     if block or select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
         return sys.stdin.read(1)
@@ -143,7 +137,7 @@ def main() -> None:
             logging.info(f"Index: {i}, agent: {agent.getName()}")
             
         missionControl.takeOffAll(0.5, 2.0)
-        missionControl.takeFormation(Settings.pyramid(), 10.0)
+        missionControl.takeFormation(Settings.v(), 10.0)
         missionControl.landAll(5.0)
 
     elif "rotation_test" in sys.argv:
