@@ -14,10 +14,16 @@ class Agent:
     __crazyflie: Crazyflie
     __name: str
     __index: int
-    
+    __status: bool
+
+    __initialPos: np.ndarray
     __pos: np.ndarray
+    __livePos: np.ndarray
     __vel: np.ndarray
     __speed: float
+
+    __fakePos: np.ndarray
+    __isFakePosActive: bool
 
     # Swarm related
     __otherAgents: list
@@ -36,6 +42,7 @@ class Agent:
 
     __targetPoint: np.ndarray
     __targetHeight: float
+
 
     # Constants
     __formationConst: float
@@ -72,6 +79,7 @@ class Agent:
         self.__crazyflie = cf
         self.__name = name
         self.__index = idx
+        self.__status = False
         
         self.__isFormationActive = False
         self.__isAvoidanceActive = False
@@ -88,6 +96,7 @@ class Agent:
         self.__targetPoint = np.array([0.0, 0.0, 0.0])
         self.__targetHeight = 0.0
         
+        self.__initialPos = None
         self.__pos = np.array([0.0, 0.0, 0.0])
         self.__vel = np.array([0.0, 0.0, 0.0])
         self.__speed = 0.0
@@ -133,7 +142,7 @@ class Agent:
 
         # Itarete over agents and calculate the desired vectors
         for i, agent in enumerate(self.getOtherAgents()):
-            if agent != self:
+            if agent != self: 
                 distanceToOtherAgent = agent.getPos() - self.getPos()
 
                 distanceToDesiredPoint = self.getFormationMatrix()[self.__index][i]
@@ -141,7 +150,8 @@ class Agent:
 
                 angleDiff = Settings.angleBetween(self.getSwarmHeading(), self.__swarmDesiredHeading)
 
-                # Determine rotation direction 1.0 for counter-clockwise -1.0 for counterwise                
+                # Determine rotation direction
+                # 1.0 for counter-clockwise -1.0 for counterwise                
                 if (0.5 <= angleDiff):
                     rotDir = 1.0
 
@@ -156,9 +166,12 @@ class Agent:
                     if tempVal <= 0.0:
                         rotDir = -1.0
 
-                    self.__rotationAngle += rotDir * 0.1
+                    rotAngle = self.getRotationAngle()
+                    self.setRotationAngle(rotAngle + rotDir * 0.1)
+                
 
-                rotationMatrix = Settings.getRotationMatrix(self.__rotationAngle)
+                rotAngle = self.getRotationAngle()
+                rotationMatrix = Settings.getRotationMatrix(rotAngle)
 
                 retValue += (distanceToOtherAgent - np.dot(rotationMatrix, distanceToDesiredPoint))
 
@@ -221,6 +234,13 @@ class Agent:
     def __updateVariables(self):
         self.setPos(self.__crazyflie.position())
 
+        try:
+            if self.getInitialPos() == None:
+                pos = self.getPos()
+                self.setInitialPos(pos)
+        except:
+            pass
+
         # Update agent info
         self.__x1 = np.array(self.__x2)
         self.__x2 = np.array(self.getPos())
@@ -262,6 +282,13 @@ class Agent:
 
         return name
     
+    def getInitialPos(self) -> np.ndarray:
+        self.__lock.acquire()
+        initialPos = np.array(self.__initialPos)
+        self.__lock.release()
+        
+        return initialPos
+
     def getPos(self) -> np.ndarray:
         self.__lock.acquire()
         pos = np.array(self.__pos)
@@ -325,6 +352,13 @@ class Agent:
         
         return heading
 
+    def getSwarmDesiredHeading(self) -> np.ndarray:
+        self.__lock.acquire()
+        desiredHeading = np.array(self.__swarmDesiredHeading)
+        self.__lock.release()
+        
+        return desiredHeading
+
     def getOtherAgents(self) -> list:
         self.__lock.acquire()
         otherAgents = self.__otherAgents
@@ -339,6 +373,13 @@ class Agent:
         
         return angleOffset
     
+    def getRotationAngle(self) -> float:
+        self.__lock.acquire()
+        rotationAngle = self.__rotationAngle
+        self.__lock.release()
+        
+        return rotationAngle
+
     def isFormationActive(self) -> bool:
         self.__lock.acquire()
         isActive = self.__isFormationActive
@@ -373,7 +414,7 @@ class Agent:
         self.__lock.release()
         
         return isSwarming
-    
+
     def setIndex(self, index) -> int:
         self.__lock.acquire()
         old = self.__index
@@ -391,8 +432,11 @@ class Agent:
 
     def setFormationConst(self, formationConst: float) -> bool:
         self.__lock.acquire()
+        old = self.__formationConst
         self.__formationConst = formationConst
         self.__lock.release()
+
+        logging.info(f"[{self.getName()}] Formation const set to: {formationConst}, was: {old}")
         
         return True
 
@@ -449,7 +493,7 @@ class Agent:
         logging.info(f"[{self.getName()}] Trajectory active set to: {status}")
 
         return True
-    
+
     def setFormationMatrix(self, matrix: np.ndarray) -> bool:
         self.__lock.acquire()
         self.__formationMatrix = np.array(matrix)
@@ -475,6 +519,13 @@ class Agent:
 
         return True
 
+    def setSwarmDesiredHeading(self, desiredHeading: np.ndarray) -> bool:
+        self.__lock.acquire()
+        self.__swarmDesiredHeading = desiredHeading
+        self.__lock.release()
+        
+        return True
+
     def setAngleOffset(self, angleOffset: float) -> bool:
         self.__lock.acquire()
         self.__angleOffset = angleOffset
@@ -489,6 +540,20 @@ class Agent:
 
         logging.info(f"[{self.getName()}] Rotation set to: {round(degree, 2)}")
 
+        return True
+
+    def setRotationAngle(self, rotationAngle) -> bool:
+        self.__lock.acquire()
+        self.__rotationAngle = rotationAngle
+        self.__lock.release()
+        
+        return True
+
+    def setInitialPos(self, initialPos: np.ndarray) -> bool:
+        self.__lock.acquire()
+        self.__initialPos = initialPos
+        self.__lock.release()
+        
         return True
 
     def setPos(self, pos: np.ndarray) -> bool:
@@ -531,14 +596,16 @@ class Agent:
                 self.__tp1 = time.perf_counter()
                 self.__fps = 0
 
+            # Update position, speed and swarm variables
+            self.__updateVariables()
+
             # Calculate control values
             controlVel = np.array([0.0, 0.0, 0.0])
             formationVel = np.array([0.0, 0.0, 0.0])
             avoidanceVel = np.array([0.0, 0.0, 0.0])
             trajectoryVel = np.array([0.0, 0.0, 0.0])
 
-            # Update position, speed and swarm variables
-            self.__updateVariables()
+
 
             if self.isFormationActive():
                 formationVel = self.formationControl()

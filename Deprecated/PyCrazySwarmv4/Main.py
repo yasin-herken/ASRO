@@ -10,7 +10,10 @@ import Settings
 from Agent import Agent
 from MissionControl import MissionControl
 from threading import Thread
+<<<<<<< HEAD
+=======
 from Settings import nine_pyramid
+>>>>>>> 4fc7a0f2c420c3e0c290115efddc77ab28f33d71
 
 def getChar(block = False):
     if block or select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
@@ -48,8 +51,13 @@ def main() -> None:
     If a new request exists, hands over the control to MissionControl.
     """
     # Initialization
-    agents: List[Agent]
-    agents = []
+    agentCount = 5
+
+    createdAgents: List[Agent]
+    activeAgents: List[Agent]
+    createdAgents = []
+    activeAgents = []
+    
 
     # Fix the issue where rospy disables the logging
     os.environ['ROS_PYTHON_LOG_CONFIG_FILE'] = "`rospack find rosgraph`/conf/python_logging.yaml"
@@ -62,35 +70,42 @@ def main() -> None:
     logging.info("Creating instances of 'Agent' class.")
 
     # Add agents
-    i = 0
-    for agent in crazySwarm.allcfs.crazyflies:
-        agents.append(
+    for idx, agent in enumerate(crazySwarm.allcfs.crazyflies):
+        createdAgents.append(
             Agent(
                 cf=agent,
                 name=f"cf{agent.id}",
-                idx=i
+                idx=idx
             )
         )
-        i += 1
+
         logging.info(f"Created: cf{agent.id}")
         crazySwarm.timeHelper.sleep(1.0)
+
+    # List of all active agents    
+    for i in range(agentCount):
+        activeAgents.append(createdAgents[i])
     
-    # Give the other agents' info to every agent
-    for agent in agents:
-        agent.setOtherAgents(agents)
+    # Give the all agents' info to every other agent
+    for agent in createdAgents:
+        agent.setOtherAgents(activeAgents)
 
     logging.info(f"Created all agents.")
+
+    # Log all agents' initialPos for debug
+    for agent in activeAgents:
+        logging.info(f"[{agent.getName()}] Initial position: {agent.getInitialPos().round(2)}")
 
     logging.info("Creating an instance of 'MissionControl'.")
 
     # Creating mission control    
     missionControl = MissionControl(
-        agents=agents,
+        agents=activeAgents,
         crazyServer=crazySwarm
     )
     
     # Start the watchdog
-    watchdogThread = Thread(target=_watchDog, args=[agents], daemon=True)
+    watchdogThread = Thread(target=_watchDog, args=[activeAgents], daemon=True)
     watchdogThread.start()
 
     logging.info("All ready! Listening... Press 'q' to exit.")
@@ -107,9 +122,9 @@ def main() -> None:
         os._exit(0)
 
     elif "agent_trajectory_test" in sys.argv:
-        missionControl.takeOffAgent(agents[0], 0.5, 2.0)
+        missionControl.takeOffAgent(activeAgents[0], 0.5, 2.0)
         missionControl.goToAgent(
-            targetAgent=agents[0],
+            targetAgent=activeAgents[0],
             points=np.array(
                 [
                     [0.5, 0.0, 0.5],
@@ -124,7 +139,7 @@ def main() -> None:
             ),
             duration=5.0
         )
-        missionControl.landAgent(agents[0], 5.0)
+        missionControl.landAgent(activeAgents[0], 5.0)
 
     elif "takeoff_land_test" in sys.argv:
         for i in range(3):
@@ -133,7 +148,7 @@ def main() -> None:
             crazySwarm.timeHelper.sleep(3.0)
 
     elif "formation_test" in sys.argv:
-        for i, agent in enumerate(agents):
+        for i, agent in enumerate(activeAgents):
             logging.info(f"Index: {i}, agent: {agent.getName()}")
             
         missionControl.takeOffAll(0.5, 2.0)
@@ -170,8 +185,12 @@ def main() -> None:
         missionControl.takeOffAll(0.5, 3.0)
         missionControl.takeFormation(Settings.pyramid(), 15.0)
         missionControl.goToSwarm(np.array([[0.0, 3.0, 0.5]]), 15.0)
+        inactiveAgents = list(set(createdAgents) - set(activeAgents))
+        missionControl.swapSwarmAgents(activeAgents[-2:], inactiveAgents, [10.0, 10.0, 10.0, 10.0])
+        missionControl.goToSwarm(np.array([[-3.0, 3.0, 0.5]]), 15.0)
+        missionControl.rotateSwarm(90.0, 6.0)
+        missionControl.goToSwarm(np.array([[-3.0, -3.0, 0.5]]), 15.0)
         missionControl.landAll(5.0)
-
 
     else:
         logging.info("Please specify the operation by giving an argument")

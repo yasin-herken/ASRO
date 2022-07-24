@@ -1,4 +1,3 @@
-import enum
 import logging
 import hungarian
 import numpy as np
@@ -107,6 +106,133 @@ class MissionControl:
         logging.info(f"Ending mission takeFormation with success.")
 
         return retValue
+    
+    def swapSwarmAgents(self, targetAgents: List[Agent], newAgents: List[Agent], durations: List[float]) -> bool:
+        """_summary_
+
+        Args:
+            targetAgents (List[Agent]): _description_
+            newAgents (List[Agent]): _description_
+            duration (float): _description_
+
+        Returns:
+            bool: _description_
+        """
+        retValue = False
+        logging.info("Starting mission swapSwarmAgents.")
+
+        if len(targetAgents) != len(newAgents):
+            logging.info("Size of targetAgents and newAgents are not the same! Aborting")
+            return False
+
+        if len(durations) != 4:
+            logging.info("Size of durations is not 4! Aborting")
+            return False
+ 
+        # Stop formation forces
+        for agent in self.__agents:
+            agent.setFormationActive(False)
+            agent.setSwarming(False)
+            pos = agent.getPos()
+            agent.setTargetPoint(pos)
+
+        # Prepare the targetAgenys
+        poses = []
+        for agent in targetAgents:
+            poses.append(agent.getPos())
+            agent.setTrajectoryActive(True)
+        
+        # Move the targetAgents back to their spawn point
+        for agent in targetAgents:
+            curPos = agent.getPos()
+            initialPos = agent.getInitialPos()
+            initialPos[2] = curPos[2]
+            agent.setTargetPoint(initialPos)
+        
+        # Wait for agents to go
+        t1 = time.perf_counter()
+        t2 = time.perf_counter()
+
+        while t2 - t1 <= durations[0]:
+            self.__update()
+            t2 = time.perf_counter()
+        
+        # Land the targetAgents
+        for agent in targetAgents:
+            agent.land()
+        
+        # Wait for targetAgents to land
+        t1 = time.perf_counter()
+        t2 = time.perf_counter()
+
+        while t2 - t1 <= durations[1]:
+            self.__update()
+            t2 = time.perf_counter()
+        
+        # Remove targetAgents from the agents list
+        for agent in targetAgents:
+            self.__agents.remove(agent)
+
+        # Take off the newAgents
+        for agent in newAgents:
+            agent.takeOff(0.50)
+            agent.setAvoidanceActive(True)
+            agent.setTrajectoryActive(True)
+        
+        
+        # Wait for newAgents to takeOff
+        t1 = time.perf_counter()
+        t2 = time.perf_counter()
+
+        while t2 - t1 <= durations[2]:
+            self.__update()
+            t2 = time.perf_counter()
+        
+        # Move newAgents to their positions in the swarm
+        for idx, agent in enumerate(newAgents):
+            agent.setTargetPoint(poses[idx])
+        
+        # Wait for newAgents to move
+        t1 = time.perf_counter()
+        t2 = time.perf_counter()
+
+        while t2 - t1 <= durations[2]:
+            self.__update()
+            t2 = time.perf_counter()
+
+        # Finalize the newAgents
+        for idx, agent in enumerate(newAgents):
+            # Add them to the list
+            self.__agents.append(agent)
+
+            # Give them the formationMatrix
+            agent.setFormationMatrix(targetAgents[idx].getFormationMatrix())
+        
+            # Give them the rotationAngle
+            agent.setRotationAngle(targetAgents[idx].getRotationAngle())
+
+            # Give them the formationConst
+            agent.setFormationConst(targetAgents[idx].getFormationConst())
+
+            # Give them the swarm desiredHeding
+            agent.setSwarmDesiredHeading(targetAgents[idx].getSwarmDesiredHeading())
+
+            # Swap the indexes
+            temp = targetAgents[idx].getIndex()
+            targetAgents[idx].setIndex(agent.getIndex())
+            agent.setIndex(temp)
+        
+        # Activate formation forces
+        for agent in self.__agents:
+            agent.setFormationActive(True)
+            agent.setSwarming(True)
+
+        logging.info(f"Ending mission swapSwarmAgents with success.")
+
+        retValue = True
+        
+        return retValue
+
 
     def takeOffAgent(self, agent: Agent, height: float, duration: float) -> bool:
         """Takes off the agent.
