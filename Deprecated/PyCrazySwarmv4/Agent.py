@@ -1,8 +1,9 @@
 import logging
+
+from threading import Thread, Lock
+import time
 import numpy as np
 import Settings
-import time
-from threading import Thread, Lock
 
 # Remove the word 'Sim' in order to run IRL !!!
 from pycrazyswarm.crazyflie import Crazyflie
@@ -14,41 +15,37 @@ class Agent:
     __crazyflie: Crazyflie
     __name: str
     __index: int
-    __status: bool
 
-    __initialPos: np.ndarray
+    __initial_pos: np.ndarray
     __pos: np.ndarray
-    __livePos: np.ndarray
     __vel: np.ndarray
     __speed: float
-
-    __fakePos: np.ndarray
-    __isFakePosActive: bool
+    __max_speed: float
 
     # Swarm related
-    __otherAgents: list
+    __other_agents: list
 
-    __isFormationActive: bool
-    __isAvoidanceActive: bool
-    __isTrajectoryActive: bool
-    __isSwarming: bool
-    __isInFormation: bool
-    __formationMatrix: np.ndarray
-    __rotationAngle: float
-    __swarmHeading: np.ndarray
-    __swarmDesiredHeading: np.ndarray
-    __swarmMinDistance: float
-    __angleOffset: float
+    __is_formation_active: bool
+    __is_avoidance_active: bool
+    __is_trajectory_active: bool
+    __is_swarming: bool
+    __is_in_formation: bool
 
-    __targetPoint: np.ndarray
-    __targetHeight: float
+    __formation_matrix: np.ndarray
+    __rotation_angle: float
+    __swarm_heading: np.ndarray
+    __swarm_desired_heading: np.ndarray
+    __swarm_min_distance: float
+    __angle_offset: float
 
+    __target_point: np.ndarray
+    __target_height: float
 
     # Constants
-    __formationConst: float
-    __trajectoryConst: float
+    __formation_const: float
+    __trajectory_const: float
 
-    __alpha:float # Overall force multiplier (more ALPHA means more aggressive behaviour)
+    __alpha: float # Overall force multiplier (more ALPHA means more aggressive behaviour)
     __beta: float # Logarithmic multipler (more BETA means less tolerance)
     
     # time points
@@ -68,7 +65,7 @@ class Agent:
     __tp2: float
     __fps: int
     
-    def __init__(self, cf: Crazyflie, name: str, idx: int) -> None:
+    def __init__(self, crazyflie: Crazyflie, name: str, idx: int) -> None:
         """Initializes the agent class.
 
         Args:
@@ -76,34 +73,34 @@ class Agent:
             name (str): Name of the agent.
             address (str): Address of the agent.
         """
-        self.__crazyflie = cf
+        self.__crazyflie = crazyflie
         self.__name = name
         self.__index = idx
         self.__status = False
         
-        self.__isFormationActive = False
-        self.__isAvoidanceActive = False
-        self.__isTrajectoryActive = False
-        self.__isSwarming = False
-        self.__isInFormation = False
-        self.__formationMatrix = np.array([0.0])
-        self.__rotationAngle = 0.0
-        self.__swarmHeading = np.array([0.01, 0.01, 0.0])
-        self.__swarmDesiredHeading = np.array([0.0, 1.0, 0.0])
-        self.__swarmMinDistance = 0.15
-        self.__angleOffset = 0.0
+        self.__is_formation_active = False
+        self.__is_avoidance_active = False
+        self.__is_trajectory_active = False
+        self.__is_swarming = False
+        self.__is_in_formation = False
+        self.__formation_matrix = np.array([0.0])
+        self.__rotation_angle = 0.0
+        self.__swarm_heading = np.array([0.01, 0.01, 0.0])
+        self.__swarm_desired_heading = np.array([0.0, 1.0, 0.0])
+        self.__swarm_min_distance = 0.15
+        self.__angle_offset = 0.0
 
-        self.__targetPoint = np.array([0.0, 0.0, 0.0])
-        self.__targetHeight = 0.0
+        self.__target_point = np.array([0.0, 0.0, 0.0])
+        self.__target_height = 0.0
         
-        self.__initialPos = None
+        self.__initial_pos = None
         self.__pos = np.array([0.0, 0.0, 0.0])
         self.__vel = np.array([0.0, 0.0, 0.0])
         self.__speed = 0.0
-        self.__maxSpeed = 0.5
+        self.__max_speed = 0.5
 
-        self.__formationConst = 0.15
-        self.__trajectoryConst = 0.20
+        self.__formation_const = 0.15
+        self.__trajectory_const = 0.20
         self.__alpha = 0.15
         self.__beta = 1.21
 
@@ -124,11 +121,11 @@ class Agent:
 
         try:
             self.__thread.start()
-            logging.info(f"[{self.getName()}] Started the daemon update thread")
+            logging.info(f"[{self.get_name()}] Started the daemon update thread")
         except:
-            logging.info(f"[{self.getName()}] Failed to start the daemon update thread")
+            logging.info(f"[{self.get_name()}] Failed to start the daemon update thread")
 
-    def formationControl(self) -> np.ndarray:
+    def formation_control(self) -> np.ndarray:
         """Calculates the formation 'force' to be applied to the agent.
         This calculation moves the agent into formation.
         
@@ -138,46 +135,46 @@ class Agent:
         Returns:
             np.ndarray: Calculated force. (Vector3)
         """
-        retValue = np.array([0.0, 0.0, 0.0])
+        ret_value = np.array([0.0, 0.0, 0.0])
 
         # Itarete over agents and calculate the desired vectors
-        for i, agent in enumerate(self.getOtherAgents()):
-            if agent != self: 
-                distanceToOtherAgent = agent.getPos() - self.getPos()
+        for i, agent in enumerate(self.get_other_agents()):
+            if agent != self:
+                dist_diff = agent.getPos() - self.get_pos()
 
-                distanceToDesiredPoint = self.getFormationMatrix()[self.__index][i]
+                dist_desired = self.get_formation_matrix()[self.__index][i]
                 # print(f"[{self.getName()}] {distanceToDesiredPoint.round(4)}")
 
-                angleDiff = Settings.angleBetween(self.getSwarmHeading(), self.__swarmDesiredHeading)
+                angle_diff = Settings.angleBetween(self.get_swarm_heading(), self.__swarm_desired_heading)
 
                 # Determine rotation direction
                 # 1.0 for counter-clockwise -1.0 for counterwise                
-                if (0.5 <= angleDiff):
-                    rotDir = 1.0
+                if (0.5 <= angle_diff):
+                    rot_dir = 1.0
 
-                    x1 = self.getSwarmHeading()[0]
-                    y1 = self.getSwarmHeading()[1]
+                    x_1 = self.get_swarm_heading()[0]
+                    y_1 = self.get_swarm_heading()[1]
 
-                    x2 = self.__swarmDesiredHeading[0]
-                    y2 = self.__swarmDesiredHeading[1]
+                    x_2 = self.__swarm_desired_heading[0]
+                    y_2 = self.__swarm_desired_heading[1]
 
-                    tempVal = x1 * y2 - x2 * y1
+                    temp_val = x_1 * y_2 - x_2 * y_1
 
-                    if tempVal <= 0.0:
-                        rotDir = -1.0
+                    if temp_val <= 0.0:
+                        rot_dir = -1.0
 
-                    rotAngle = self.getRotationAngle()
-                    self.setRotationAngle(rotAngle + rotDir * 0.1)
+                    rot_angle = self.get_rotation_angle()
+                    self.set_rotation_angle(rot_angle + rot_dir * 0.1)
                 
 
-                rotAngle = self.getRotationAngle()
-                rotationMatrix = Settings.getRotationMatrix(rotAngle)
+                rot_angle = self.get_rotation_angle()
+                rot_matrix = Settings.getRotationMatrix(rot_angle)
 
-                retValue += (distanceToOtherAgent - np.dot(rotationMatrix, distanceToDesiredPoint))
+                ret_value += (dist_diff - np.dot(rot_matrix, dist_desired))
 
-        return retValue * self.__formationConst
+        return ret_value * self.__formation_const
     
-    def avoidanceControl(self) -> np.ndarray:
+    def avoidance_control(self) -> np.ndarray:
         """Calculates the avoidance 'force' to be applied to the agent.
         This calculation keeps the agent away from the obstacles.
 
@@ -187,26 +184,26 @@ class Agent:
         Returns:
             np.ndarray: Calculated force. (Vector3)
         """
-        retValue = np.array([0.0, 0.0, 0.0])
+        ret_value = np.array([0.0, 0.0, 0.0])
         
-        for otherAgent in self.getOtherAgents():
-            if otherAgent is not self:
-                distanceToOtherAgentScaler = Settings.getDistance(otherAgent.getPos(), self.getPos())
+        for other_agent in self.get_other_agents():
+            if other_agent is not self:
+                dist_diff_scalar = Settings.getDistance(other_agent.getPos(), self.get_pos())
 
                 # Check if othe agent is too close
-                if distanceToOtherAgentScaler < self.__swarmMinDistance:
-                    distanceToOtherAgent = otherAgent.getPos() - self.getPos()
+                if dist_diff_scalar < self.__swarm_min_distance:
+                    dist_diff = other_agent.getPos() - self.get_pos()
 
                     # repellentVelocity that 'pushes' the agent away from the other agent
-                    repellentVelocity = distanceToOtherAgent / np.linalg.norm(distanceToOtherAgent)
-                    repellentForce = self.__alpha * (
-                        pow(np.e, -(self.__beta * distanceToOtherAgentScaler) - pow(np.e, -(self.__beta * self.__swarmMinDistance)))
+                    repellent_velocity = dist_diff / np.linalg.norm(dist_diff)
+                    repellent_force = self.__alpha * (
+                        pow(np.e, -(self.__beta * dist_diff_scalar) - pow(np.e, -(self.__beta * self.__swarm_min_distance)))
                     )
-                    retValue += repellentVelocity * (-repellentForce)
+                    ret_value += repellent_velocity * (-repellent_force)
 
-        return retValue
+        return ret_value
     
-    def trajectoryControl(self) -> np.ndarray:
+    def trajectory_control(self) -> np.ndarray:
         """Calculates the trajectory 'force' to be applied to the agent.
         This calculation moves the agent towards the target point.
 
@@ -216,363 +213,627 @@ class Agent:
         Returns:
             np.ndarray: Calculated force. (Vector3)
         """
-        retValue = np.array([0.0, 0.0, 0.0])
+        ret_value = np.array([0.0, 0.0, 0.0])
         
-        swarmCenter = np.array([0.0, 0.0, 0.0])
+        swarm_center = np.array([0.0, 0.0, 0.0])
 
-        if self.__isSwarming:
-            for otherAgent in self.getOtherAgents():
-                swarmCenter += otherAgent.getPos()
-            swarmCenter /= len(self.getOtherAgents())
+        if self.__is_swarming:
+            for other_agent in self.get_other_agents():
+                swarm_center += other_agent.getPos()
+            swarm_center /= len(self.get_other_agents())
         else:
-            swarmCenter = self.getPos()
+            swarm_center = self.get_pos()
 
-        retValue = self.getTargetPoint() - swarmCenter
+        ret_value = self.get_target_point() - swarm_center
         
-        return retValue * self.__trajectoryConst
+        return ret_value * self.__trajectory_const
     
-    def __updateVariables(self):
-        self.setPos(self.__crazyflie.position())
+    def update_variables(self):
+        self.set_pos(self.__crazyflie.position())
 
         try:
-            if self.getInitialPos() == None:
-                pos = self.getPos()
-                self.setInitialPos(pos)
+            if self.get_initial_pos() is None:
+                pos = self.get_pos()
+                self.set_initial_pos(pos)
         except:
             pass
 
         # Update agent info
         self.__x1 = np.array(self.__x2)
-        self.__x2 = np.array(self.getPos())
+        self.__x2 = np.array(self.get_pos())
 
         self.__t2 = time.perf_counter()
-        self.setVel((self.__x2 - self.__x1) / (self.__t2 - self.__t1))
+        self.set_vel((self.__x2 - self.__x1) / (self.__t2 - self.__t1))
         self.__t1 = time.perf_counter()
         
-        self.__speed = Settings.getMagnitude(self.getVel())
+        self.__speed = Settings.getMagnitude(self.get_vel())
 
         # Update swarm info
-        if self.__isSwarming:
-            swarmCenter = np.array([0.0, 0.0, 0.0])
-            for agent in self.getOtherAgents():
-                swarmCenter += agent.getPos()
-            swarmCenter /= len(self.getOtherAgents())
+        if self.__is_swarming:
+            swarm_center = np.array([0.0, 0.0, 0.0])
+            for agent in self.get_other_agents():
+                swarm_center += agent.getPos()
+            swarm_center /= len(self.get_other_agents())
 
-            frontAgent = self.getOtherAgents()[0]
-            distanceToFrontAgentFromSwarmCenter = frontAgent.getPos() - swarmCenter
+            front_agent = self.get_other_agents()[0]
+            dist_diff = front_agent.getPos() - swarm_center
 
-            heading = distanceToFrontAgentFromSwarmCenter / np.linalg.norm(distanceToFrontAgentFromSwarmCenter)
+            heading = dist_diff / np.linalg.norm(dist_diff)
 
             # Angle offset
-            heading = np.dot(Settings.getRotationMatrix(self.getAngleOffset()), heading)
+            heading = np.dot(Settings.getRotationMatrix(self.get_angle_offset()), heading)
 
-            self.setSwarmHeading(heading)
+            self.set_swarm_heading(heading)
 
-    def getIndex(self) -> int:
+    def get_index(self) -> int:
+        """Agent index.
+
+        Returns:
+            int: _description_
+        """
         self.__lock.acquire()
         index = self.__index
         self.__lock.release()
 
         return index
 
-    def getName(self) -> str:
+    def get_name(self) -> str:
+        """Agent name.
+
+        Returns:
+            str: _description_
+        """
         self.__lock.acquire()
         name = self.__name
         self.__lock.release()
 
         return name
-    
-    def getInitialPos(self) -> np.ndarray:
-        self.__lock.acquire()
-        initialPos = np.array(self.__initialPos)
-        self.__lock.release()
-        
-        return initialPos
 
-    def getPos(self) -> np.ndarray:
+    def get_initial_pos(self) -> np.ndarray:
+        """Agent initial pos.
+
+        Returns:
+            np.ndarray: _description_
+        """
+        self.__lock.acquire()
+        initial_pos = np.array(self.__initial_pos)
+        self.__lock.release()
+
+        return initial_pos
+
+    def get_pos(self) -> np.ndarray:
+        """Agent position.
+
+        Returns:
+            np.ndarray: _description_
+        """
         self.__lock.acquire()
         pos = np.array(self.__pos)
         self.__lock.release()
-        
+
         return pos
-    
-    def getVel(self) -> np.ndarray:
+
+    def get_vel(self) -> np.ndarray:
+        """Agent velocity.
+
+        Returns:
+            np.ndarray: _description_
+        """
         self.__lock.acquire()
         vel = np.array(self.__vel)
         self.__lock.release()
-        
+
         return vel
-    
-    def getSpeed(self) -> float:
+
+    def get_speed(self) -> float:
+        """Agent speed.
+
+        Returns:
+            float: _description_
+        """
         self.__lock.acquire()
         speed = Settings.getMagnitude(self.__vel)
         self.__lock.release()
-        
+
         return speed
 
-    def getFormationMatrix(self) -> np.ndarray:
+    def get_formation_matrix(self) -> np.ndarray:
+        """Agent formation matrix.
+
+        Returns:
+            np.ndarray: _description_
+        """
         self.__lock.acquire()
-        formation = self.__formationMatrix
+        formation = self.__formation_matrix
         self.__lock.release()
-        
+
         return formation
 
-    def getTargetPoint(self) -> np.ndarray:
+    def get_target_point(self) -> np.ndarray:
+        """Agent target point.
+
+        Returns:
+            np.ndarray: _description_
+        """
         self.__lock.acquire()
-        target = np.array(self.__targetPoint)
+        target = np.array(self.__target_point)
         self.__lock.release()
-        
+
         return target
 
-    def getTargetHeight(self) -> float:
+    def get_target_height(self) -> float:
+        """Agent target height.
+
+        Returns:
+            float: _description_
+        """
         self.__lock.acquire()
-        height = self.__targetHeight
+        height = self.__target_height
         self.__lock.release()
-        
+
         return height
-    
-    def getMaxSpeed(self) -> float:
+
+    def get_max_speed(self) -> float:
+        """Agent max speed.
+
+        Returns:
+            float: _description_
+        """
         self.__lock.acquire()
-        maxSpeed = self.__maxSpeed
+        max_speed = self.__max_speed
         self.__lock.release()
-        
-        return maxSpeed
-    
-    def getFormationConst(self) -> float:
+
+        return max_speed
+
+    def get_formation_const(self) -> float:
+        """Agent formation const.
+
+        Returns:
+            float: _description_
+        """
         self.__lock.acquire()
-        formationConst = self.__formationConst
+        formation_const = self.__formation_const
         self.__lock.release()
-        
-        return formationConst
-    
-    def getSwarmHeading(self) -> np.ndarray:
+
+        return formation_const
+
+    def get_swarm_heading(self) -> np.ndarray:
+        """Agent swarm heading.
+
+        Returns:
+            np.ndarray: _description_
+        """
         self.__lock.acquire()
-        heading = np.array(self.__swarmHeading)
+        heading = np.array(self.__swarm_heading)
         self.__lock.release()
-        
+
         return heading
 
-    def getSwarmDesiredHeading(self) -> np.ndarray:
-        self.__lock.acquire()
-        desiredHeading = np.array(self.__swarmDesiredHeading)
-        self.__lock.release()
-        
-        return desiredHeading
+    def get_swarm_desired_heading(self) -> np.ndarray:
+        """Agent swarm desired heading.
 
-    def getOtherAgents(self) -> list:
+        Returns:
+            np.ndarray: _description_
+        """
         self.__lock.acquire()
-        otherAgents = self.__otherAgents
-        self.__lock.release()
-        
-        return otherAgents
-    
-    def getAngleOffset(self) -> float:
-        self.__lock.acquire()
-        angleOffset = self.__angleOffset
-        self.__lock.release()
-        
-        return angleOffset
-    
-    def getRotationAngle(self) -> float:
-        self.__lock.acquire()
-        rotationAngle = self.__rotationAngle
-        self.__lock.release()
-        
-        return rotationAngle
-
-    def isFormationActive(self) -> bool:
-        self.__lock.acquire()
-        isActive = self.__isFormationActive
+        desired_heading = np.array(self.__swarm_desired_heading)
         self.__lock.release()
 
-        return isActive
+        return desired_heading
 
-    def isTrajectoryActive(self) -> bool:
+    def get_other_agents(self) -> list:
+        """Agent list of other agents.
+
+        Returns:
+            list: _description_
+        """
         self.__lock.acquire()
-        isActive = self.__isTrajectoryActive
+        other_agents = self.__other_agents
         self.__lock.release()
 
-        return isActive
+        return other_agents
 
-    def isAvoidanceActive(self) -> bool:
+    def get_angle_offset(self) -> float:
+        """Agent angle offset.
+
+        Returns:
+            float: _description_
+        """
         self.__lock.acquire()
-        isActive = self.__isAvoidanceActive
+        angle_offset = self.__angle_offset
         self.__lock.release()
 
-        return isActive
+        return angle_offset
 
-    def isInFormation(self) -> bool:
+    def get_rotation_angle(self) -> float:
+        """Agent rotation angle.
+
+        Returns:
+            float: _description_
+        """
         self.__lock.acquire()
-        isInFormation = self.__isInFormation
+        rotation_angle = self.__rotation_angle
         self.__lock.release()
 
-        return isInFormation
-    
-    def isSwarming(self) -> bool:
-        self.__lock.acquire()
-        isSwarming = self.__isSwarming
-        self.__lock.release()
-        
-        return isSwarming
+        return rotation_angle
 
-    def setIndex(self, index) -> int:
+    def is_formation_active(self) -> bool:
+        """Agent is formation active.
+
+        Returns:
+            bool: _description_
+        """
         self.__lock.acquire()
-        old = self.__index
+        is_active = self.__is_formation_active
+        self.__lock.release()
+
+        return is_active
+
+    def is_trajectory_active(self) -> bool:
+        """Agent is trajectory active.
+
+        Returns:
+            bool: _description_
+        """
+        self.__lock.acquire()
+        is_active = self.__is_trajectory_active
+        self.__lock.release()
+
+        return is_active
+
+    def is_avoidance_active(self) -> bool:
+        """Agent is avoidance active.
+
+        Returns:
+            bool: _description_
+        """
+        self.__lock.acquire()
+        is_active = self.__is_avoidance_active
+        self.__lock.release()
+
+        return is_active
+
+    def is_in_formation(self) -> bool:
+        """Agent is in formation.
+
+        Returns:
+            bool: _description_
+        """
+        self.__lock.acquire()
+        is_in_formation = self.__is_in_formation
+        self.__lock.release()
+
+        return is_in_formation
+
+    def is_swarming(self) -> bool:
+        """Agent is swarming.
+
+        Returns:
+            bool: _description_
+        """
+        self.__lock.acquire()
+        is_swarming = self.__is_swarming
+        self.__lock.release()
+
+        return is_swarming
+
+    def set_index(self, index) -> int:
+        """Agent set index.
+
+        Args:
+            index (_type_): _description_
+
+        Returns:
+            int: _description_
+        """
+        self.__lock.acquire()
         self.__index = index
         self.__lock.release()
 
         return True
 
-    def setIsInFormation(self, status: bool) -> bool:
+    def set_is_in_formation(self, status: bool) -> bool:
+        """Agent set is in formation.
+
+        Args:
+            status (bool): _description_
+
+        Returns:
+            bool: _description_
+        """
         self.__lock.acquire()
-        self.__isInFormation = status
+        self.__is_in_formation = status
         self.__lock.release()
 
         return True
 
-    def setFormationConst(self, formationConst: float) -> bool:
+    def set_formation_const(self, formation_const: float) -> bool:
+        """Agent set formation const
+
+        Args:
+            formation_const (float): _description_
+
+        Returns:
+            bool: _description_
+        """
         self.__lock.acquire()
-        old = self.__formationConst
-        self.__formationConst = formationConst
+        old = self.__formation_const
+        self.__formation_const = formation_const
         self.__lock.release()
 
-        logging.info(f"[{self.getName()}] Formation const set to: {formationConst}, was: {old}")
+        logging.info(f"[{self.get_name()}] Formation const set to: {formation_const}, was: {old}")
+
+        return True
+
+    def set_target_point(self, target: np.ndarray) -> bool:
+        """Agent set target point.
+
+        Args:
+            target (np.ndarray): _description_
+
+        Returns:
+            bool: _description_
+        """
+        self.__lock.acquire()
+        self.__target_point = np.array(target)
+        self.__lock.release()
+
+        logging.info(f"[{self.get_name()}] Target x: {round(target[0], 2)} y: {round(target[1], 2)} z: {round(target[2], 2)}")
+
+        return True
+
+    def set_target_height(self, target_height: float) -> bool:
+        """Agent set target height.
+
+        Args:
+            target_height (float): _description_
+
+        Returns:
+            bool: _description_
+        """
+        self.__lock.acquire()
+        self.__target_height = target_height
+        self.__lock.release()
+
+        logging.info(f"[{self.get_name()}] Target height set to: {round(target_height, 2)}")
+
+        return True
+
+    def set_max_speed(self, max_speed: float) -> bool:
+        """Agent set max speed.
+
+        Args:
+            max_speed (float): _description_
+
+        Returns:
+            bool: _description_
+        """
+        self.__lock.acquire()
+        self.__max_speed = max_speed
+        self.__lock.release()
+
+        logging.info(f"[{self.get_name()}] Max speed set to: {round(max_speed, 2)}")
+
+        return True
+
+    def set_formation_active(self, status: bool) -> bool:
+        """Agent formation active.
+
+        Args:
+            status (bool): _description_
+
+        Returns:
+            bool: _description_
+        """
+        self.__lock.acquire()
+        self.__is_formation_active = status
+        self.__lock.release()
+
+        logging.info(f"[{self.get_name()}] Formation active set to: {status}")
+
+        return True
+
+    def set_avoidance_active(self, status: bool) -> bool:
+        """Agent set avoidance active.
+
+        Args:
+            status (bool): _description_
+
+        Returns:
+            bool: _description_
+        """
+        self.__lock.acquire()
+        self.__is_avoidance_active = status
+        self.__lock.release()
+
+        logging.info(f"[{self.get_name()}] Avoidance active set to: {status}")
+
+        return True
+
+    def set_trajectory_active(self, status: bool) -> bool:
+        """Agent set trajectory active.
+
+        Args:
+            status (bool): _description_
+
+        Returns:
+            bool: _description_
+        """
+        self.__lock.acquire()
+        self.__is_trajectory_active = status
+        self.__lock.release()
+
+        logging.info(f"[{self.get_name()}] Trajectory active set to: {status}")
+
+        return True
+
+    def set_formation_matrix(self, matrix: np.ndarray) -> bool:
+        """Agent set formation martix.
+
+        Args:
+            matrix (np.ndarray): _description_
+
+        Returns:
+            bool: _description_
+        """
+        self.__lock.acquire()
+        self.__formation_matrix = np.array(matrix)
+        self.__lock.release()
+
+        logging.info(f"[{self.get_name()}] Formation matrix has been changed: {matrix.shape}")
+
+        return True
+
+    def set_swarming(self, swarming: bool) -> bool:
+        """Agent set swarming.
+
+        Args:
+            swarming (bool): _description_
+
+        Returns:
+            bool: _description_
+        """
+        self.__lock.acquire()
+        self.__is_swarming = swarming
+        self.__lock.release()
+
+        logging.info(f"[{self.get_name()}] Swarming set to: {swarming}")
+
+        return True
+
+    def set_swarm_heading(self, heading: np.ndarray) -> bool:
+        """Agent set swarm heading.
+
+        Args:
+            heading (np.ndarray): _description_
+
+        Returns:
+            bool: _description_
+        """
+        self.__lock.acquire()
+        self.__swarm_heading = np.array(heading)
+        self.__lock.release()
+
+        return True
+
+    def set_swarm_desired_heading(self, desired_heading: np.ndarray) -> bool:
+        """Agent set swarm desired heading.
+
+        Args:
+            desired_heading (np.ndarray): _description_
+
+        Returns:
+            bool: _description_
+        """
+        self.__lock.acquire()
+        self.__swarm_desired_heading = desired_heading
+        self.__lock.release()
         
         return True
 
-    def setTargetPoint(self, target: np.ndarray) -> bool:
+    def set_angle_offset(self, angle_offset: float) -> bool:
+        """Agent set angle offset.
+
+        Args:
+            angle_offset (float): _description_
+
+        Returns:
+            bool: _description_
+        """
         self.__lock.acquire()
-        self.__targetPoint = np.array(target)
-        self.__lock.release()
-
-        logging.info(f"[{self.getName()}] Target point set to x:{round(target[0], 2)} y:{round(target[1], 2)} z:{round(target[2], 2)}")
-
-        return True
-    
-    def setTargetHeight(self, targetHeight: float) -> bool:
-        self.__lock.acquire()
-        self.__targetHeight = targetHeight
-        self.__lock.release()
-
-        logging.info(f"[{self.getName()}] Target height set to: {round(targetHeight, 2)}")
-
-        return True
-
-    def setMaxSpeed(self, maxSpeed: float) -> bool:
-        self.__lock.acquire()
-        self.__maxSpeed = maxSpeed
-        self.__lock.release()
-
-        logging.info(f"[{self.getName()}] Max speed set to: {round(maxSpeed, 2)}")
-
-        return True
-
-    def setFormationActive(self, status: bool) -> bool:
-        self.__lock.acquire()
-        self.__isFormationActive = status
-        self.__lock.release()
-
-        logging.info(f"[{self.getName()}] Formation active set to: {status}")
-
-        return True
-
-    def setAvoidanceActive(self, status: bool) -> bool:
-        self.__lock.acquire()
-        self.__isAvoidanceActive = status
-        self.__lock.release()
-
-        logging.info(f"[{self.getName()}] Avoidance active set to: {status}")
-
-        return True
-
-    def setTrajectoryActive(self, status: bool) -> bool:
-        self.__lock.acquire()
-        self.__isTrajectoryActive = status
-        self.__lock.release()
-
-        logging.info(f"[{self.getName()}] Trajectory active set to: {status}")
-
-        return True
-
-    def setFormationMatrix(self, matrix: np.ndarray) -> bool:
-        self.__lock.acquire()
-        self.__formationMatrix = np.array(matrix)
-        self.__lock.release()
-
-        logging.info(f"[{self.getName()}] Formation matrix has been changed: {matrix.shape}")
-
-        return True
-    
-    def setSwarming(self, swarming: bool) -> bool:
-        self.__lock.acquire()
-        self.__isSwarming = swarming
-        self.__lock.release()
-
-        logging.info(f"[{self.getName()}] Swarming set to: {swarming}")
-
-        return True
-
-    def setSwarmHeading(self, heading: np.ndarray) -> bool:
-        self.__lock.acquire()
-        self.__swarmHeading = np.array(heading)
-        self.__lock.release()
-
-        return True
-
-    def setSwarmDesiredHeading(self, desiredHeading: np.ndarray) -> bool:
-        self.__lock.acquire()
-        self.__swarmDesiredHeading = desiredHeading
+        self.__angle_offset = angle_offset
         self.__lock.release()
         
         return True
 
-    def setAngleOffset(self, angleOffset: float) -> bool:
+    def set_rotation(self, degree: float) -> bool:
+        """Agent set rotation.
+
+        Args:
+            degree (float): _description_
+
+        Returns:
+            bool: _description_
+        """
         self.__lock.acquire()
-        self.__angleOffset = angleOffset
+        self.__swarm_desired_heading = np.dot(Settings.getRotationMatrix(degree), self.__swarm_heading)
+        self.__lock.release()
+
+        logging.info(f"[{self.get_name()}] Rotation set to: {round(degree, 2)}")
+
+        return True
+
+    def set_rotation_angle(self, rotation_angle) -> bool:
+        """Agent set rotation angle
+
+        Args:
+            rotation_angle (_type_): _description_
+
+        Returns:
+            bool: _description_
+        """
+        self.__lock.acquire()
+        self.__rotation_angle = rotation_angle
         self.__lock.release()
         
         return True
 
-    def setRotation(self, degree: float) -> bool:
+    def set_initial_pos(self, initial_pos: np.ndarray) -> bool:
+        """Agent set initial position.
+
+        Args:
+            initial_pos (np.ndarray): _description_
+
+        Returns:
+            bool: _description_
+        """
         self.__lock.acquire()
-        self.__swarmDesiredHeading = np.dot(Settings.getRotationMatrix(degree), self.__swarmHeading)
-        self.__lock.release()
-
-        logging.info(f"[{self.getName()}] Rotation set to: {round(degree, 2)}")
-
-        return True
-
-    def setRotationAngle(self, rotationAngle) -> bool:
-        self.__lock.acquire()
-        self.__rotationAngle = rotationAngle
-        self.__lock.release()
-        
-        return True
-
-    def setInitialPos(self, initialPos: np.ndarray) -> bool:
-        self.__lock.acquire()
-        self.__initialPos = initialPos
+        self.__initial_pos = initial_pos
         self.__lock.release()
         
         return True
 
-    def setPos(self, pos: np.ndarray) -> bool:
+    def set_pos(self, pos: np.ndarray) -> bool:
+        """Agent set posiiton.
+
+        Args:
+            pos (np.ndarray): _description_
+
+        Returns:
+            bool: _description_
+        """
         self.__lock.acquire()
         self.__pos = pos
         self.__lock.release()
 
         return True
     
-    def setVel(self, vel: np.ndarray) -> bool:
+    def set_vel(self, vel: np.ndarray) -> bool:
+        """Agent set velocity
+
+        Args:
+            vel (np.ndarray): _description_
+
+        Returns:
+            bool: _description_
+        """
         self.__lock.acquire()
         self.__vel = vel
         self.__lock.release()
 
         return True
     
-    def setOtherAgents(self, otherAgents: list) -> bool:
+    def set_other_agents(self, other_agents: list) -> bool:
+        """Agent set other agents.
+
+        Args:
+            other_agents (list): _description_
+
+        Returns:
+            bool: _description_
+        """
         self.__lock.acquire()
-        self.__otherAgents = otherAgents
+        self.__other_agents = other_agents
         self.__lock.release()
 
         return True
@@ -586,78 +847,84 @@ class Agent:
         Returns:
             bool: Whether the update was succesfull or not.
 		"""
-        retValue = False
+        ret_value = False
         
         while self.__thread.is_alive():
             self.__tp2 = time.perf_counter()
 
             if False and 1.0 <= self.__tp2 - self.__tp1:
-                logging.info(f"[{self.getName()} Updated {self.__fps} times in a second]")
+                logging.info(f"[{self.get_name()} Updated {self.__fps} times in a second]")
                 self.__tp1 = time.perf_counter()
                 self.__fps = 0
 
             # Update position, speed and swarm variables
-            self.__updateVariables()
+            self.update_variables()
 
             # Calculate control values
-            controlVel = np.array([0.0, 0.0, 0.0])
-            formationVel = np.array([0.0, 0.0, 0.0])
-            avoidanceVel = np.array([0.0, 0.0, 0.0])
-            trajectoryVel = np.array([0.0, 0.0, 0.0])
+            control_vel = np.array([0.0, 0.0, 0.0])
+            formation_vel = np.array([0.0, 0.0, 0.0])
+            avoidance_vel = np.array([0.0, 0.0, 0.0])
+            trajectory_vel = np.array([0.0, 0.0, 0.0])
 
+            if self.is_formation_active():
+                formation_vel = self.formation_control()
 
+            if self.is_avoidance_active():
+                avoidance_vel = self.avoidance_control()
+                if 0.0 < Settings.getMagnitude(avoidance_vel):
+                    logging.info(f"[{self.get_name()}] Possible crash avoidance active!")
 
-            if self.isFormationActive():
-                formationVel = self.formationControl()
-
-            if self.isAvoidanceActive():
-                avoidanceVel = self.avoidanceControl()
-                if 0.0 < Settings.getMagnitude(avoidanceVel):
-                    logging.info(f"[{self.getName()}] Possible crash avoidance active!")
-
-            if self.isTrajectoryActive():
-                trajectoryVel = self.trajectoryControl()
+            if self.is_trajectory_active():
+                trajectory_vel = self.trajectory_control()
 
                 # Limit swarm control values
-                if self.getMaxSpeed() < Settings.getMagnitude(trajectoryVel):
-                    trajectoryVel = Settings.setMagnitude(trajectoryVel, self.getMaxSpeed())
+                if self.get_max_speed() < Settings.getMagnitude(trajectory_vel):
+                    trajectory_vel = Settings.setMagnitude(trajectory_vel, self.get_max_speed())
         
             # ---- Final velocity ---- # 
-            controlVel = formationVel + avoidanceVel + trajectoryVel
+            control_vel = formation_vel + avoidance_vel + trajectory_vel
             # ------------------------ #
 
             # Send the commanding message
             # print(f"[{self.getName()}] {formationVel.round(4)}")
-            self.__crazyflie.cmdVelocityWorld(controlVel, 0)
+            self.__crazyflie.cmdVelocityWorld(control_vel, 0)
 
             time.sleep(1 / 50)
             self.__fps += 1
 
-        return retValue
+        return ret_value
     
-    def takeOff(self, targetHeight: float) -> bool:
+    def take_off(self, target_height: float) -> bool:
         """Takes off the agent.
         """
-        self.setTargetHeight(targetHeight)
-        self.setTargetPoint(
+        ret_value = True
+
+        self.set_target_height(target_height)
+        self.set_target_point(
             np.array([
-                self.getPos()[0],
-                self.getPos()[1],
-                targetHeight
+                self.get_pos()[0],
+                self.get_pos()[1],
+                target_height
             ])
         )
+
+        return ret_value
 
     def land(self) -> bool:
         """Lands the agent.
         """
-        self.setTargetHeight(0.0)
-        self.setTargetPoint(
+        ret_value = True
+
+        self.set_target_height(0.0)
+        self.set_target_point(
             np.array([
-                self.getPos()[0],
-                self.getPos()[1],
+                self.get_pos()[0],
+                self.get_pos()[1],
                 0.0
             ])
         )
+
+        return ret_value
 
     def kill(self) -> bool:
         """Stops all the agent motors.
@@ -665,10 +932,10 @@ class Agent:
         Returns:
             bool: Whether the operation was succesfull or not.
         """
-        retValue = True
+        ret_value = True
 
         self.__crazyflie.cmdStop()
 
-        return retValue
+        return ret_value
     
     
