@@ -27,7 +27,3 @@ crazyflies:
   id: 0xe8
   initialPosition: [3.0, 2.0, 0.0]
   type: "default"
-- channel: 80
-  id: 0xe9
-  initialPosition: [3.0, 3.0, 0.0]
-  type: "default"

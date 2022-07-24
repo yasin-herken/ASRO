@@ -10,10 +10,6 @@ import Settings
 from Agent import Agent
 from MissionControl import MissionControl
 from threading import Thread
-<<<<<<< HEAD
-=======
-from Settings import nine_pyramid
->>>>>>> 4fc7a0f2c420c3e0c290115efddc77ab28f33d71
 
 def getChar(block = False):
     if block or select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
