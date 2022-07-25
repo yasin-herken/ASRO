@@ -59,10 +59,7 @@ def vec3(x_val = 0.00, y_val = 0.00, z_val = 0.00) -> numpy.ndarray:
     "return 3d vector"
     return numpy.array([x_val, y_val, z_val])
 
-FORMATION_OFFSET = 0.5
-
-FORMATION_CONTROL_GAIN = 0.15
-FORMATION_TRAJECTORY_GAIN = 2.0
+FORMATION_OFFSET = 1.0
 
 # 2D - This is wrong do not use this!
 FORMATION_TRIANGLE = numpy.array(
@@ -132,6 +129,7 @@ def nine_pyramid()->numpy.ndarray:
     ])* FORMATION_OFFSET
     matrix_length = int(ret_value.size/3)
     return calculate_matrix(ret_value,matrix_length=matrix_length)
+
 def cube()->numpy.ndarray:
     "return formation matrix for the cube shape with 8 agents"
     ret_value = numpy.array([
@@ -146,6 +144,7 @@ def cube()->numpy.ndarray:
     ])* FORMATION_OFFSET
     matrix_length = int(ret_value.size/3)
     return calculate_matrix(ret_value,matrix_length=matrix_length)
+
 def triangle_prism():
     "return formation matrix for the triangle prism shape with 6 agents"
     ret_value = numpy.array([
@@ -158,6 +157,7 @@ def triangle_prism():
     ])
     matrix_length = int(ret_value.size/3)
     return calculate_matrix(ret_value,matrix_length=matrix_length)
+
 def square_pyramid():
     "return formation matrix for the square pyramid shape with 4 agents"
     ret_value = numpy.array([
@@ -169,6 +169,7 @@ def square_pyramid():
     ])* FORMATION_OFFSET
     matrix_length = int(ret_value.size/3)
     return calculate_matrix(ret_value,matrix_length=matrix_length)
+
 def square():
     "return formation matrix for the square(2d) shape with 4 agents"
     ret_value = numpy.array([
@@ -179,6 +180,7 @@ def square():
     ])* FORMATION_OFFSET
     matrix_length = int(ret_value.size/3)
     return calculate_matrix(ret_value,matrix_length=matrix_length)
+
 def v_shape():
     "return formation matrix for the V shape with 5 agents"
     ret_value = numpy.array([
@@ -190,6 +192,7 @@ def v_shape():
     ])*FORMATION_OFFSET
     matrix_length = int(ret_value.size/3)
     return calculate_matrix(ret_value,matrix_length=matrix_length)
+
 def triangle()->numpy.ndarray:
     "return formation matrix for the triangle(2d) shape with 3 agents"
     ret_value = numpy.array([
@@ -199,6 +202,7 @@ def triangle()->numpy.ndarray:
     ])*FORMATION_OFFSET
     matrix_length = int(ret_value.size/3)
     return calculate_matrix(ret_value,matrix_length=matrix_length)
+
 def crescent()->numpy.ndarray:
     "return formation matrix for the crescent shape with 5 agents"
     ret_value = numpy.array([
@@ -210,5 +214,6 @@ def crescent()->numpy.ndarray:
     ])*FORMATION_OFFSET
     matrix_length = int(ret_value.size/3)
     return calculate_matrix(ret_value,matrix_length=matrix_length)
+    
 if __name__=="__main__":
     print(triangle())

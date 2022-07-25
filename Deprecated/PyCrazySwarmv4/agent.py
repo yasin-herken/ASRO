@@ -87,7 +87,7 @@ class Agent:
         self.__rotation_angle = 0.0
         self.__swarm_heading = np.array([0.01, 0.01, 0.0])
         self.__swarm_desired_heading = np.array([0.0, 1.0, 0.0])
-        self.__swarm_min_distance = 0.15
+        self.__swarm_min_distance = 0.30
         self.__angle_offset = 0.0
 
         self.__target_point = np.array([0.0, 0.0, 0.0])
@@ -99,7 +99,7 @@ class Agent:
         self.__speed = 0.0
         self.__max_speed = 0.5
 
-        self.__formation_const = 0.15
+        self.__formation_const = 0.10
         self.__trajectory_const = 0.20
         self.__alpha = 0.15
         self.__beta = 1.21
@@ -125,6 +125,33 @@ class Agent:
         except:
             logging.info(f"[{self.get_name()}] Failed to start the daemon update thread")
 
+    def print_info(self) -> bool:
+        """Prints the agent info to the stdin.
+
+        Returns:
+            bool: _description_
+        """
+
+        print(f"[{self.get_name()}] __name: {self.get_name()}")
+        print(f"[{self.get_name()}] __index: {self.get_index()}")
+        print(f"[{self.get_name()}] __is_formation_active: {self.is_formation_active()}")
+        print(f"[{self.get_name()}] __is_avoidance_active: {self.is_avoidance_active()}")
+        print(f"[{self.get_name()}] __is_trajectory_active: {self.is_trajectory_active()}")
+        print(f"[{self.get_name()}] __formation_matrix: {self.get_formation_matrix().round(4)}")
+        print(f"[{self.get_name()}] __swarm_heading: {self.get_swarm_heading().round(4)}")
+        print(f"[{self.get_name()}] __swarm_desired_heading: {self.get_swarm_desired_heading().round(4)}")
+        print(f"[{self.get_name()}] __target_point: {self.get_target_point()}")
+        print(f"[{self.get_name()}] __target_height: {self.get_target_height()}")
+        print(f"[{self.get_name()}] __initial_pos: {self.get_initial_pos()}")
+        print(f"[{self.get_name()}] __pos: {self.get_pos().round(4)}")
+        print(f"[{self.get_name()}] __vel: {self.get_vel().round(4)}")
+        print(f"[{self.get_name()}] __formation_const: {self.get_formation_const()}")
+        print(f"[{self.get_name()}] __rotation_angle: {self.get_rotation_angle()}")
+        print("\n")
+    
+
+        return True
+
     def formation_control(self) -> np.ndarray:
         """Calculates the formation 'force' to be applied to the agent.
         This calculation moves the agent into formation.
@@ -142,10 +169,13 @@ class Agent:
             if agent != self:
                 dist_diff = agent.get_pos() - self.get_pos()
 
-                dist_desired = self.get_formation_matrix()[self.__index][i]
+                self_idx = self.get_index()
+                dist_desired = self.get_formation_matrix()[self_idx][i]
                 # print(f"[{self.getName()}] {distanceToDesiredPoint.round(4)}")
 
-                angle_diff = settings.angle_between(self.get_swarm_heading(), self.__swarm_desired_heading)
+                swarm_heading = self.get_swarm_heading()
+                swarm_desired_heading = self.get_swarm_desired_heading()
+                angle_diff = settings.angle_between(swarm_heading, swarm_desired_heading)
 
                 # Determine rotation direction
                 # 1.0 for counter-clockwise -1.0 for counterwise                
@@ -155,8 +185,8 @@ class Agent:
                     x_1 = self.get_swarm_heading()[0]
                     y_1 = self.get_swarm_heading()[1]
 
-                    x_2 = self.__swarm_desired_heading[0]
-                    y_2 = self.__swarm_desired_heading[1]
+                    x_2 = self.get_swarm_desired_heading()[0]
+                    y_2 = self.get_swarm_desired_heading()[1]
 
                     temp_val = x_1 * y_2 - x_2 * y_1
 
@@ -166,13 +196,12 @@ class Agent:
                     rot_angle = self.get_rotation_angle()
                     self.set_rotation_angle(rot_angle + rot_dir * 0.1)
                 
-
                 rot_angle = self.get_rotation_angle()
                 rot_matrix = settings.get_rotation_matrix(rot_angle)
 
                 ret_value += (dist_diff - np.dot(rot_matrix, dist_desired))
 
-        return ret_value * self.__formation_const
+        return ret_value * self.get_formation_const()
     
     def avoidance_control(self) -> np.ndarray:
         """Calculates the avoidance 'force' to be applied to the agent.
@@ -187,7 +216,7 @@ class Agent:
         ret_value = np.array([0.0, 0.0, 0.0])
 
         for other_agent in self.get_other_agents():
-            if other_agent is not self:
+            if other_agent != self:
                 dist_diff_scalar = settings.get_distance(other_agent.get_pos(), self.get_pos())
 
                 # Check if othe agent is too close
@@ -217,14 +246,14 @@ class Agent:
 
         swarm_center = np.array([0.0, 0.0, 0.0])
 
-        if self.__is_swarming:
+        if self.is_swarming():
             for other_agent in self.get_other_agents():
                 swarm_center += other_agent.get_pos()
             swarm_center /= len(self.get_other_agents())
-        else:
-            swarm_center = self.get_pos()
 
-        ret_value = self.get_target_point() - swarm_center
+            ret_value = self.get_target_point() - swarm_center
+        else:
+            ret_value = self.get_target_point() - self.get_pos()
 
         return ret_value * self.__trajectory_const
 
@@ -235,7 +264,7 @@ class Agent:
         self.set_pos(self.__crazyflie.position())
 
         try:
-            if self.get_initial_pos() is None:
+            if self.get_initial_pos() == None:
                 pos = self.get_pos()
                 self.set_initial_pos(pos)
         except:
@@ -252,7 +281,7 @@ class Agent:
         self.__speed = settings.get_magnitude(self.get_vel())
 
         # Update swarm info
-        if self.__is_swarming:
+        if self.is_swarming():
             swarm_center = np.array([0.0, 0.0, 0.0])
             for agent in self.get_other_agents():
                 swarm_center += agent.get_pos()
@@ -347,7 +376,7 @@ class Agent:
             np.ndarray: _description_
         """
         self.__lock.acquire()
-        formation = self.__formation_matrix
+        formation = np.array(self.__formation_matrix)
         self.__lock.release()
 
         return formation
@@ -729,7 +758,7 @@ class Agent:
             bool: _description_
         """
         self.__lock.acquire()
-        self.__swarm_desired_heading = desired_heading
+        self.__swarm_desired_heading = np.array(desired_heading)
         self.__lock.release()
         
         return True
@@ -791,7 +820,7 @@ class Agent:
             bool: _description_
         """
         self.__lock.acquire()
-        self.__initial_pos = initial_pos
+        self.__initial_pos = np.array(initial_pos)
         self.__lock.release()
         
         return True
@@ -806,7 +835,7 @@ class Agent:
             bool: _description_
         """
         self.__lock.acquire()
-        self.__pos = pos
+        self.__pos = np.array(pos)
         self.__lock.release()
 
         return True
@@ -821,7 +850,7 @@ class Agent:
             bool: _description_
         """
         self.__lock.acquire()
-        self.__vel = vel
+        self.__vel = np.array(vel)
         self.__lock.release()
 
         return True
@@ -884,7 +913,8 @@ class Agent:
                 if self.get_max_speed() < settings.get_magnitude(trajectory_vel):
                     trajectory_vel = settings.set_magnitude(trajectory_vel, self.get_max_speed())
         
-            # ---- Final velocity ---- # 
+            # ---- Final velocity ---- #
+            # print(f"[{self.get_name()}] {formation_vel.round(2)}")
             control_vel = formation_vel + avoidance_vel + trajectory_vel
             # ------------------------ #
 
