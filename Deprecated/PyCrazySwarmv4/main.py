@@ -6,6 +6,7 @@ import logging
 import select
 from threading import Thread
 import numpy as np
+
 import settings
 from agent import Agent
 from mission_control import MissionControl
@@ -22,7 +23,7 @@ def get_char(block = False) -> str:
     """
     if block or select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
         return sys.stdin.read(1)
-        
+
 
 def watch_dog(agents: List[Agent]) -> None:
     """Runs on a thread. Checks the Redis 'emergency' channel and the input 'q'.
@@ -58,7 +59,7 @@ def main() -> None:
     If a new request exists, hands over the control to MissionControl.
     """
     # Initialization
-    agent_count = 4
+    agent_count = 5
 
     created_agents: List[Agent]
     activated_agents: List[Agent]
@@ -167,7 +168,7 @@ def main() -> None:
 
     elif "swarm_trajectory_test" in sys.argv:
         mission_control.take_off_all(0.5, 3.0)
-        mission_control.take_formation(settings.square(), 15.0)
+        mission_control.take_formation(settings.v_shape(), 15.0)
         mission_control.goto_swarm(np.array([[-3.0, -3.0, 0.5]]), 10.0)
         mission_control.goto_swarm(np.array([[-3.0, 3.0, 0.5]]), 10.0)
         mission_control.rotate_swarm(-90.0, 6.0)
@@ -178,19 +179,25 @@ def main() -> None:
 
     elif "mission_one" in sys.argv:
         mission_control.take_off_all(0.5, 3.0)
-        mission_control.take_formation(settings.square(), 15.0)
+        mission_control.take_formation(settings.v_shape(), 15.0)
         mission_control.goto_swarm(np.array([[0.0, 3.0, 0.5]]), 15.0)
         mission_control.land_all(5.0)
 
     elif "mission_two" in sys.argv:
         mission_control.take_off_all(0.5, 3.0)
-        mission_control.take_formation(settings.square(), 15.0)
+        mission_control.take_formation(settings.v_shape(), 15.0)
         mission_control.goto_swarm(np.array([[0.0, 3.0, 0.5]]), 10.0)
         inactive_agents = list(set(created_agents) - set(activated_agents))
         mission_control.swap_swarm_agents(activated_agents[-2:], inactive_agents[:2], [10.0, 10.0, 10.0, 10.0])
-        mission_control.goto_swarm(np.array([[3.0, 3.0, 0.5]]), 10.0)
-        mission_control.rotate_swarm(-90.0, 6.0)
         mission_control.goto_swarm(np.array([[-3.0, 3.0, 0.5]]), 10.0)
+        mission_control.land_all(5.0)
+
+    elif "mission_three" in sys.argv:
+        mission_control.take_off_all(0.5, 3.0)
+        mission_control.take_formation(settings.v_shape(), 15.0)
+        inactive_agents = list(set(created_agents) - set(activated_agents))
+        mission_control.load_obstacles(inactive_agents, 1.0)
+        mission_control.goto_swarm(np.array([[3.0, 0.0, 0.5]]), 15.0)
         mission_control.land_all(5.0)
 
     else:

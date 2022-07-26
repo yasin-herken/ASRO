@@ -14,8 +14,10 @@ class MissionControl:
     __agents: List[Agent]
     __crazy_server: Crazyswarm
 
-    counter1 = time.perf_counter()
-    counter2 = time.perf_counter()
+    __swarm_heading: np.ndarray
+    __swarm_desired_heading: np.ndarray
+    __rotation_angle: float
+    
     def __init__(self, agents: List[Agent], crazy_server: Crazyswarm):
         """Initialize the MissionControl.
 
@@ -25,12 +27,54 @@ class MissionControl:
         self.__agents = agents
         self.__crazy_server = crazy_server
 
+        self.__rotation_angle = 0.0
+
+        self.__swarm_heading = np.array([0.001, 0.001, 0.0])
+        self.__swarm_desired_heading = np.array([0.0, 1.0, 0.0])
+
     def __update(self) -> bool:
         """Update the agents
 
         Returns:
             bool: Specifies whether the operation was successfull or not.
         """
+        # Synchronize swarm info
+
+        # Update swarm info
+        swarm_center = np.array([0.0, 0.0, 0.0])
+
+        for agent in self.__agents:
+            swarm_center += agent.get_pos()
+        swarm_center /= len(self.__agents)
+
+        front_agent = self.__agents[0]
+        dist_diff = front_agent.get_pos() - swarm_center
+
+        self.__swarm_heading = dist_diff / np.linalg.norm(dist_diff)
+        angle_diff = settings.angle_between(self.__swarm_heading, self.__swarm_desired_heading)
+
+        # Determine rotation direction
+        # 1.0 for counter-clockwise -1.0 for counterwise             
+        if (0.5 <= angle_diff):
+            # print(angle_diff)
+            rot_dir = 1.0
+
+            x_1 = self.__swarm_heading[0]
+            y_1 = self.__swarm_heading[1]
+
+            x_2 = self.__swarm_desired_heading[0]
+            y_2 = self.__swarm_desired_heading[1]
+
+            temp_val = x_1 * y_2 - x_2 * y_1
+
+            if temp_val <= 0.0:
+                rot_dir = -1.0
+
+            self.__rotation_angle += rot_dir * 0.05
+
+            for agent in self.__agents:
+                agent.set_rotation_angle(self.__rotation_angle)
+
         self.__crazy_server.timeHelper.sleep(1 / 100)
 
         return True
@@ -40,13 +84,16 @@ class MissionControl:
         rows_count = len(formation_matrix)
         is_valid = True
         ret_value = True
+
         for i in range(rows_count):
             columns_count = len(formation_matrix[i])
             if rows_count != columns_count:
                 is_valid = False
+
         if not is_valid:
             logging.info("Formatin matrix is invalid. Rows and columns count do not match")
             ret_value = False
+
         if len(self.__agents) != rows_count:
             logging.info(f"Agent count and formation_matrix does not match. Agents: {len(self.__agents)}, formation_matrix: {rows_count}x{rows_count}")
             ret_value = False
@@ -116,9 +163,6 @@ class MissionControl:
         if len(durations) != 4:
             logging.info("Size of durations is not 4! Aborting")
             return False
-
-        for agent in target_agents:
-            agent.print_info()
 
         # Stop formation forces
         for agent in self.__agents:
@@ -195,14 +239,8 @@ class MissionControl:
             # Add them to the list
             self.__agents.append(agent)
 
-            # Give them the rotationAngle
-            agent.set_rotation_angle(target_agents[idx].get_rotation_angle())
-
-            # Give them the rotationAngle
+            # Give them the formationMatrix
             agent.set_formation_matrix(target_agents[idx].get_formation_matrix())
-
-            # Give them the swarm desiredHeding
-            agent.set_swarm_desired_heading(target_agents[idx].get_swarm_desired_heading())
 
             # Swap the indexes
             temp = target_agents[idx].get_index()
@@ -211,14 +249,41 @@ class MissionControl:
 
         # Activate formation forces
         for agent in self.__agents:
+            agent.set_swarming(True)
             agent.set_other_agents(self.__agents)
-        
-        for agent in new_agents:
-            agent.print_info()
 
         logging.info(f"Ending mission swap_swarm_agents with success.")
 
         ret_value = True
+
+        return ret_value
+
+    def load_obstacles(self, obstacles: List[Agent], duration) -> bool:
+        """Takes off the agent.
+
+        Returns:
+            bool: Specifies whether the mission was successfull or not.
+        """
+        logging.info(f"Starting mission load_obstacles. Obstacle count: {len(obstacles)}")
+        ret_value = False
+
+        for obstacle in obstacles:
+            obstacle.set_is_static(True)
+
+        for agent in self.__agents:
+            agent.set_obstacles(obstacles)
+
+        t1_val = time.perf_counter()
+        t2_val = time.perf_counter()
+
+        while t2_val - t1_val <= duration:
+            self.__update()
+            t2_val = time.perf_counter()
+
+
+        logging.info(f"Ending mission load_obstacles with success.")
+
+        agent.set_trajectory_active(False)
 
         return ret_value
 
@@ -419,10 +484,11 @@ class MissionControl:
 
         logging.info(f"Starting mission rotate_swarm.")
 
+        self.__swarm_desired_heading = np.dot(settings.get_rotation_matrix(angle), self.__swarm_heading)
+        logging.info(f"Rotation set to: {round(angle, 2)}")
+
         for agent in self.__agents:
-            agent.set_rotation(angle)
-            agent.set_trajectory_active(True)
-            agent.set_formation_const(0.40)
+            agent.set_trajectory_active(False)
             agent.set_formation_active(True)
 
         t1_val = time.perf_counter()
@@ -431,9 +497,6 @@ class MissionControl:
         while t2_val - t1_val <= duration:
             self.__update()
             t2_val = time.perf_counter()
-
-        for agent in self.__agents:
-            agent.set_formation_const(0.10)
 
         logging.info(f"Ending rotate_swarm with success. Total target count: {len(self.__agents)}")
 
