@@ -112,8 +112,8 @@ class Agent:
         self.__max_speed = 0.5
         self.__formation_const = 0.6
         self.__trajectory_const = 0.75
-        self.__alpha = 0.15
-        self.__beta = 1.21
+        self.__alpha = 1.15
+        self.__beta = 3.21
 
         self.__t1 = time.perf_counter()
         self.__t2 = time.perf_counter()
@@ -855,8 +855,8 @@ except KeyError as e:
         self.__deck_attached_event = Event()
 
         with SyncCrazyflie(self.__uri, cf=Crazyflie(rw_cache='./cache')) as scf:
-            scf.cf.param.add_update_callback(group='deck', name='bcFlow2', cb=self.param_deck_flow)
-
+            #scf.cf.param.add_update_callback(group='deck', name='bcFlow2', cb=self.param_deck_flow)
+            time.sleep(5.0)
             logconf = LogConfig(name='Position', period_in_ms=10)
             logconf.add_variable('stateEstimate.x', 'float')
             logconf.add_variable('stateEstimate.y', 'float')
@@ -869,9 +869,9 @@ except KeyError as e:
                 logconf.data_received_cb.add_callback(cb=self.__updateVariables)
                 battery.data_received_cb.add_callback(cb=self.battery)
                 logconf.error_cb.add_callback(self._stab_log_error)
-                if not self.__deck_attached_event.wait(timeout=5):
+                '''if not self.__deck_attached_event.wait(timeout=5):
                     logging.info('No flow deck detected!')
-                    sys.exit(-4)
+                    sys.exit(-4)'''
                 
                 logconf.start() 
                 battery.start()

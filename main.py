@@ -55,15 +55,16 @@ def main() -> None:
     If a new request exists, hands over the control to MissionControl.
     """
     # Initialization
-    agent_count = 1
+    agent_count = 3
     created_agents: List[Agent]
     activated_agents: List[Agent]
     created_agents = []
     activated_agents = []
     uri_list = []
     # Agent URIs
-    uri = uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E7')
-    uri_list.append(uri)
+    uri_list.append(uri_helper.uri_from_env(default='radio://0/95/2M/E7E7E7E7D2'))
+    uri_list.append(uri_helper.uri_from_env(default='radio://0/95/2M/E7E7E7E7D1'))
+    uri_list.append(uri_helper.uri_from_env(default='radio://0/115/2M/E7E7E7E7C4'))
     # Fix the issue where rospy disables the logging
     os.environ['ROS_PYTHON_LOG_CONFIG_FILE'] = "`rospack find rosgraph`/conf/python_logging.yaml"
 
@@ -147,10 +148,11 @@ def main() -> None:
             mission_control.land_all(2.0)
 
     elif "formation_test" in sys.argv:
+        time.sleep(5.0)
         for i, agent in enumerate(activated_agents):
             logging.info(f"Index: {i}, agent: {agent.get_name()}")
-        mission_control.take_off_all(0.5, 2.0)
-        mission_control.take_formation(settings.v_shape(), 10.0)
+        mission_control.take_off_all(0.5, 10.0)
+        mission_control.take_formation(settings.triangle(), 10.0)
         mission_control.land_all(5.0)
 
     elif "rotation_test" in sys.argv:
@@ -164,7 +166,7 @@ def main() -> None:
 
     elif "swarm_trajectory_test" in sys.argv:
         mission_control.take_off_all(0.5, 3.0)
-        mission_control.take_formation(settings.pyramid(), 15.0)
+        mission_control.take_formation(settings.triangle(), 15.0)
         mission_control.goto_swarm(np.array([[-3.0, -3.0, 0.5]]), 10.0)
         mission_control.goto_swarm(np.array([[-3.0, 3.0, 0.5]]), 10.0)
         mission_control.rotate_swarm(-90.0, 6.0)
@@ -196,6 +198,8 @@ def main() -> None:
         mission_control.land_all(5.0)
     else:
         logging.info("Please specify the operation by giving an argument")
+        while True:
+            pass
         print("\nAvailable parameters")
         print("agent_trajectory_test")
         print("takeoff_land_test")
