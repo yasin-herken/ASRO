@@ -124,7 +124,7 @@ def main() -> None:
     elif "agent_trajectory_test" in sys.argv:
         mission_control.take_off_agent(activated_agents[0], 0.5, 2.0)
         mission_control.goto_agent(
-            targetAgent=activated_agents[0],
+            target_agent=activated_agents[0],
             points=np.array(
                 [
                     [0.5, 0.0, 0.5],
@@ -188,7 +188,13 @@ def main() -> None:
         mission_control.rotate_swarm(90.0, 6.0)
         mission_control.goto_swarm(np.array([[-3.0, -3.0, 0.5]]), 15.0)
         mission_control.land_all(5.0)
-
+    elif "mission_three" in sys.argv:
+        mission_control.take_off_all(0.5, 3.0)
+        mission_control.take_formation(settings.v_shape(), 15.0)
+        inactive_agents = list(set(created_agents) - set(activated_agents))
+        mission_control.load_obstacles(inactive_agents, 1.0)
+        mission_control.goto_swarm(np.array([[3.0, 0.0, 0.5]]), 15.0)
+        mission_control.land_all(5.0)
     else:
         logging.info("Please specify the operation by giving an argument")
 

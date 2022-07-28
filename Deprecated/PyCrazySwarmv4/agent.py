@@ -37,6 +37,8 @@ class Agent:
 
     __formation_matrix: np.ndarray
     __rotation_angle: float
+    __swarm_heading: np.ndarray
+    __swarm_desired_heading: np.ndarray
     __swarm_min_distance: float
 
     __target_point: np.ndarray
