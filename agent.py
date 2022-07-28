@@ -95,10 +95,10 @@ class Agent:
         self.__is_trajectory_active = True
         self.__is_swarming = False
         self.__is_in_formation = False
+        self.__is_static = False
         self.__formation_matrix = np.array([0.0])
+        self.__swarm_min_distance = 0.30
         self.__rotation_angle = 0.0
-        self.__swarm_heading = np.array([0.0, 0.0, 0.0])
-        self.__swarm_desired_heading = np.array([0.0, 1.0, 0.0])
         self.__swarm_min_distance = 0.15
         self.__angle_offset = 0.0
 
@@ -110,9 +110,8 @@ class Agent:
         self.__vel = np.array([0.0, 0.0, 0.0])
         self.__speed = 0.0
         self.__max_speed = 0.5
-
-        self.__formation_const = 0.15
-        self.__trajectory_const = 0.20
+        self.__formation_const = 0.6
+        self.__trajectory_const = 0.75
         self.__alpha = 0.15
         self.__beta = 1.21
 
@@ -153,38 +152,16 @@ class Agent:
         for i, agent in enumerate(self.get_other_agents()):
             if agent != self:
                 dist_diff = agent.get_pos() - self.get_pos()
-
-                dist_desired = self.get_formation_matrix()[self.__index][i]
+                self_idx = self.get_index()
+                dist_desired = self.get_formation_matrix()[self_idx][i]
                 # print(f"[{self.getName()}] {distanceToDesiredPoint.round(4)}")
-
-                angle_diff = settings.angle_between(self.get_swarm_heading(), self.__swarm_desired_heading)
-
-                # Determine rotation direction
-                # 1.0 for counter-clockwise -1.0 for counterwise                
-                if (0.5 <= angle_diff):
-                    rot_dir = 1.0
-
-                    x_1 = self.get_swarm_heading()[0]
-                    y_1 = self.get_swarm_heading()[1]
-
-                    x_2 = self.__swarm_desired_heading[0]
-                    y_2 = self.__swarm_desired_heading[1]
-
-                    temp_val = x_1 * y_2 - x_2 * y_1
-
-                    if temp_val <= 0.0:
-                        rot_dir = -1.0
-
-                    rot_angle = self.get_rotation_angle()
-                    self.set_rotation_angle(rot_angle + rot_dir * 0.1)
                 
-
                 rot_angle = self.get_rotation_angle()
                 rot_matrix = settings.get_rotation_matrix(rot_angle)
 
-                ret_value += (dist_diff - np.dot(rot_matrix, dist_desired))
+                ret_value += (dist_diff - np.dot(rot_matrix, dist_desired))         
 
-        return ret_value * self.__formation_const
+        return ret_value * self.get_formation_const()
 
     
     def avoidance_control(self) -> np.ndarray:
@@ -234,10 +211,10 @@ class Agent:
             for other_agent in self.get_other_agents():
                 swarm_center += other_agent.get_pos()
             swarm_center /= len(self.get_other_agents())
-        else:
-            swarm_center = self.get_pos()
 
-        ret_value = self.get_target_point() - swarm_center
+            ret_value = self.get_target_point() - swarm_center
+        else:
+            ret_value = self.get_target_point() - self.get_pos()
 
         return ret_value * self.__trajectory_const
     
@@ -902,7 +879,6 @@ except KeyError as e:
                 logging.error(str(e))
   
             with MotionCommander(scf, default_height=0.01) as mc:
-                print("asldkaşsdkaldakşs")
                 while True:
                     # Calculate control values
                     control_vel = np.array([0.0, 0.0, 0.0])
