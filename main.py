@@ -120,7 +120,6 @@ def main() -> None:
         print("swarm_trajectory_test")
         print("---------------------\n")
         sys.exit(0)
-
     elif "agent_trajectory_test" in sys.argv:
         mission_control.take_off_agent(activated_agents[0], 0.5, 2.0)
         mission_control.goto_agent(
@@ -191,9 +190,7 @@ def main() -> None:
 
     else:
         logging.info("Please specify the operation by giving an argument")
-
         print("\nAvailable parameters")
-        print("---------------------")
         print("agent_trajectory_test")
         print("takeoff_land_test")
         print("formation_test")
