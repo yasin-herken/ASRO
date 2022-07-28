@@ -210,5 +210,11 @@ def crescent()->numpy.ndarray:
     ])*FORMATION_OFFSET
     matrix_length = int(ret_value.size/3)
     return calculate_matrix(ret_value,matrix_length=matrix_length)
+def myself()->numpy.ndarray:
+    ret_value = numpy.array(
+        [0.3,0.0,0.5]
+    )*FORMATION_OFFSET
+    matrix_length = int(ret_value.size/3)
+    return calculate_matrix(ret_value,matrix_length=matrix_length)
 if __name__=="__main__":
     print(triangle())

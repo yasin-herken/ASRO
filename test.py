@@ -123,6 +123,7 @@ class LoggingExample:
         """Callback when the Crazyflie is disconnected (called in all cases)"""
         print('Disconnected from %s' % link_uri)
         self.is_connected = False
+
 def parse_data(team_name,uav_name,data_org):
     pass
 

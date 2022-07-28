@@ -5,14 +5,29 @@ from typing import List
 import logging
 import select
 import time
+
 from threading import Thread
 import numpy as np
+
 import cflib.crtp
 from cflib.utils import uri_helper
+
 import settings
 from agent import Agent
 from mission_control import MissionControl
 
+# Suan iki versiyon var biri ana dizindeki cflib digeri ise Deprecated/PyCrazySwarmv4
+# PyCrazySwarmv4 algoritma olarak en guncel fakat cflib yok
+# CFLIB ise guncel degıl fakat cflib var
+
+# TODO: PyCrazySwarmv4 ile CFLIB merge edilecek en guncel sekilde
+# TODO: agent.py update edilecek
+    # TODO: is_ready variable eklenecek
+    # TODO: set_is_ready() ve is_ready() fonksiyonleri eklenecek
+    # TODO: update_variables(), connected(), disconnected(), connection_failed(), connection_lost() fonksiyonlerı eklenecek/guncellenecek
+    # TODO: update() fonksiyonu guncellenecek
+# TODO: mission_control.py update edilecek
+# TODO: main.py update edilecek
 
 def get_char(block = False) -> str:
     """Gets a char from the stdin.
@@ -55,19 +70,24 @@ def main() -> None:
     If a new request exists, hands over the control to MissionControl.
     """
     # Initialization
-    agent_count = 3
+    agent_count = 1
     created_agents: List[Agent]
     activated_agents: List[Agent]
     created_agents = []
     activated_agents = []
     uri_list = []
+    
     # Agent URIs
-    uri_list.append(uri_helper.uri_from_env(default='radio://0/95/2M/E7E7E7E7D2'))
-    uri_list.append(uri_helper.uri_from_env(default='radio://0/95/2M/E7E7E7E7D1'))
-    uri_list.append(uri_helper.uri_from_env(default='radio://0/115/2M/E7E7E7E7C4'))
+    uri_list.append(uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E7'))
+    uri_list.append(uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E7'))
+    uri_list.append(uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E7'))
+    uri_list.append(uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E7'))
+    uri_list.append(uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E7'))
+    uri_list.append(uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E7'))
+
+
     # Fix the issue where rospy disables the logging
     os.environ['ROS_PYTHON_LOG_CONFIG_FILE'] = "`rospack find rosgraph`/conf/python_logging.yaml"
-
     logging.info("Initializing Cflib server")
 
     # Start the Crazyswarm server
@@ -76,7 +96,7 @@ def main() -> None:
     logging.info("Creating instances of 'Agent' class.")
 
     # Add agents
-    for idx,uri in enumerate(uri_list):
+    for idx, uri in enumerate(uri_list):
         created_agents.append(
             Agent(
                 uri=uri,
@@ -84,23 +104,34 @@ def main() -> None:
                 idx=idx
             )
         )
+        logging.info(f"Created agent {uri}.")
 
-    time.sleep(1.0)
-
-    
     # List of all active agents
-
     for i in range(agent_count):
         activated_agents.append(created_agents[i])
+
+    # Wait for agent to be ready
+    waiting = True
+
+    while waiting:
+        ready_agent_count = 0
+        for agent in created_agents:
+            if agent.is_ready():
+                ready_agent_count += 1
+        
+        if ready_agent_count == len(created_agents):
+            waiting = False
+    time.sleep(5.0)
+    logging.info(f"All agents are ready!")
     # Give the all agents' info to every other agent
     for agent in created_agents:
         agent.set_other_agents(activated_agents)
-
+        agent.set_avoidance_active(True)
     logging.info(f"Created all agents.")
 
     logging.info("Creating an instance of 'MissionControl'.")
 
-    # Creating mission control    
+    # Creating mission control
     mission_control = MissionControl(
         agents = activated_agents
     )
@@ -142,13 +173,11 @@ def main() -> None:
         mission_control.land_agent(activated_agents[0], 5.0)
 
     elif "takeoff_land_test" in sys.argv:
-        time.sleep(5.0)
         for i in range(3):
             mission_control.take_off_all(0.5, 10.0)
             mission_control.land_all(2.0)
 
     elif "formation_test" in sys.argv:
-        time.sleep(5.0)
         for i, agent in enumerate(activated_agents):
             logging.info(f"Index: {i}, agent: {agent.get_name()}")
         mission_control.take_off_all(0.5, 10.0)
@@ -174,21 +203,31 @@ def main() -> None:
         mission_control.rotate_swarm(-90.0, 6.0)
         mission_control.goto_swarm(np.array([[3.0, -3.0, 0.5]]), 10.0)
         mission_control.land_all(5.0)
+
     elif "mission_one" in sys.argv:
         mission_control.take_off_all(0.5, 3.0)
         mission_control.take_formation(settings.pyramid(), 15.0)
         mission_control.goto_swarm(np.array([[0.0, 3.0, 0.5]]), 15.0)
         mission_control.land_all(5.0)
+
     elif "mission_two" in sys.argv:
         mission_control.take_off_all(0.5, 3.0)
-        mission_control.take_formation(settings.pyramid(), 15.0)
-        mission_control.goto_swarm(np.array([[0.0, 3.0, 0.5]]), 15.0)
+        mission_control.take_formation(settings.pyramid(), 20.0)
+        mission_control.goto_swarm(np.array([[0.0, 3.0, 0.5]]), 20.0)
         inactive_agents = list(set(created_agents) - set(activated_agents))
+        # First parameter: list of agents to be removed
+        # Second parameter: list of agents to be added
+        # Third parameter: duration times
+            # First duration: wait for agents to go to their initial positions
+            # Second duration: wait for agents to land
+            # Third duration: wait for agents to take off
+            # Fourth duration: wait for agents to go to their positions in the swarm
         mission_control.swap_swarm_agents(activated_agents[-2:], inactive_agents, [10.0, 10.0, 10.0, 10.0])
         mission_control.goto_swarm(np.array([[-3.0, 3.0, 0.5]]), 15.0)
         mission_control.rotate_swarm(90.0, 6.0)
         mission_control.goto_swarm(np.array([[-3.0, -3.0, 0.5]]), 15.0)
         mission_control.land_all(5.0)
+
     elif "mission_three" in sys.argv:
         mission_control.take_off_all(0.5, 3.0)
         mission_control.take_formation(settings.v_shape(), 15.0)
