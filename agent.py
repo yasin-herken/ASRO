@@ -101,7 +101,7 @@ class Agent:
         self.__pos = np.array([0.0, 0.0, 0.0])
         self.__vel = np.array([0.0, 0.0, 0.0])
         self.__speed = 0.0
-        self.__max_speed = 0.5
+        self.__max_speed = 1.0
         self.__formation_const = 0.5
         self.__trajectory_const = 0.75
         self.__alpha = 1.15
@@ -914,7 +914,6 @@ class Agent:
             # print(f"[{self.getName()}] {formationVel.round(4)}")
             if self.is_formation_active() or self.is_avoidance_active() or self.is_trajectory_active():
                 self.__cf.commander.send_velocity_world_setpoint(control_vel[0], control_vel[1], control_vel[2], 0.0)
-
             time.sleep(1 / 50)
 
         return ret_value

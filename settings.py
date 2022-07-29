@@ -59,7 +59,7 @@ def vec3(x_val = 0.00, y_val = 0.00, z_val = 0.00) -> numpy.ndarray:
     "return 3d vector"
     return numpy.array([x_val, y_val, z_val])
 
-FORMATION_OFFSET = 1.0
+FORMATION_OFFSET = 0.5
 
 FORMATION_CONTROL_GAIN = 0.15
 FORMATION_TRAJECTORY_GAIN = 2.0
@@ -214,6 +214,17 @@ def myself()->numpy.ndarray:
     ret_value = numpy.array(
         [0.3,0.0,0.5]
     )*FORMATION_OFFSET
+    matrix_length = int(ret_value.size/3)
+    return calculate_matrix(ret_value,matrix_length=matrix_length)
+def pyramid():
+    "return formation matrix for the square(2d) shape with 4 agents"
+    ret_value = numpy.array([
+        [-0.5,-0.5,0.0],
+        [0.5,-0.5,0.0],
+        [0.5,0.5,0.0],
+        [-0.5,0.5,0.0],
+        [0.0,0.0,0.5*numpy.sqrt(3)]
+    ])* FORMATION_OFFSET
     matrix_length = int(ret_value.size/3)
     return calculate_matrix(ret_value,matrix_length=matrix_length)
 if __name__=="__main__":

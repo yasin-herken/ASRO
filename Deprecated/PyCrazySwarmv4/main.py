@@ -154,7 +154,7 @@ def main() -> None:
         for i, agent in enumerate(activated_agents):
             logging.info(f"Index: {i}, agent: {agent.get_name()}")
         mission_control.take_off_all(0.5, 2.0)
-        mission_control.take_formation(settings.v_shape(), 10.0)
+        mission_control.take_formation(settings.pyramid(), 10.0)
         mission_control.land_all(5.0)
 
     elif "rotation_test" in sys.argv:

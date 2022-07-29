@@ -129,7 +129,17 @@ def nine_pyramid()->numpy.ndarray:
     ])* FORMATION_OFFSET
     matrix_length = int(ret_value.size/3)
     return calculate_matrix(ret_value,matrix_length=matrix_length)
-
+def pyramid():
+    "return formation matrix for the square(2d) shape with 4 agents"
+    ret_value = numpy.array([
+        [-0.5,-0.5,0.0],
+        [0.5,-0.5,0.0],
+        [0.5,0.5,0.0],
+        [-0.5,0.5,0.0],
+        [0.0,0.0,0.5*numpy.sqrt(3)]
+    ])* FORMATION_OFFSET
+    matrix_length = int(ret_value.size/3)
+    return calculate_matrix(ret_value,matrix_length=matrix_length)
 def cube()->numpy.ndarray:
     "return formation matrix for the cube shape with 8 agents"
     ret_value = numpy.array([

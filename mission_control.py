@@ -36,7 +36,7 @@ class MissionControl:
 
         # Update swarm info
         swarm_center = np.array([0.0, 0.0, 0.0])
-
+        
         for agent in self.__agents:
             swarm_center += agent.get_pos()
         swarm_center /= len(self.__agents)
