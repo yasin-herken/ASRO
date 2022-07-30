@@ -103,7 +103,7 @@ class Agent:
         self.__speed = 0.0
         self.__max_speed = 1.0
         self.__formation_const = 0.5
-        self.__trajectory_const = 0.75
+        self.__trajectory_const = 1.5
         self.__alpha = 1.15
         self.__beta = 2.21
 
@@ -863,7 +863,7 @@ class Agent:
         ret_value = False
         
         self.__deck_attached_event = Event()
-
+        
         #with SyncCrazyflie(self.__uri, cf=Crazyflie(rw_cache='./cache')) as scf:
         #scf.cf.param.add_update_callback(group='deck', name='bcFlow2', cb=self.param_deck_flow)
         self.__cf = Crazyflie(rw_cache="./cache")

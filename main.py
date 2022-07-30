@@ -8,10 +8,12 @@ import time
 
 from threading import Thread
 import numpy as np
-
+import rospy
 import cflib.crtp
 from cflib.utils import uri_helper
-
+from std_msgs.msg import String
+from custom_msg.msg import general_parameters #import custom_msg which is in the workspace
+from custom_msg.msg import obstacle 
 import settings
 from agent import Agent
 from mission_control import MissionControl
@@ -76,13 +78,17 @@ def main() -> None:
     created_agents = []
     activated_agents = []
     uri_list = []
-    
+    rospy.init_node('listener', anonymous=True)
+
+    rospy.Subscriber("/obstacle/obstacle_C8", obstacle, callback)
     # Agent URIs
-    uri_list.append(uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E7'))
-    uri_list.append(uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E7'))
-    uri_list.append(uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E7'))
-    uri_list.append(uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E7'))
-    uri_list.append(uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E7'))
+    uri_list.append(uri_helper.uri_from_env(default='radio://0/125/2M/E7E7E7E7C1'))
+    uri_list.append(uri_helper.uri_from_env(default='radio://0/125/2M/E7E7E7E7C2'))
+    uri_list.append(uri_helper.uri_from_env(default='radio://0/125/2M/E7E7E7E7C3'))
+    uri_list.append(uri_helper.uri_from_env(default='radio://1/115/2M/E7E7E7E7C4'))
+    uri_list.append(uri_helper.uri_from_env(default='radio://1/115/2M/E7E7E7E7C5'))
+
+
 
     # Fix the issue where rospy disables the logging
     os.environ['ROS_PYTHON_LOG_CONFIG_FILE'] = "`rospack find rosgraph`/conf/python_logging.yaml"
@@ -116,8 +122,7 @@ def main() -> None:
         for agent in created_agents:
             if agent.is_ready():
                 ready_agent_count += 1
-        
-        if ready_agent_count == len(created_agents):
+        if ready_agent_count== len(created_agents):
             waiting = False
     time.sleep(5.0)
     logging.info(f"All agents are ready!")
@@ -171,9 +176,8 @@ def main() -> None:
         mission_control.land_agent(activated_agents[0], 5.0)
 
     elif "takeoff_land_test" in sys.argv:
-        for i in range(3):
-            mission_control.take_off_all(0.5, 10.0)
-            mission_control.land_all(2.0)
+        mission_control.take_off_all(0.5, 10.0)
+        mission_control.land_all(2.0)
 
     elif "formation_test" in sys.argv:
         for i, agent in enumerate(activated_agents):
@@ -214,9 +218,9 @@ def main() -> None:
         mission_control.land_all(5.0)
 
     elif "mission_two" in sys.argv:
-        mission_control.take_off_all(0.5, 3.0)
-        mission_control.take_formation(settings.pyramid(), 20.0)
-        mission_control.goto_swarm(np.array([[0.0, 3.0, 0.5]]), 20.0)
+        mission_control.take_off_all(1.0, 3.0)
+        mission_control.goto_swarm(np.array([[0.0, 1.5, 1.0]]), 10.0)
+        mission_control.take_formation(settings.pyramid(), 15.0)
         inactive_agents = list(set(created_agents) - set(activated_agents))
         # First parameter: list of agents to be removed
         # Second parameter: list of agents to be added
@@ -225,10 +229,14 @@ def main() -> None:
             # Second duration: wait for agents to land
             # Third duration: wait for agents to take off
             # Fourth duration: wait for agents to go to their positions in the swarm
-        mission_control.swap_swarm_agents(activated_agents[-2:], inactive_agents, [10.0, 10.0, 10.0, 10.0])
-        mission_control.goto_swarm(np.array([[-3.0, 3.0, 0.5]]), 15.0)
-        mission_control.rotate_swarm(90.0, 6.0)
-        mission_control.goto_swarm(np.array([[-3.0, -3.0, 0.5]]), 15.0)
+        removed_agent = []
+        removed_agent.append(activated_agents[index1])
+        if (index2>index1):
+            removed_agent.append(activated_agents[index2])
+        else:
+            removed_agent.append(activated_agents[index2-1])
+        mission_control.swap_swarm_agents(activated_agents[-2:], inactive_agents, [8.0, 8.0, 8.0, 8.0])
+        mission_control.goto_swarm(np.array([[0.0, 0.0, 1.0]]), 15.0)
         mission_control.land_all(5.0)
 
     elif "mission_three" in sys.argv:

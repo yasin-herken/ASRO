@@ -43,8 +43,13 @@ class MissionControl:
 
         front_agent = self.__agents[0]
         dist_diff = front_agent.get_pos() - swarm_center
+        if dist_diff[0]==0.0 and dist_diff[1]==0.0 and dist_diff[2]==0.0:
+            self.__swarm_desired_heading = 0.01
+        else: 
+            self.__swarm_heading = dist_diff / np.linalg.norm(dist_diff)
+    
 
-        self.__swarm_heading = dist_diff / np.linalg.norm(dist_diff)
+
         angle_diff = settings.angle_between(self.__swarm_heading, self.__swarm_desired_heading)
 
         # Determine rotation direction

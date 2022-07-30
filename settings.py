@@ -219,11 +219,11 @@ def myself()->numpy.ndarray:
 def pyramid():
     "return formation matrix for the square(2d) shape with 4 agents"
     ret_value = numpy.array([
-        [-0.5,-0.5,0.0],
-        [0.5,-0.5,0.0],
-        [0.5,0.5,0.0],
-        [-0.5,0.5,0.0],
-        [0.0,0.0,0.5*numpy.sqrt(3)]
+        [0.5,1.0,0.0],
+        [0.1,0.5,0.0],
+        [1.5,0.0,0.0],
+        [1.0,-0.5,0.0],
+        [0.5,-1.0,0.0]
     ])* FORMATION_OFFSET
     matrix_length = int(ret_value.size/3)
     return calculate_matrix(ret_value,matrix_length=matrix_length)
