@@ -11,8 +11,6 @@ def callback(data):
     string_data = string_1 + string_2 + string_3
     rospy.loginfo(rospy.get_caller_id() + " I heard %s", string_data)
 
-
-    
 def listener():
 
     # In ROS, nodes are uniquely named. If two nodes with the same

@@ -9,16 +9,17 @@ from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
 from cflib.crazyflie.log import LogConfig
 from cflib.positioning.motion_commander import MotionCommander
 import settings
+import rospy
+from custom_msg.msg import general_parameters
 
 class Agent:
     """This class represents the real-world agent.
     It does swarming and other operations to control the agent.
     """
-    __cf: Crazyflie
+    __scf: SyncCrazyflie
     __deck_attached_event: Event
     __mc: MotionCommander
-    __is_ready: bool
-
+    _is_ready: bool
     __uri: str
     __name: str
     __index: int
@@ -35,7 +36,6 @@ class Agent:
     __is_trajectory_active: bool
     __is_swarming: bool
     __is_in_formation: bool
-
     __formation_matrix: np.ndarray
     __swarm_heading: np.ndarray
     __swarm_desired_heading: np.ndarray
@@ -68,30 +68,41 @@ class Agent:
     __tp1: float
     __tp2: float
     __fps: int
+    _team : np.ndarray
+    # Callbacks
+    def param_deck_flow(self, _, value_str):
+        value = int(value_str)
+        print(value)
+        if value:
+            self.__deck_attached_event.set()
+            logging.info('Deck is attached!')
+        else:
+            logging.info('Deck is NOT attached!')
     
-    def __init__(self, uri: str, name: str, idx: int) -> None:
+    def __init__(self, uri: str, name: str, idx: int,pub_stabilizer: rospy.Publisher) -> None:
         """Initializes the agent class.
 
         Args:
             name (str): Name of the agent.
             address (str): Address of the agent.
         """
+
+        self._team = np.array([-1,-1,-1])
         self.__uri = uri
         self.__name = name
         self.__index = idx
-
-        self.__is_ready = False
-        self._lg_stab = None
-
+        self._is_ready = False
+        self.pub_stabilizer = pub_stabilizer
         self.__is_formation_active = False
         self.__is_avoidance_active = False
         self.__is_trajectory_active = False
         self.__is_swarming = False
         self.__is_in_formation = False
-        self.__is_static = False
+        self._is_static = False
         self.__formation_matrix = np.array([0.0])
         self.__swarm_min_distance = 0.30
         self.__rotation_angle = 0.0
+        self.__swarm_min_distance = 0.3
         self.__angle_offset = 0.0
 
         self.__target_point = np.array([0.0, 0.0, 0.0])
@@ -101,11 +112,11 @@ class Agent:
         self.__pos = np.array([0.0, 0.0, 0.0])
         self.__vel = np.array([0.0, 0.0, 0.0])
         self.__speed = 0.0
-        self.__max_speed = 1.0
-        self.__formation_const = 0.5
-        self.__trajectory_const = 1.5
-        self.__alpha = 1.15
-        self.__beta = 2.21
+        self.__max_speed = 0.5
+        self.__formation_const = 0.7
+        self.__trajectory_const = 0.6
+        self.__alpha = 1.2
+        self.__beta = 3.6
 
         self.__t1 = time.perf_counter()
         self.__t2 = time.perf_counter()
@@ -117,17 +128,30 @@ class Agent:
         self.__tp1 = time.perf_counter()
         self.__tp2 = time.perf_counter()
         self.__fps = 0
-
+        self.rate = rospy.Rate(10)
         # start the update thread
         self.__lock = Lock()
         self.__thread = Thread(target=self.update, daemon=True)
-
+        print("Subscriber")
+        #rospy.Subscriber("/general_parameters/YILDIZLARARASI", general_parameters, self.callback)
+        # spin() simply keeps python from exiting until this node is stopped
+        #rospy.spin()
         try:
             self.__thread.start()
-            logging.info(f"[{self.get_name()}] Started the daemon update thread")
+            print(f"[{self.get_name()}] Started the daemon update thread")
         except:
-            logging.info(f"[{self.get_name()}] Failed to start the daemon update thread")
-
+            print(f"[{self.get_name()}] Failed to start the daemon update thread")
+    def parse_data(self,team_name,uav_name,data_org):
+        uav_inf = general_parameters()
+        uav_inf.team_name = team_name
+        uav_inf.uav_name = uav_name
+        uav_inf.rpy.roll = data_org['stabilizer.roll']
+        uav_inf.rpy.pitch = data_org['stabilizer.pitch']
+        uav_inf.rpy.yaw = data_org['stabilizer.yaw']
+        uav_inf.pose.x = data_org['stateEstimate.x']
+        uav_inf.pose.y = data_org['stateEstimate.y']
+        uav_inf.pose.z = data_org['stateEstimate.z']
+        return uav_inf
     def formation_control(self) -> np.ndarray:
         """Calculates the formation 'force' to be applied to the agent.
         This calculation moves the agent into formation.
@@ -209,9 +233,52 @@ class Agent:
             ret_value = self.get_target_point() - self.get_pos()
 
         return ret_value * self.__trajectory_const
-    
-    
+    def callback(self,data):
+        string_1 = "\nTeam Name: " + str(data.team_name) +"\nUav Name: "+  str(data .uav_name) 
+        string_2 ="\nRoll: " + str(data.rpy.roll) + "\nPitch: " + str(data.rpy.pitch) + "\nYaw: "+str(data.rpy.roll)
+        string_3 ="\nx: " + str(data.pose.x) + "\ny: " + str(data.pose.y) + "\nz: " + str(data.pose.z)  
+        string_data = string_1 + string_2 + string_3
+        print(string_data)
+        self._team = np.array([data.pose.x,data.pose.y,data.pose.z])
+        #rospy.loginfo(rospy.get_caller_id() + " I heard %s", string_data)
+    def __updateVariables(self, timestamp, data, logconf):
+        self.set_pos(np.array(
+            [
+                data['stateEstimate.x'],
+                data['stateEstimate.y'],
+                data['stateEstimate.z']
+            ]
+        ))
+        print(data['stateEstimate.x'],data['stateEstimate.y'],data['stateEstimate.z'])
+        uav_inf = self.parse_data(str("YILDIZLARARASI"),str(self.__uri),data)
+        
+        self.pub_stabilizer.publish(uav_inf)
+        # Update agent info
+        self.__x1 = np.array(self.__x2)
+        self.__x2 = np.array(self.get_pos())
 
+        self.__t2 = time.perf_counter()
+        self.set_vel((self.__x2 - self.__x1) / (self.__t2 - self.__t1))
+        self.__t1 = time.perf_counter()
+        
+        self.__speed = settings.get_magnitude(self.get_vel())
+
+        # Update swarm info
+        if self.__is_swarming:
+            swarm_center = np.array([0.0, 0.0, 0.0])
+            for agent in self.get_other_agents():
+                swarm_center += agent.get_pos()
+            swarm_center /= len(self.get_other_agents())
+
+            front_agent = self.get_other_agents()[0]
+            dist_diff = front_agent.get_pos() - swarm_center
+
+            heading = dist_diff / np.linalg.norm(dist_diff)
+
+            # Angle offset
+            heading = np.dot(settings.get_rotation_matrix(self.get_angle_offset()), heading)
+
+            self.set_swarm_heading(heading)
     def get_index(self) -> int:
         """Agent index.
 
@@ -254,10 +321,7 @@ class Agent:
         Returns:
             np.ndarray: _description_
         """
-        self.__lock.acquire()
         pos = np.array(self.__pos)
-        self.__lock.release()
-
         return pos
 
     def get_vel(self) -> np.ndarray:
@@ -295,7 +359,16 @@ class Agent:
         self.__lock.release()
 
         return formation
+    def set_is_ready(self,bool_value):
+        """Agent formation matrix.
 
+        Returns:
+            np.ndarray: _description_
+        """
+        self.__lock.acquire()
+        value = bool_value
+        self.__lock.release()
+        return value
     def get_target_point(self) -> np.ndarray:
         """Agent target point.
 
@@ -404,18 +477,6 @@ class Agent:
 
         return rotation_angle
 
-    def is_ready(self) -> bool:
-        """Agent is ready.
-
-        Returns:
-            bool: _description_
-        """
-        self.__lock.acquire()
-        is_active = self.__is_ready
-        self.__lock.release()
-
-        return is_active
-
     def is_formation_active(self) -> bool:
         """Agent is formation active.
 
@@ -490,21 +551,6 @@ class Agent:
         self.__lock.release()
 
         return True
-    
-    def set_is_ready(self, status: bool) -> bool:
-        """Agent set is ready.
-
-        Args:
-            status (bool): _description_
-
-        Returns:
-            bool: _description_
-        """
-        self.__lock.acquire()
-        self.__is_ready = status
-        self.__lock.release()
-
-        return True
 
     def set_is_in_formation(self, status: bool) -> bool:
         """Agent set is in formation.
@@ -548,11 +594,9 @@ class Agent:
         Returns:
             bool: _description_
         """
-        self.__lock.acquire()
         self.__target_point = np.array(target)
-        self.__lock.release()
 
-        logging.info(f"[{self.get_name()}] Target x: {round(target[0], 2)} y: {round(target[1], 2)} z: {round(target[2], 2)}")
+        print(f"[{self.get_name()}] Target x: {round(target[0], 2)} y: {round(target[1], 2)} z: {round(target[2], 2)}")
 
         return True
 
@@ -569,7 +613,7 @@ class Agent:
         self.__target_height = target_height
         self.__lock.release()
 
-        logging.info(f"[{self.get_name()}] Target height set to: {round(target_height, 2)}")
+        print(f"[{self.get_name()}] Target height set to: {round(target_height, 2)}")
 
         return True
 
@@ -677,6 +721,7 @@ class Agent:
 
     def set_swarm_heading(self, heading: np.ndarray) -> bool:
         """Agent set swarm heading.
+except KeyError as e:
                 logger.warning(str(e))
         Args:
             heading (np.ndarray): _description_
@@ -704,45 +749,7 @@ class Agent:
         self.__lock.release()
         
         return True
-    def is_static(self) -> bool:
-        """Agent is static.
 
-        Returns:
-            bool: _description_
-        """
-        self.__lock.acquire()
-        is_static = self.__is_static
-        self.__lock.release()
-
-        return is_static
-    def set_is_static(self, status: bool) -> bool:
-        """Agent set is static
-
-        Args:
-            status (bool): _description_
-
-        Returns:
-            bool: _description_
-        """
-        self.__lock.acquire()
-        self.__is_static = status
-        self.__lock.release()
-
-        return True
-    def set_obstacles(self, obstacles: list) -> bool:
-        """Agent set obstacles.
-
-        Args:
-            obstacles (list): _description_
-
-        Returns:
-            bool: _description_
-        """
-        self.__lock.acquire()
-        self.__obstacles = obstacles
-        self.__lock.release()
-
-        return True
     def set_angle_offset(self, angle_offset: float) -> bool:
         """Agent set angle offset.
 
@@ -849,10 +856,14 @@ class Agent:
         self.__lock.release()
 
         return True
-
-
+    def _stab_log_error(self, logconf, msg):
+        """Callback from the log API when an error occurs"""
+        print('Error when logging %s: %s' % (logconf.name, msg))
+    def position(self,timestamp,logconf,data):
+        print([data['stateEstimate.x'],data['stateEstimate.y'],data['stateEstimate.z']])
+        print("here")
     def update(self) -> bool:
-        """Depending on the settings, calculates the control values and applies them.
+        """Depending on the settings, calculates the control values and applies them. 
 
         Args:
             agents (list): List of all agents in the system.
@@ -861,163 +872,63 @@ class Agent:
             bool: Whether the update was succesfull or not.
 		"""
         ret_value = False
-        
+
         self.__deck_attached_event = Event()
-        
-        #with SyncCrazyflie(self.__uri, cf=Crazyflie(rw_cache='./cache')) as scf:
-        #scf.cf.param.add_update_callback(group='deck', name='bcFlow2', cb=self.param_deck_flow)
-        self.__cf = Crazyflie(rw_cache="./cache")
-        # Update __scf
-        # Connect some callbacks from the Crazyflie API
-        self.__cf.connected.add_callback(self.connected)
-        self.__cf.disconnected.add_callback(self.disconnected)
-        self.__cf.connection_failed.add_callback(self.connection_failed)
-        self.__cf.connection_lost.add_callback(self.connection_lost)
+        with SyncCrazyflie(self.__uri, cf=Crazyflie(rw_cache='./cache')) as self.scf:
+            '''self.scf.cf.param.add_update_callback(group='deck', name='bcFlow2', cb=self.param_deck_flow)
+            time.sleep(1.0)
+            if not self.__deck_attached_event.wait(timeout=5):
+                print('No flow deck detected!')
+                sys.exit(1)'''
+            self.logconf = LogConfig(name='Position', period_in_ms=10)
+            self.logconf.add_variable('stateEstimate.x', 'float')
+            self.logconf.add_variable('stateEstimate.y', 'float')
+            self.logconf.add_variable('stateEstimate.z', 'float')
+            self.logconf.add_variable('stabilizer.roll','float')
+            self.logconf.add_variable('stabilizer.pitch','float')
+            self.logconf.add_variable('stabilizer.yaw','float')
+            
+            self.scf.cf.log.add_config(self.logconf)
+            self.logconf.data_received_cb.add_callback(cb=self.__updateVariables)
+            self.logconf.error_cb.add_callback(self._stab_log_error)
+                
+            self.logconf.start()  
+            while True:
+                try:
+                    # Calculate control values
+                    control_vel = np.array([0.0, 0.0, 0.0])
+                    formation_vel = np.array([0.0, 0.0, 0.0])
+                    avoidance_vel = np.array([0.0, 0.0, 0.0])
+                    trajectory_vel = np.array([0.0, 0.0, 0.0])
 
-        self.__cf.open_link(self.__uri)
-        # with MotionCommander(scf, default_height=0.01) as mc:
-        while self.__thread.is_alive():
+                    if self.is_formation_active():
+                        formation_vel = self.formation_control()
 
-            # Wait for agent to be ready
-            if not self.is_ready():
-                continue
+                    if self.is_avoidance_active():
+                        avoidance_vel = self.avoidance_control()
+                        if 0.0 < settings.get_magnitude(avoidance_vel):
+                            logging.info(f"[{self.get_name()}] Possible crash avoidance active!")
 
-            # Calculate control values
-            control_vel = np.array([0.0, 0.0, 0.0])
-            formation_vel = np.array([0.0, 0.0, 0.0])
-            avoidance_vel = np.array([0.0, 0.0, 0.0])
-            trajectory_vel = np.array([0.0, 0.0, 0.0])
+                    if self.is_trajectory_active():
+                        trajectory_vel = self.trajectory_control()
 
-            if self.is_formation_active():
-                formation_vel = self.formation_control()
+                        # Limit swarm control values
+                        if self.get_max_speed() < settings.get_magnitude(trajectory_vel):
+                            trajectory_vel = settings.set_magnitude(trajectory_vel, self.get_max_speed())
+                    # ---- Final velocity ---- # 
+                    control_vel = formation_vel + avoidance_vel + trajectory_vel
+                    # ------------------------ #
 
-            if self.is_avoidance_active():
-                avoidance_vel = self.avoidance_control()
-                if 0.02 < settings.get_magnitude(avoidance_vel):
-                    logging.info(f"[{self.get_name()}] Possible crash avoidance active!")
-
-            if self.is_trajectory_active():
-                trajectory_vel = self.trajectory_control()
-
-                # Limit swarm control values
-                if self.get_max_speed() < settings.get_magnitude(trajectory_vel):
-                    trajectory_vel = settings.set_magnitude(trajectory_vel, self.get_max_speed())
-        
-            # ---- Final velocity ---- #
-            control_vel = formation_vel + avoidance_vel + trajectory_vel
-            # ------------------------ #
-
-            ## UNCOMMENT THIS TO SEE CONTROL VELOCITIES
-            # logging.info(f"[{self.get_name()}] ControlVel: {control_vel.round(2)}")
-
-            # Send the commanding message
-            # print(f"[{self.getName()}] {formationVel.round(4)}")
-            if self.is_formation_active() or self.is_avoidance_active() or self.is_trajectory_active():
-                self.__cf.commander.send_velocity_world_setpoint(control_vel[0], control_vel[1], control_vel[2], 0.0)
-            time.sleep(1 / 50)
-
+                    # Send the commanding message
+                    # print(f"[{self.getName()}] {formationVel.round(4)}")
+                    if self.__is_trajectory_active or self.__is_formation_active or self.__is_avoidance_active:
+                        self.scf.cf.commander.send_velocity_world_setpoint(control_vel[0],control_vel[1],control_vel[2],0.0)
+                        pass
+                    time.sleep(1 / 20)
+                except KeyboardInterrupt:
+                    print("Logout")
+                    
         return ret_value
-
-    def param_deck_flow(self, _, value_str):
-        """ Connection to the flow deck.
-        """
-        value = int(value_str)
-        if value:
-            self.__deck_attached_event.set()
-            logging.info(f"[{self.get_name()}] Deck is attached!")
-        else:
-            logging.info(f"[{self.get_name()}] Deck is NOT attached!")
-
-
-    def stab_log_error(self, logconf, msg) -> None:
-        """ Error connecting to the agent.
-        """
-        logging.info(f"[{self.get_name()}] Error when logging {logconf.name, msg}")
-
-    
-    def connected(self, link_uri: str):
-        """ This callback is called form the Crazyflie API when a Crazyflie
-        has been connected and the TOCs have been downloaded."""
-        logging.info(f"[{self.get_name()}] Connected to the agent! {link_uri}")
-
-        # The definition of the logconfig can be made before connecting
-        self._lg_stab = LogConfig(name='Stabilizer', period_in_ms=10)
-        self._lg_stab.add_variable('stateEstimate.x', 'float')
-        self._lg_stab.add_variable('stateEstimate.y', 'float')
-        self._lg_stab.add_variable('stateEstimate.z', 'float')
-        # The fetch-as argument can be set to FP16 to save space in the log packet
-        self._lg_stab.add_variable('pm.vbat', 'float')
-
-        # Adding the configuration cannot be done until a Crazyflie is
-        # connected, since we need to check that the variables we
-        # would like to log are in the TOC.
-        try:
-            self.__cf.log.add_config(self._lg_stab)
-
-            # This callback will receive the data
-            self._lg_stab.data_received_cb.add_callback(self.update_variables)
-
-            # Start the logging
-            self._lg_stab.start()
-
-            # Set agent as ready
-            self.set_is_ready(True)
-        except KeyError as err:
-            logging.info(f"[{self.get_name()}] Could not start log configuration, {str(err)} not found in TOC") 
-        except AttributeError:
-            print('Could not add Stabilizer log config, bad configuration.')
-        
-    def update_variables(self, timestamp, data, logconf):
-        self.set_pos(np.array(
-            [
-                data['stateEstimate.x'],
-                data['stateEstimate.y'],
-                data['stateEstimate.z']
-            ]
-        ))
-
-        # Update agent info
-        self.__x1 = np.array(self.__x2)
-        self.__x2 = np.array(self.get_pos())
-
-        self.__t2 = time.perf_counter()
-        self.set_vel((self.__x2 - self.__x1) / (self.__t2 - self.__t1))
-        self.__t1 = time.perf_counter()
-        
-        self.__speed = settings.get_magnitude(self.get_vel())
-
-        # Update swarm info
-        if self.__is_swarming:
-            swarm_center = np.array([0.0, 0.0, 0.0])
-            for agent in self.get_other_agents():
-                swarm_center += agent.get_pos()
-            swarm_center /= len(self.get_other_agents())
-
-            front_agent = self.get_other_agents()[0]
-            dist_diff = front_agent.get_pos() - swarm_center
-
-            heading = dist_diff / np.linalg.norm(dist_diff)
-
-            # Angle offset
-            heading = np.dot(settings.get_rotation_matrix(self.get_angle_offset()), heading)
-
-            self.set_swarm_heading(heading)
-
-    def connection_failed(self, link_uri, msg):
-        """Callback when connection initial connection fails (i.e no Crazyflie
-        at the specified address)"""
-        print('Connection to %s failed: %s' % (link_uri, msg))
-        self.set_is_ready(False)
-
-    def connection_lost(self, link_uri, msg):
-        """Callback when disconnected after a connection has been made (i.e
-        Crazyflie moves out of range)"""
-        print('Connection to %s lost: %s' % (link_uri, msg))
-
-    def disconnected(self, link_uri):
-        """Callback when the Crazyflie is disconnected (called in all cases)"""
-        print('Disconnected from %s' % link_uri)
-        self.set_is_ready(False)
 
     def take_off(self, target_height: float) -> bool:
         """Takes off the agent.
@@ -1058,6 +969,6 @@ class Agent:
             bool: Whether the operation was succesfull or not.
         """
         ret_value = True
-        
-        self.__cf.commander.send_stop_setpoint()
+
+        self.__scf.cf.commander.send_stop_setpoint()
         return ret_value

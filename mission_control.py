@@ -2,6 +2,7 @@
 import logging
 import time
 from typing import List
+from defer import return_value
 import numpy as np
 import settings
 from agent import Agent
@@ -36,20 +37,15 @@ class MissionControl:
 
         # Update swarm info
         swarm_center = np.array([0.0, 0.0, 0.0])
-        
+
         for agent in self.__agents:
             swarm_center += agent.get_pos()
         swarm_center /= len(self.__agents)
 
         front_agent = self.__agents[0]
         dist_diff = front_agent.get_pos() - swarm_center
-        if dist_diff[0]==0.0 and dist_diff[1]==0.0 and dist_diff[2]==0.0:
-            self.__swarm_desired_heading = 0.01
-        else: 
-            self.__swarm_heading = dist_diff / np.linalg.norm(dist_diff)
-    
 
-
+        self.__swarm_heading = dist_diff / np.linalg.norm(dist_diff)
         angle_diff = settings.angle_between(self.__swarm_heading, self.__swarm_desired_heading)
 
         # Determine rotation direction
@@ -124,9 +120,7 @@ class MissionControl:
         t1_val = time.perf_counter()
         t2_val = time.perf_counter()
 
-        while t2_val - t1_val <= duration:
-            t2_val = time.perf_counter()
-
+        time.sleep(duration)
         for agent in self.__agents:
             agent.set_formation_const(1.25)
 
@@ -160,7 +154,6 @@ class MissionControl:
         if len(durations) != 4:
             logging.info("Size of durations is not 4! Aborting")
             return False
-
         # Stop formation forces
         for agent in self.__agents:
             agent.set_formation_active(False)
@@ -168,37 +161,32 @@ class MissionControl:
             pos = agent.get_pos()
             agent.set_target_point(pos)
 
-        # Prepare the targetAgents
+        # Prepare the targetAgenys
         poses = []
         for agent in target_agents:
             poses.append(agent.get_pos())
             agent.set_trajectory_active(True)
-
         # Move the target_agents back to their spawn point
         for agent in target_agents:
             cur_pos = agent.get_pos()
-            initial_pos = agent.get_initial_pos()
+            initial_pos = agent.getInitialPos()
             initial_pos[2] = cur_pos[2]
             agent.set_target_point(initial_pos)
-
         # Wait for agents to go
         t1_val = time.perf_counter()
         t2_val = time.perf_counter()
 
         while t2_val - t1_val <= durations[0]:
             t2_val = time.perf_counter()
-
         # Land the target_agents
         for agent in target_agents:
             agent.land()
-
         # Wait for target_agents to land
         t1_val = time.perf_counter()
         t2_val = time.perf_counter()
 
         while t2_val - t1_val <= durations[1]:
             t2_val = time.perf_counter()
-
         # Remove target_agents from the agents list
         for agent in target_agents:
             self.__agents.remove(agent)
@@ -209,22 +197,21 @@ class MissionControl:
             agent.set_avoidance_active(True)
             agent.set_trajectory_active(True)
         
+        
         # Wait for new_agents to take_off
         t1_val = time.perf_counter()
         t2_val = time.perf_counter()
 
         while t2_val - t1_val <= durations[2]:
-            t2_val = time.perf_counter()
-
+            t2_val = time.perf_counter() 
         # Move new_agents to their positions in the swarm
         for idx, agent in enumerate(new_agents):
             agent.set_target_point(poses[idx])
-
         # Wait for new_agents to move
         t1_val = time.perf_counter()
         t2_val = time.perf_counter()
 
-        while t2_val - t1_val <= durations[3]:
+        while t2_val - t1_val <= durations[2]:
             t2_val = time.perf_counter()
 
         # Finalize the new_agents
@@ -273,11 +260,11 @@ class MissionControl:
 
         for agent in self.__agents:
             agent.set_obstacles(obstacles)
+
         t1_val = time.perf_counter()
         t2_val = time.perf_counter()
 
         while t2_val - t1_val <= duration:
-            self.__update()
             t2_val = time.perf_counter()
 
 
@@ -305,10 +292,9 @@ class MissionControl:
         while t2_val - t1_val <= duration:
             t2_val = time.perf_counter()
 
-
         logging.info(f"Ending mission take_off_agent with success. Current height: {round(agent.get_pos()[2], 2)}")
 
-        agent.set_trajectory_active(False)
+        #agent.set_trajectory_active(False)
 
         return ret_value
     
@@ -318,24 +304,20 @@ class MissionControl:
         Returns:
             bool: Specifies whether the mission was successfull or not.
         """
-        logging.info("Starting mission take_off_all.")
         ret_value = False
-
+        print("Take_off_all")
         for agent in self.__agents:
             ret_value = agent.take_off(height)
             agent.set_trajectory_active(True)
-        time.sleep(duration)
         t1_val = time.perf_counter()
         t2_val = time.perf_counter()
-
-        '''while t2_val - t1_val <= duration:
-            t2_val = time.perf_counter()'''
-
-
-        logging.info(f"Ending mission take_off_all with success. Total target count: {len(self.__agents)}")
-
+        print(t2_val)
+        while t2_val-t1_val<=duration:
+            
+            t2_val = time.perf_counter()
+            pass
+        print(t2_val)
         #agent.set_trajectory_active(False)
-
         return ret_value
 
     def land_agent(self, agent: Agent, duration: float) -> bool:
@@ -382,11 +364,10 @@ class MissionControl:
         t2_val = time.perf_counter()
 
         while t2_val - t1_val <= duration:
-            self.__update()
             t2_val = time.perf_counter()
 
 
-        logging.info(f"Ending missionLandAll with success. Total target count: {len(self.__agents)}")
+        print(f"Ending missionLandAll with success. Total target count: {len(self.__agents)}")
 
         #agent.set_trajectory_active(False)
 
@@ -414,9 +395,7 @@ class MissionControl:
             t1_val = time.perf_counter()
             t2_val = time.perf_counter()
 
-            while t2_val - t1_val <= duration:
-                self.__update()
-                t2_val = time.perf_counter()
+            time.sleep(duration)
 
             # Last point
             if i == len(points) - 1:
@@ -451,7 +430,7 @@ class MissionControl:
             t2_val = time.perf_counter()
 
             while t2_val - t1_val <= duration:
-                self.__update()
+
                 t2_val = time.perf_counter()
 
             # Last point
@@ -477,7 +456,7 @@ class MissionControl:
         for agent in self.__agents:
             agent.set_rotation(angle)
             agent.set_trajectory_active(False)
-            agent.set_formation_const(0.4)
+            agent.set_formation_const(0.15)
             agent.set_formation_active(True)
 
         t1_val = time.perf_counter()
@@ -487,7 +466,7 @@ class MissionControl:
             t2_val = time.perf_counter()
 
         for agent in self.__agents:
-            agent.set_formation_const(0.9)
+            agent.set_formation_const(1.25)
 
         logging.info(f"Ending rotate_swarm with success. Total target count: {len(self.__agents)}")
 
